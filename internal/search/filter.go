@@ -188,3 +188,10 @@ func (ig ignores) ignored(rel string, isDir bool) bool {
 	}
 	return ignored
 }
+
+// MatchGlob reports whether the slash-separated relative path matches the
+// glob, with the same rules as include and exclude filters.
+func MatchGlob(pattern, rel string) bool {
+	g, ok := compileGlob(pattern)
+	return ok && g.match(rel)
+}

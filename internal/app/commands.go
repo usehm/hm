@@ -82,6 +82,11 @@ func (a *App) registerCommands(c *ui.Ctx) {
 		ui.Cmd("panel.problems").Title("Toggle Problems").Shortcut(a.key("panel.problems")).Icon(icons.TriangleAlert).Run(func() { a.togglePanel(panelProblems) }),
 		ui.Cmd("panel.output").Title("Toggle Output").Icon(icons.ScrollText).Run(func() { a.togglePanel(panelOutput) }),
 		ui.Cmd("panel.close").Title("Close Panel").Icon(icons.PanelBottomClose).Enabled(a.panelOpen).Run(func() { a.panelOpen = false }),
+		ui.Cmd("agent.new").Title("Agent: New Session").Icon(icons.SquarePen).Run(func() { a.agentOpen = true; a.newAgentSession() }),
+		ui.Cmd("agent.undo").Title("Agent: Undo Last Turn").Icon(icons.Undo2).Enabled(a.agent.lastCheckpoint != nil).Run(a.undoAgentTurn),
+		ui.Cmd("agent.stop").Title("Agent: Stop").Icon(icons.Square).Enabled(a.agent.running).Run(a.stopAgent),
+		ui.Cmd("agent.askSelection").Title("Ask Agent About Selection").Shortcut(a.key("agent.askSelection")).Icon(icons.Bot).
+			Enabled(hasEd && ed.HasSelection()).Run(a.askAboutSelection),
 		ui.Cmd("agent.toggle").Title("Toggle Agent").Shortcut(a.key("agent.toggle")).Icon(icons.Bot).Run(a.toggleAgent),
 		ui.Section("Settings"),
 		ui.Cmd("settings.yaml").Title("Settings: Open User Config (YAML)").Icon(icons.FileCode).Run(func() { a.openConfigYAML(false) }),

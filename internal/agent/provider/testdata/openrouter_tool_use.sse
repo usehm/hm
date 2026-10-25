@@ -1,0 +1,16 @@
+data: {"id":"gen-1","choices":[{"index":0,"delta":{"role":"assistant","content":"Reading "}}]}
+
+data: {"id":"gen-1","choices":[{"index":0,"delta":{"content":"the file."}}]}
+
+data: {"id":"gen-1","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_9","type":"function","function":{"name":"read","arguments":""}}]}}]}
+
+data: {"id":"gen-1","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"path\":"}}]}}]}
+
+data: {"id":"gen-1","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"a.go\"}"}}]}}]}
+
+data: {"id":"gen-1","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}
+
+data: {"id":"gen-1","choices":[],"usage":{"prompt_tokens":500,"completion_tokens":30,"cost":0.0012,"prompt_tokens_details":{"cached_tokens":200}}}
+
+data: [DONE]
+

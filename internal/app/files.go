@@ -44,6 +44,7 @@ func (a *App) openFolder(root string) {
 			a.cfg.SetProject(p)
 		}
 		a.applyConfig(a.cfg.Current())
+		a.initAgent()
 	}
 }
 

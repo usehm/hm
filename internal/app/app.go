@@ -17,6 +17,7 @@ import (
 	"github.com/mirzakhany/hm/internal/config"
 	"github.com/mirzakhany/hm/internal/editor"
 	"github.com/mirzakhany/hm/internal/lang"
+	"github.com/mirzakhany/hm/internal/secrets"
 	"github.com/mirzakhany/hm/internal/workspace"
 )
 
@@ -57,6 +58,7 @@ type App struct {
 
 	search projectSearch
 	gitst  gitState
+	agent  agentState
 	upd    *updater
 
 	// ctx is the window context, valid for the window's lifetime. Callbacks
@@ -82,6 +84,8 @@ type Options struct {
 	KeepPath bool
 	// NoUpdates skips looking for new releases.
 	NoUpdates bool
+	// Keys replaces the OS keychain, for tests.
+	Keys secrets.Store
 }
 
 // Build creates the app. It runs inside yoga.Run's build function, after the
@@ -92,6 +96,7 @@ func Build(opts Options) *App {
 		uiq: make(chan func(), 256), formatting: map[string]int{}, installing: map[string]bool{},
 		upd: &updater{}, noUpdates: opts.NoUpdates,
 	}
+	a.agent.keys = opts.Keys
 	a.bufs = editor.New(editorOptions)
 	a.bufs.OnOpen = a.attachEditor
 	a.lang = lang.New(a.invalidate)
@@ -215,6 +220,7 @@ func (a *App) attachEditor(ed *ui.Editor) {
 			return append(items, ui.MenuItem{Label: "Format Document", OnSelect: func() { a.format(ed, "manual", nil) }})
 		}
 		return append([]ui.MenuItem{
+			{Label: "Ask Agent About Selection", Disabled: !ed.HasSelection(), OnSelect: a.askAboutSelection},
 			{Label: "Go to Definition", OnSelect: func() { a.definition(ed, ed.Caret()) }},
 			{Label: "Go to Implementation", OnSelect: func() { a.implementation(ed, ed.Caret()) }},
 			{Label: "Find References", OnSelect: func() { a.references(ed, ed.Caret()) }},
@@ -227,6 +233,10 @@ func (a *App) attachEditor(ed *ui.Editor) {
 // Close saves the session and releases editors and watchers.
 func (a *App) Close() {
 	a.saveSession()
+	a.stopAgent()
+	if a.agent.shells != nil {
+		a.agent.shells.StopAll()
+	}
 	if a.search.cancel != nil {
 		a.search.cancel()
 	}

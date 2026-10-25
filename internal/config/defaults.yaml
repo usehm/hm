@@ -38,6 +38,7 @@ keys:                         # command id -> chord; overrides built-ins
   editor.rename: f2
   editor.format: shift+alt+f
   editor.symbols: cmd+shift+o
+  agent.askSelection: cmd+shift+l
   app.settings: cmd+,
 
 search:
@@ -154,9 +155,18 @@ updates:
   repo: mirzakhany/hm         # GitHub repository releases come from
 
 agent:
-  default_provider: ""
+  default_provider: anthropic
   default_mode: auto
-  providers: {}
+  # Keys live in the OS keychain: "keychain:<name>" (Settings → Agent → Add key)
+  # or an environment variable: "${OPENROUTER_API_KEY}".
+  providers:
+    anthropic: { type: anthropic, api_key: "keychain:anthropic", model: claude-opus-5-5, effort: high }
+    openrouter:
+      type: openai
+      base_url: https://openrouter.ai/api/v1
+      api_key: "keychain:openrouter"
+      model: anthropic/claude-sonnet-5-5
+    ollama: { type: openai, base_url: "http://localhost:11434/v1", model: qwen3-coder }
 
 modes:
   lazy:

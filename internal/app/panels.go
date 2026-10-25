@@ -64,15 +64,3 @@ func (a *App) panelView(c *ui.Ctx) ui.View {
 	return ui.Column(header, ui.ViewOf(body).Grow(1)).Grow(1).Background(ui.TokenChrome).
 		BorderTop(ui.TokenBorder, th.Stroke.Thin)
 }
-
-func (a *App) agentView(c *ui.Ctx) ui.View {
-	th := c.Theme()
-	return ui.Column(
-		ui.Row(
-			ui.Strong("Agent"),
-			ui.Spacer(),
-			ui.IconButton("agent-close", icons.X).Tooltip("Close").OnClick(func() { a.agentOpen = false }),
-		).Height(30).PaddingLeft(th.Spacing.M).PaddingRight(th.Spacing.XS),
-		ui.ViewOf(ui.EmptyState("Agent", "The coding agent arrives in a later milestone.").EmptyIcon(icons.Bot)).Grow(1),
-	).Grow(1).Background(ui.TokenChrome).BorderLeft(ui.TokenBorder, th.Stroke.Thin)
-}

@@ -14,6 +14,7 @@ import (
 	"github.com/mirzakhany/yoga/ui"
 
 	"github.com/mirzakhany/hm/internal/config"
+	"github.com/mirzakhany/hm/internal/secrets"
 	"github.com/mirzakhany/hm/internal/workspace"
 )
 
@@ -40,7 +41,7 @@ func newHarness(t *testing.T, root string, session bool) *harness {
 	c.SetIcons(sheet)
 	c.SetClipboard(clip)
 	h := &harness{t: t, c: c, mouse: &input.Mouse{}, kb: &input.Keyboard{}, root: root}
-	h.app = Build(Options{Root: root, NoSession: !session, KeepPath: true, NoUpdates: true})
+	h.app = Build(Options{Root: root, NoSession: !session, KeepPath: true, NoUpdates: true, Keys: secrets.Memory{}})
 	t.Cleanup(h.app.cfg.Close)
 	h.frame()
 	return h

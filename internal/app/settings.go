@@ -1,6 +1,7 @@
 package app
 
 import (
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/mirzakhany/yoga/theme"
 	"github.com/mirzakhany/yoga/ui"
 
+	"github.com/mirzakhany/hm/internal/agent"
 	"github.com/mirzakhany/hm/internal/config"
 	"github.com/mirzakhany/hm/internal/workspace"
 )
@@ -102,7 +104,8 @@ func (a *App) settingsPage(c *ui.Ctx) ui.View {
 	).Grouped()
 
 	body := append([]ui.View{header}, alerts...)
-	body = append(body, form, ui.Caption("Keyboard shortcuts, languages, agent providers, modes and tools are edited in YAML."))
+	body = append(body, form, a.agentSettings(c),
+		ui.Caption("Keyboard shortcuts, languages, provider details, modes and tools are edited in YAML."))
 	return ui.Scroll("settings-scroll",
 		ui.Column(body...).Gap(th.Spacing.M).Padding(th.Spacing.XL).Width(760),
 	).Grow(1)
@@ -142,4 +145,88 @@ func enumIndex(path, v string) int {
 		}
 	}
 	return 0
+}
+
+// agentSettings picks the default provider and mode and stores API keys in
+// the OS keychain.
+func (a *App) agentSettings(c *ui.Ctx) ui.View {
+	th := c.Theme()
+	cfg := a.cfg.Current().Agent
+	provs := a.providerNames()
+	popts := make([]ui.SelectOption, len(provs))
+	psel := 0
+	for i, p := range provs {
+		popts[i] = ui.SelectOption{Label: p, Value: p}
+		if p == cfg.DefaultProvider {
+			psel = i
+		}
+	}
+	modes := agent.ModeNames(a.modes())
+	mopts := make([]ui.SelectOption, len(modes))
+	msel := 0
+	for i, m := range modes {
+		mopts[i] = ui.SelectOption{Label: m, Value: m}
+		if m == cfg.DefaultMode {
+			msel = i
+		}
+	}
+	rows := []ui.View{ui.Form("agent-form",
+		ui.FormHeading("Agent", "Providers, models and modes live under agent: and modes: in the YAML"),
+		ui.FormSelect("set-agent-provider", "Default provider", "Used by new sessions", popts, psel,
+			func(v string) { a.setSetting([]string{"agent", "default_provider"}, v) }),
+		ui.FormSelect("set-agent-mode", "Default mode", "lazy, rubber-duck, auto, fullstack, or your own", mopts, msel,
+			func(v string) { a.setSetting([]string{"agent", "default_mode"}, v) }),
+	).Grouped()}
+	for _, name := range provs {
+		name := name
+		pc := cfg.Providers[name]
+		status := "No key"
+		if a.hasProviderKey(name) {
+			status = "Key set"
+		}
+		if pc.Type == "openai" && strings.Contains(pc.BaseURL, "localhost") {
+			status = "Local, no key needed"
+		}
+		model := pc.Model
+		if model == "" && pc.Type == "anthropic" {
+			model = "claude-opus-5-5"
+		}
+		rows = append(rows, ui.Row(
+			ui.Column(ui.Strong(name), ui.Caption(pc.Type+" · "+model)).Gap(th.Spacing.XXS).Grow(1),
+			ui.Caption(status),
+			ui.Button("agent-key-"+name, ui.Text("Add key")).IconStart(icons.KeyRound).
+				OnClick(func() { a.askProviderKey(name) }),
+		).Gap(th.Spacing.S).PaddingXY(th.Spacing.M, th.Spacing.S).Radius(th.Radius.Medium).Border(ui.TokenBorder, th.Stroke.Thin))
+	}
+	return ui.Column(rows...).Gap(th.Spacing.S)
+}
+
+// askProviderKey asks for an API key and keeps it in the keychain.
+func (a *App) askProviderKey(name string) {
+	key := ""
+	a.ctx.Dialogs().Show(ui.DialogOpts{
+		Title: "API key for " + name, Width: 460, FitContent: true,
+		Body: func(c *ui.Ctx) ui.View {
+			th := c.Theme()
+			return ui.Column(
+				ui.Paragraph("The key is stored in "+keychainName()+", not in the config file; the config refers to it as keychain:"+name+"."),
+				ui.TextField("provider-key", key).Password(true).Placeholder("Paste the key").DefaultFocus().
+					OnChange(func(v string) { key = v }),
+			).Gap(th.Spacing.M).Padding(th.Spacing.L)
+		},
+		Actions: []ui.DialogAction{
+			{Label: "Cancel"},
+			{Label: "Save", Primary: true, OnClick: func() { a.saveProviderKey(name, key) }},
+		},
+	})
+}
+
+func keychainName() string {
+	switch runtime.GOOS {
+	case "darwin":
+		return "the macOS Keychain"
+	case "windows":
+		return "Windows Credential Manager"
+	}
+	return "the system keyring"
 }
