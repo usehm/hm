@@ -1,0 +1,4 @@
+/dist/
+/hm
+*.test
+.DS_Store
