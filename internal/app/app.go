@@ -54,6 +54,8 @@ type App struct {
 	outputEd    *ui.Editor
 	outputDirty bool
 
+	search projectSearch
+
 	// ctx is the window context, valid for the window's lifetime. Callbacks
 	// that run outside Body use it for dialogs, toasts and wakes.
 	ctx *ui.Ctx
@@ -151,6 +153,7 @@ func (a *App) Body(c *ui.Ctx) ui.View {
 	a.drainUI()
 	a.reportLanguages()
 	a.formatAfterPaste()
+	a.pumpSearch(c)
 	if a.cfg.TakeChange() {
 		a.reloadConfig()
 	}
@@ -212,6 +215,9 @@ func (a *App) attachEditor(ed *ui.Editor) {
 // Close saves the session and releases editors and watchers.
 func (a *App) Close() {
 	a.saveSession()
+	if a.search.cancel != nil {
+		a.search.cancel()
+	}
 	a.cfg.Close()
 	a.idx.stop()
 	a.bufs.CloseAll()

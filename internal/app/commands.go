@@ -105,13 +105,8 @@ func (a *App) registerCommands(c *ui.Ctx) {
 	c.Commands().Register(cmds...)
 }
 
-// searchProject opens project search. Until the search dialog lands it falls
-// back to the active file's find bar, so ⌘F keeps working.
-func (a *App) searchProject() {
-	if ed := a.ws.ActiveEditor(); ed != nil {
-		ed.OpenFind(false)
-	}
-}
+// searchProject opens the project search dialog.
+func (a *App) searchProject() { a.openSearch() }
 
 func (a *App) showQuickOpen() {
 	a.ctx.Commands().ShowScope(scopeFiles, "Search files by name")

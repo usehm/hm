@@ -170,6 +170,10 @@ func (a *App) activeView(c *ui.Ctx) ui.View {
 	if ed == nil {
 		return ui.EmptyState("File not open", t.Path).Grow(1)
 	}
+	if a.search.open && a.search.preview == ed.Path {
+		// The search dialog shows this editor; one widget, one place.
+		return ui.Spacer()
+	}
 	view := ui.ViewOf(ed).Grow(1)
 	if ed.HighlightOversize() {
 		th := c.Theme()
