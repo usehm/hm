@@ -15,6 +15,7 @@ require (
 	github.com/benoitkugler/textlayout v0.3.2 // indirect
 	github.com/benoitkugler/textprocessing v0.0.6 // indirect
 	github.com/cogentcore/webgpu v0.23.0 // indirect
+	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/go-fonts/latin-modern v0.3.3 // indirect
 	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20260802143932-8fa725040a18 // indirect
 	github.com/go-text/typesetting v0.3.4 // indirect
@@ -36,6 +37,7 @@ require (
 	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/knuth v0.6.0 // indirect
 	modernc.org/token v1.1.0 // indirect
 	star-tex.org/x/tex v0.7.1 // indirect

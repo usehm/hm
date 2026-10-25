@@ -10,6 +10,7 @@ import (
 
 	"github.com/mirzakhany/yoga/ui"
 
+	"github.com/mirzakhany/hm/internal/config"
 	"github.com/mirzakhany/hm/internal/workspace"
 )
 
@@ -37,6 +38,23 @@ func (a *App) openFolder(root string) {
 	a.tree.SetContextMenu(a.treeMenu)
 	a.treeQuery = ""
 	a.idx = newFileIndex(a.ws.Root, a.invalidate)
+	if a.cfg != nil {
+		if p := config.ProjectPath(a.ws.Root); func() bool { _, proj := a.cfg.Paths(); return proj != p }() {
+			a.cfg.SetProject(p)
+		}
+		a.applyConfig(a.cfg.Current())
+	}
+}
+
+// saveFile writes path. Saving a config file applies it right away.
+func (a *App) saveFile(path string) error {
+	if err := a.bufs.Save(path); err != nil {
+		return err
+	}
+	if user, project := a.cfg.Paths(); path == user || path == project {
+		a.reloadConfig()
+	}
+	return nil
 }
 
 // askOpenFolder picks a folder and opens it, confirming unsaved changes.
@@ -83,7 +101,7 @@ func (a *App) closeTab(i int) {
 			{Label: "Cancel"},
 			{Label: "Don't Save", OnClick: func() { a.closePath(path) }},
 			{Label: "Save", Primary: true, OnClick: func() {
-				if err := a.bufs.Save(path); err != nil {
+				if err := a.saveFile(path); err != nil {
 					a.fail("Save failed", err)
 					return
 				}
@@ -121,11 +139,9 @@ func (a *App) confirmDiscard(title string, fn func()) {
 			{Label: "Cancel"},
 			{Label: "Discard", OnClick: fn},
 			{Label: "Save All", Primary: true, OnClick: func() {
-				if err := a.ws.SaveAll(); err != nil {
-					a.fail("Save failed", err)
-					return
+				if a.saveAll() {
+					fn()
 				}
-				fn()
 			}},
 		},
 	})
@@ -136,15 +152,21 @@ func (a *App) save() {
 	if t == nil || t.Kind != workspace.KindFile {
 		return
 	}
-	if err := a.ws.SaveActive(); err != nil {
-		a.fail("Save failed", err)
-	}
+	a.fail("Save failed", a.saveFile(t.Path))
 }
 
-func (a *App) saveAll() {
-	if err := a.ws.SaveAll(); err != nil {
-		a.fail("Save failed", err)
+// saveAll writes every modified tab and reports whether all succeeded.
+func (a *App) saveAll() bool {
+	ok := true
+	for i, t := range a.ws.Tabs {
+		if a.ws.Modified(i) {
+			if err := a.saveFile(t.Path); err != nil {
+				a.fail("Save failed", err)
+				ok = false
+			}
+		}
 	}
+	return ok
 }
 
 // treeMenu is the file tree's right-click menu for path.

@@ -13,7 +13,6 @@ type Session struct {
 	Root   string       `json:"root"`
 	Tabs   []SessionTab `json:"tabs"`
 	Active int          `json:"active"`
-	Theme  string       `json:"theme,omitempty"`
 	Side   *bool        `json:"side,omitempty"`
 }
 

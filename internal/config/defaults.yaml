@@ -1,0 +1,108 @@
+# hm built-in defaults. Your ~/.config/hm/config.yaml and a project's
+# .hm/config.yaml use the same keys; later files win. Maps merge key by key,
+# lists replace.
+
+editor:
+  theme: tokyo-night          # any theme name, or "system"
+  font_size: 14
+  font_family: ""             # empty = built-in monospace
+  tab_width: 4
+  insert_spaces: false
+  soft_wrap: false
+  line_numbers: true
+  format_on_save: true
+  auto_save: off              # off | focus_change | delay
+  auto_save_delay: 1s
+  show_hidden: true           # show dotfiles in the explorer
+
+keys:                         # command id -> chord; overrides built-ins
+  palette: cmd+shift+p
+  search.project: cmd+f
+  editor.find: cmd+alt+f
+  editor.replace: cmd+alt+h
+  file.quickOpen: cmd+p
+  file.openFolder: cmd+o
+  file.newFile: cmd+n
+  file.save: cmd+s
+  file.saveAll: cmd+alt+s
+  file.close: cmd+w
+  view.sidebar: cmd+b
+  view.theme: cmd+k
+  view.tabs: cmd+shift+e
+  panel.terminal: ctrl+`
+  panel.git: cmd+shift+g
+  panel.problems: cmd+shift+m
+  agent.toggle: cmd+l
+  app.settings: cmd+,
+
+search:
+  engine: auto                # auto | ripgrep | builtin
+  exclude: [node_modules, vendor, .git, dist]
+  max_results: 5000
+
+languages:
+  go:
+    extensions: [.go]
+    lsp: { command: gopls, args: [serve], root_markers: [go.mod, go.work] }
+    formatters:
+      - { command: gofmt, args: ["-w", "{file}"], on: [save, manual] }
+  typescript:
+    extensions: [.ts, .tsx, .mts, .cts]
+    lsp: { command: typescript-language-server, args: [--stdio], root_markers: [package.json, tsconfig.json] }
+    formatters:
+      - { command: prettier, args: ["--stdin-filepath", "{file}"], stdin: true, on: [save, manual] }
+  javascript:
+    extensions: [.js, .jsx, .mjs, .cjs]
+    lsp: { command: typescript-language-server, args: [--stdio], root_markers: [package.json, jsconfig.json] }
+    formatters:
+      - { command: prettier, args: ["--stdin-filepath", "{file}"], stdin: true, on: [save, manual] }
+  python:
+    extensions: [.py]
+    lsp: { command: pyright-langserver, args: [--stdio], root_markers: [pyproject.toml, setup.py] }
+  rust:
+    extensions: [.rs]
+    lsp: { command: rust-analyzer, root_markers: [Cargo.toml] }
+  yaml:
+    extensions: [.yaml, .yml]
+    lsp: { command: yaml-language-server, args: [--stdio] }
+  json:
+    extensions: [.json]
+    lsp: { command: vscode-json-language-server, args: [--stdio] }
+
+terminal:
+  shell: auto                 # auto = $SHELL, or pwsh on Windows
+  font_size: 13
+
+updates:
+  channel: stable             # stable | prerelease | off
+
+agent:
+  default_provider: ""
+  default_mode: auto
+  providers: {}
+
+modes:
+  lazy:
+    prompt: builtin:lazy
+    tools: [read, grep, glob, ls, edit, multi_edit, lsp_diagnostics, run_tests, todo, ask_user]
+    approval: { edit: auto, shell: ask }
+  rubber-duck:
+    prompt: builtin:rubber-duck
+    tools: [read, grep, glob, ls, lsp_*, git_status, git_log, git_diff, web_search, web_fetch, todo, ask_user]
+  auto:
+    prompt: builtin:auto
+    tools: all
+    approval: { shell: ask, delete: ask, git_push: ask }
+  fullstack:
+    prompt: builtin:fullstack
+    tools: all
+    skills: [fullstack-go-shadcn-firebase-postgres]
+    approval: { shell: ask, delete: ask }
+
+tools:
+  mcp: {}
+  commands: {}
+  skills:
+    paths: [~/.config/hm/skills, .hm/skills]
+  web:
+    search: { provider: duckduckgo }   # duckduckgo | searxng | brave | tavily | exa

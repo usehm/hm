@@ -2,10 +2,7 @@ package app
 
 import (
 	"github.com/mirzakhany/yoga/icons"
-	"github.com/mirzakhany/yoga/theme"
 	"github.com/mirzakhany/yoga/ui"
-
-	"github.com/mirzakhany/hm/internal/workspace"
 )
 
 type panelKind int
@@ -74,27 +71,4 @@ func (a *App) agentView(c *ui.Ctx) ui.View {
 		).Height(30).PaddingLeft(th.Spacing.M).PaddingRight(th.Spacing.XS),
 		ui.ViewOf(ui.EmptyState("Agent", "The coding agent arrives in a later milestone.").EmptyIcon(icons.Bot)).Grow(1),
 	).Grow(1).Background(ui.TokenChrome).BorderLeft(ui.TokenBorder, th.Stroke.Thin)
-}
-
-func (a *App) openSettings() { a.ws.OpenPage(workspace.KindSettings) }
-
-// settingsPage is the Settings tab. Config-backed settings replace it.
-func (a *App) settingsPage(c *ui.Ctx) ui.View {
-	th := c.Theme()
-	names := theme.Names()
-	opts := make([]ui.SelectOption, len(names))
-	sel := 0
-	for i, n := range names {
-		opts[i] = ui.SelectOption{Label: n, Value: n}
-		if n == theme.Selected() {
-			sel = i
-		}
-	}
-	return ui.Scroll("settings-scroll", ui.Column(
-		ui.Title("Settings"),
-		ui.Form("settings-form",
-			ui.FormHeading("Appearance", ""),
-			ui.FormSelect("set-theme", "Theme", "Color theme for the whole window", opts, sel, func(v string) { theme.Use(v) }),
-		).Grouped(),
-	).Gap(th.Spacing.M).Padding(th.Spacing.XL).Width(720)).Grow(1)
 }

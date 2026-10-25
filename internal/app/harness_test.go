@@ -12,6 +12,7 @@ import (
 	"github.com/mirzakhany/yoga/shape"
 	"github.com/mirzakhany/yoga/ui"
 
+	"github.com/mirzakhany/hm/internal/config"
 	"github.com/mirzakhany/hm/internal/workspace"
 )
 
@@ -39,6 +40,7 @@ func newHarness(t *testing.T, root string, session bool) *harness {
 	c.SetClipboard(clip)
 	h := &harness{t: t, c: c, mouse: &input.Mouse{}, kb: &input.Keyboard{}, root: root}
 	h.app = Build(Options{Root: root, NoSession: !session})
+	t.Cleanup(h.app.cfg.Close)
 	h.frame()
 	return h
 }
@@ -72,7 +74,9 @@ func (h *harness) press(key input.Key, mods input.Mod) {
 func project(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	workspace.StateDir = func() string { return filepath.Join(root, ".hm-state") }
+	state := t.TempDir()
+	workspace.StateDir = func() string { return filepath.Join(state, "state") }
+	config.UserDir = func() string { return filepath.Join(state, "config") }
 	files := map[string]string{
 		"go.mod":          "module example.com/demo\n\ngo 1.22\n",
 		"main.go":         "package main\n\nfunc main() {}\n",

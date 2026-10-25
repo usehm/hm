@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/mirzakhany/yoga/input"
-	"github.com/mirzakhany/yoga/theme"
 	"github.com/mirzakhany/yoga/ui"
 
 	"github.com/mirzakhany/hm/internal/workspace"
@@ -57,7 +56,7 @@ func TestCloseDirtyTabAsks(t *testing.T) {
 	}
 }
 
-func TestThemeSwitchAndSessionRestore(t *testing.T) {
+func TestSessionRestore(t *testing.T) {
 	root := project(t)
 	h := newHarness(t, root, true)
 	h.app.openFile(filepath.Join(root, "main.go"))
@@ -65,14 +64,10 @@ func TestThemeSwitchAndSessionRestore(t *testing.T) {
 	h.app.openSettings()
 	h.app.ws.Active = 1
 	h.app.ws.ActiveEditor().SetSelection(7, 7)
-	theme.Use("gruvbox-dark")
 	h.frame()
 	h.app.Close()
-
-	theme.Use("yoga-dark")
-	s, err := workspace.LoadSession()
-	if err != nil || s.Theme != "gruvbox-dark" {
-		t.Fatalf("session theme %q err %v", s.Theme, err)
+	if _, err := workspace.LoadSession(); err != nil {
+		t.Fatal(err)
 	}
 
 	h2 := newHarness(t, root, true)
