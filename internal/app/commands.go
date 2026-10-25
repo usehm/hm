@@ -61,6 +61,14 @@ func (a *App) registerCommands(c *ui.Ctx) {
 			a.toast("Language servers restarted", ui.ToastInfo)
 		}),
 
+		ui.Section("Git"),
+		ui.Cmd("git.refresh").Title("Git: Refresh").Icon(icons.RefreshCw).Run(func() { a.gitst.page.Refresh() }),
+		ui.Cmd("git.pull").Title("Git: Pull").Icon(icons.ArrowDown).Run(func() { a.gitst.page.Pull() }),
+		ui.Cmd("git.push").Title("Git: Push").Icon(icons.ArrowUp).Run(func() { a.gitst.page.Push() }),
+		ui.Cmd("git.fetch").Title("Git: Fetch").Icon(icons.RefreshCw).Run(func() { a.gitst.page.Fetch() }),
+		ui.Cmd("git.newBranch").Title("Git: New Branch…").Icon(icons.GitBranchPlus).Run(func() { a.gitst.page.NewBranch() }),
+		ui.Cmd("app.checkUpdates").Title("Check for Updates").Icon(icons.Download).Run(a.checkUpdatesNow),
+
 		ui.Section("View"),
 		ui.Cmd("view.sidebar").Title("Toggle Sidebar").Shortcut(a.key("view.sidebar")).Icon(icons.PanelLeft).Run(a.toggleSide),
 		ui.Cmd("view.theme").Title("Color Theme…").Shortcut(a.key("view.theme")).Icon(icons.Palette).Run(func() {

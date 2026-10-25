@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/mirzakhany/yoga"
 	"github.com/mirzakhany/yoga/input"
@@ -17,9 +18,14 @@ import (
 	"github.com/mirzakhany/yoga/ui"
 
 	"github.com/mirzakhany/hm/internal/app"
+	"github.com/mirzakhany/hm/internal/gitx"
 )
 
 func main() {
+	// git runs hm as its askpass helper to get a remote's credentials.
+	if os.Getenv(gitx.AskPassEnv) == "1" {
+		os.Exit(gitx.AskPass(os.Args[1:], os.Stdout))
+	}
 	flag.Parse()
 	const w, h = 1280, 820
 	text, err := shape.NewEngine(1, false)
@@ -30,7 +36,7 @@ func main() {
 	sheet := render.NewSpriteSheet(text.Atlas)
 	yoga.SetResources(text, sheet, clip)
 
-	a := app.Build(app.Options{Root: flag.Arg(0), NoSession: true, KeepPath: true})
+	a := app.Build(app.Options{Root: flag.Arg(0), NoSession: true, KeepPath: true, NoUpdates: true})
 	defer a.Close()
 
 	c := ui.New(text, ui.NewFocusScope(), nil)

@@ -5,6 +5,7 @@ go 1.26.2
 require (
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/mirzakhany/yoga v0.26.2
+	github.com/zalando/go-keyring v0.2.8
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -12,6 +13,7 @@ require (
 	codeberg.org/go-pdf/fpdf v0.12.0 // indirect
 	github.com/BurntSushi/freetype-go v0.0.0-20160129220410-b763ddbfe298 // indirect
 	github.com/BurntSushi/graphics-go v0.0.0-20160129215708-b43f31a4a966 // indirect
+	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/BurntSushi/xgb v0.0.0-20210121224620-deaf085860bc // indirect
 	github.com/BurntSushi/xgbutil v0.0.0-20190907113008-ad855c713046 // indirect
 	github.com/ByteArena/poly2tri-go v0.0.0-20170716161910-d102ad91854f // indirect
@@ -19,14 +21,18 @@ require (
 	github.com/benoitkugler/textlayout v0.3.2 // indirect
 	github.com/benoitkugler/textprocessing v0.0.6 // indirect
 	github.com/cogentcore/webgpu v0.23.0 // indirect
+	github.com/danieljoos/wincred v1.2.3 // indirect
 	github.com/go-fonts/latin-modern v0.3.3 // indirect
 	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20260802143932-8fa725040a18 // indirect
 	github.com/go-text/typesetting v0.3.4 // indirect
+	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mattn/go-pointer v0.0.1 // indirect
+	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
 	github.com/srwiley/scanx v0.0.0-20190309010443-e94503791388 // indirect
+	github.com/tc-hib/winres v0.3.1 // indirect
 	github.com/tdewolff/canvas v0.0.0-20260901160717-dae8cd8e19a7 // indirect
 	github.com/tdewolff/font v0.0.0-20260822205238-d0d2f004b117 // indirect
 	github.com/tdewolff/minify/v2 v2.24.17 // indirect
@@ -55,3 +61,5 @@ require (
 
 // Local checkout so LSP and highlighter additions can land in yoga first.
 replace github.com/mirzakhany/yoga => ../yoga
+
+tool github.com/mirzakhany/yoga/cmd/yoga

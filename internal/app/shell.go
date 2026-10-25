@@ -2,7 +2,6 @@ package app
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -208,9 +207,8 @@ func (a *App) welcome(c *ui.Ctx) ui.View {
 func (a *App) footer(c *ui.Ctx) ui.View {
 	th := c.Theme()
 	items := []ui.View{}
-	if br := gitBranch(a.ws.Root); br != "" {
-		items = append(items, ui.Button("ft-branch", ui.Caption(br)).Ghost().HoverFill().
-			IconStart(icons.GitBranch).Tooltip("Git").OnClick(func() { a.showPanel(panelGit) }))
+	if v := a.branchButton(c); v != nil {
+		items = append(items, v)
 	}
 	errs, warns := countProblems(a.problems())
 	items = append(items,
@@ -278,21 +276,35 @@ func (a *App) serverStatus(c *ui.Ctx, path string) ui.View {
 		Style(ui.Spec{}.TextColorLit(color))
 }
 
-// gitBranch reads the current branch from .git/HEAD; the git package replaces
-// this with live status.
-func gitBranch(root string) string {
-	data, err := os.ReadFile(filepath.Join(root, ".git", "HEAD"))
-	if err != nil {
-		return ""
+// branchButton shows the branch, how far it is from its upstream and how
+// many files changed; it opens the Git panel.
+func (a *App) branchButton(c *ui.Ctx) ui.View {
+	st := a.gitst.status
+	if st == nil {
+		return nil
 	}
-	head := strings.TrimSpace(string(data))
-	if ref, ok := strings.CutPrefix(head, "ref: refs/heads/"); ok {
-		return ref
+	label := st.Branch
+	if label == "" {
+		label = "detached"
+		if len(st.Head) >= 7 {
+			label = st.Head[:7]
+		}
 	}
-	if len(head) >= 7 {
-		return head[:7]
+	if st.Ahead > 0 {
+		label += fmt.Sprintf(" ↑%d", st.Ahead)
 	}
-	return head
+	if st.Behind > 0 {
+		label += fmt.Sprintf(" ↓%d", st.Behind)
+	}
+	if n := len(st.Changes); n > 0 {
+		label += fmt.Sprintf(" · %d changed", n)
+	}
+	tip := "Git"
+	if st.Upstream != "" {
+		tip = "Tracking " + st.Upstream
+	}
+	return ui.Button("ft-branch", ui.Caption(label)).Ghost().HoverFill().
+		IconStart(icons.GitBranch).Tooltip(tip).OnClick(func() { a.togglePanel(panelGit) })
 }
 
 var languageNames = map[string]string{

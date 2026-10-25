@@ -1,0 +1,22 @@
+# Packaging config for the yoga CLI (go run github.com/mirzakhany/yoga/cmd/yoga package ...).
+# CI passes the release tag with -version; this version is only the fallback.
+name = "hm"
+id = "dev.mirzakhany.hm"
+version = "0.0.0"
+main = "./cmd/hm"
+artifact = "hm-{platform}-v{version}-{arch}"
+
+[build]
+ldflags = "-s -w -X github.com/mirzakhany/hm/internal/version.Version=v{version}"
+
+[darwin]
+category = "public.app-category.developer-tools"
+min_system = "11.0"
+formats = ["dmg"]
+
+[linux]
+binary = "hm"
+format = "tar.xz"
+
+[windows]
+description = "hm - editor and coding agent"

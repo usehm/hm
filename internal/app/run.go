@@ -1,10 +1,13 @@
 package app
 
 import (
+	"log"
+
 	"github.com/mirzakhany/yoga"
 	"github.com/mirzakhany/yoga/theme"
 
 	"github.com/mirzakhany/hm/internal/config"
+	"github.com/mirzakhany/hm/internal/update"
 )
 
 // Run opens the window. It must be called from the main goroutine.
@@ -15,5 +18,13 @@ func Run(opts Options) error {
 	cfg, _ := config.Load(user)
 	theme.Use(cfg.Editor.Theme)
 	win := yoga.Config{Title: "hm", Width: 1280, Height: 820, CustomTitleBar: true}
-	return yoga.Run(win, func() *App { return Build(opts) })
+	if err := yoga.Run(win, func() *App { return Build(opts) }); err != nil {
+		return err
+	}
+	if restartAfterExit.Load() {
+		if err := update.Restart(); err != nil {
+			log.Printf("restarting after the update: %v", err)
+		}
+	}
+	return nil
 }

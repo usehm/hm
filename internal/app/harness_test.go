@@ -40,7 +40,7 @@ func newHarness(t *testing.T, root string, session bool) *harness {
 	c.SetIcons(sheet)
 	c.SetClipboard(clip)
 	h := &harness{t: t, c: c, mouse: &input.Mouse{}, kb: &input.Keyboard{}, root: root}
-	h.app = Build(Options{Root: root, NoSession: !session, KeepPath: true})
+	h.app = Build(Options{Root: root, NoSession: !session, KeepPath: true, NoUpdates: true})
 	t.Cleanup(h.app.cfg.Close)
 	h.frame()
 	return h

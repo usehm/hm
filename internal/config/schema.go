@@ -104,6 +104,8 @@ type Terminal struct {
 
 type Updates struct {
 	Channel string `yaml:"channel"` // stable | prerelease | off
+	// Repo is the GitHub repository releases come from, as owner/name.
+	Repo string `yaml:"repo"`
 }
 
 type Agent struct {

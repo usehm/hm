@@ -35,6 +35,7 @@ type App struct {
 	agentOpen  bool
 	treeQuery  string
 	noSession  bool
+	noUpdates  bool
 
 	cfg             *config.Manager
 	applied         appliedConfig
@@ -55,6 +56,8 @@ type App struct {
 	outputDirty bool
 
 	search projectSearch
+	gitst  gitState
+	upd    *updater
 
 	// ctx is the window context, valid for the window's lifetime. Callbacks
 	// that run outside Body use it for dialogs, toasts and wakes.
@@ -77,6 +80,8 @@ type Options struct {
 	NoSession bool
 	// KeepPath skips extending PATH from the login shell.
 	KeepPath bool
+	// NoUpdates skips looking for new releases.
+	NoUpdates bool
 }
 
 // Build creates the app. It runs inside yoga.Run's build function, after the
@@ -85,6 +90,7 @@ func Build(opts Options) *App {
 	a := &App{
 		sideOpen: true, noSession: opts.NoSession, lastEdit: map[string]editSeen{},
 		uiq: make(chan func(), 256), formatting: map[string]int{}, installing: map[string]bool{},
+		upd: &updater{}, noUpdates: opts.NoUpdates,
 	}
 	a.bufs = editor.New(editorOptions)
 	a.bufs.OnOpen = a.attachEditor
@@ -146,14 +152,20 @@ func editorOptions() []ui.EditorOption {
 }
 
 func (a *App) Body(c *ui.Ctx) ui.View {
-	if a.ctx == nil {
+	first := a.ctx == nil
+	if first {
 		a.wakeCtx.Store(c)
 	}
 	a.ctx = c
+	if first && !a.noUpdates {
+		a.startUpdateCheck(a.invalidate)
+	}
+	a.reportUpdate()
 	a.drainUI()
 	a.reportLanguages()
 	a.formatAfterPaste()
 	a.pumpSearch(c)
+	a.pumpGit(c)
 	if a.cfg.TakeChange() {
 		a.reloadConfig()
 	}
@@ -219,6 +231,7 @@ func (a *App) Close() {
 		a.search.cancel()
 	}
 	a.cfg.Close()
+	a.stopGit()
 	a.idx.stop()
 	a.bufs.CloseAll()
 }

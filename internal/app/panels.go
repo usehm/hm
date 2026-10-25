@@ -23,6 +23,10 @@ var panelTabs = []ui.SegmentItem{
 
 // showPanel opens the bottom panel on k.
 func (a *App) showPanel(k panelKind) {
+	if k == panelGit && (!a.panelOpen || a.panel != panelGit) && a.gitst.page != nil {
+		// The work tree changes outside hm; read it each time the panel opens.
+		a.gitst.page.Refresh()
+	}
 	a.panel, a.panelOpen = k, true
 }
 
@@ -40,7 +44,7 @@ func (a *App) panelView(c *ui.Ctx) ui.View {
 	header := ui.Row(
 		ui.Segmented("panel-tabs", panelTabs...).
 			Selected(int(a.panel)).
-			OnSelectItem(func(i int, _ string) { a.panel = panelKind(i) }).
+			OnSelectItem(func(i int, _ string) { a.showPanel(panelKind(i)) }).
 			Height(22),
 		ui.Spacer(),
 		ui.IconButton("panel-close", icons.X).Height(22).Tooltip("Close").OnClick(func() { a.panelOpen = false }),
@@ -51,7 +55,7 @@ func (a *App) panelView(c *ui.Ctx) ui.View {
 	case panelTerminal:
 		body = ui.EmptyState("Terminal", "The interactive terminal arrives in a later milestone.").EmptyIcon(icons.SquareTerminal)
 	case panelGit:
-		body = ui.EmptyState("Git", "Changes, history and branches arrive in a later milestone.").EmptyIcon(icons.GitBranch)
+		body = a.gitst.page.Layout(c)
 	case panelProblems:
 		body = a.problemsView(c)
 	default:

@@ -38,6 +38,7 @@ func (a *App) openFolder(root string) {
 	a.tree.SetContextMenu(a.treeMenu)
 	a.treeQuery = ""
 	a.idx = newFileIndex(a.ws.Root, a.invalidate)
+	a.startGit()
 	if a.cfg != nil {
 		if p := config.ProjectPath(a.ws.Root); func() bool { _, proj := a.cfg.Paths(); return proj != p }() {
 			a.cfg.SetProject(p)
@@ -278,6 +279,24 @@ func revealLabel() string {
 		return "Reveal in Explorer"
 	}
 	return "Open Containing Folder"
+}
+
+// openURL opens url in the default browser.
+func openURL(url string) error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", url)
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+	default:
+		cmd = exec.Command("xdg-open", url)
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	go func() { _ = cmd.Wait() }()
+	return nil
 }
 
 func reveal(path string) error {
