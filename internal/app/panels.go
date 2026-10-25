@@ -53,9 +53,9 @@ func (a *App) panelView(c *ui.Ctx) ui.View {
 	case panelGit:
 		body = ui.EmptyState("Git", "Changes, history and branches arrive in a later milestone.").EmptyIcon(icons.GitBranch)
 	case panelProblems:
-		body = ui.EmptyState("No problems", "Diagnostics from language servers show here.").EmptyIcon(icons.TriangleAlert)
+		body = a.problemsView(c)
 	default:
-		body = ui.EmptyState("No output", "Formatter and task output shows here.").EmptyIcon(icons.ScrollText)
+		body = a.outputView(c)
 	}
 	return ui.Column(header, ui.ViewOf(body).Grow(1)).Grow(1).Background(ui.TokenChrome).
 		BorderTop(ui.TokenBorder, th.Stroke.Thin)

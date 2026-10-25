@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 
 	"github.com/mirzakhany/hm/internal/config"
 	"github.com/mirzakhany/hm/internal/editor"
+	"github.com/mirzakhany/hm/internal/lang"
 	"github.com/mirzakhany/hm/internal/workspace"
 )
 
@@ -42,6 +44,16 @@ type App struct {
 	lastEdit        map[string]editSeen
 	lastActive      string
 
+	lang        *lang.Service
+	uiq         chan func()
+	formatting  map[string]int // in-flight formatter runs by path
+	installing  map[string]bool
+	locations   []*ui.Command // last references/symbols list
+	pasted      *pasteMark
+	output      strings.Builder
+	outputEd    *ui.Editor
+	outputDirty bool
+
 	// ctx is the window context, valid for the window's lifetime. Callbacks
 	// that run outside Body use it for dialogs, toasts and wakes.
 	ctx *ui.Ctx
@@ -61,13 +73,26 @@ type Options struct {
 	Root string
 	// NoSession skips restoring and saving the session.
 	NoSession bool
+	// KeepPath skips extending PATH from the login shell.
+	KeepPath bool
 }
 
 // Build creates the app. It runs inside yoga.Run's build function, after the
 // text engine exists, because opening files builds editors.
 func Build(opts Options) *App {
-	a := &App{sideOpen: true, noSession: opts.NoSession, lastEdit: map[string]editSeen{}}
+	a := &App{
+		sideOpen: true, noSession: opts.NoSession, lastEdit: map[string]editSeen{},
+		uiq: make(chan func(), 256), formatting: map[string]int{}, installing: map[string]bool{},
+	}
 	a.bufs = editor.New(editorOptions)
+	a.bufs.OnOpen = a.attachEditor
+	a.lang = lang.New(a.invalidate)
+	a.lang.Manager().OnApplyEdit(a.serverApplyEdit)
+	if opts.KeepPath {
+		a.lang.MarkPathReady()
+	} else {
+		a.lang.FixPathAsync()
+	}
 
 	var sess workspace.Session
 	if !opts.NoSession {
@@ -123,6 +148,9 @@ func (a *App) Body(c *ui.Ctx) ui.View {
 		a.wakeCtx.Store(c)
 	}
 	a.ctx = c
+	a.drainUI()
+	a.reportLanguages()
+	a.formatAfterPaste()
 	if a.cfg.TakeChange() {
 		a.reloadConfig()
 	}
@@ -148,7 +176,38 @@ func (a *App) modalOpen(c *ui.Ctx) bool {
 
 // OnKey handles global chords a focused editor would otherwise eat. Command
 // shortcuts already ran by the time it is called.
-func (a *App) OnKey(_ *ui.Ctx, _ input.KeyEvent) bool { return false }
+func (a *App) OnKey(_ *ui.Ctx, k input.KeyEvent) bool {
+	if k.Key == input.KeyV && k.Mods.Primary() {
+		// Let the paste happen, then run "on: paste" formatters.
+		if ed := a.ws.ActiveEditor(); ed != nil && ed.Focused() {
+			a.pasted = &pasteMark{path: ed.Path, rev: ed.Revision(), at: time.Now()}
+		}
+	}
+	return false
+}
+
+// attachEditor wires a new file editor to the app.
+func (a *App) attachEditor(ed *ui.Editor) {
+	ed.OnModClick = func(off int) bool {
+		if !a.lang.HasServer(ed.Path) {
+			return false
+		}
+		a.definition(ed, off)
+		return true
+	}
+	ed.ContextMenu = func(items []ui.MenuItem) []ui.MenuItem {
+		if !a.lang.HasServer(ed.Path) {
+			return append(items, ui.MenuItem{Label: "Format Document", OnSelect: func() { a.format(ed, "manual", nil) }})
+		}
+		return append([]ui.MenuItem{
+			{Label: "Go to Definition", OnSelect: func() { a.definition(ed, ed.Caret()) }},
+			{Label: "Go to Implementation", OnSelect: func() { a.implementation(ed, ed.Caret()) }},
+			{Label: "Find References", OnSelect: func() { a.references(ed, ed.Caret()) }},
+			{Label: "Rename Symbol…", OnSelect: func() { a.rename(ed) }},
+			{Label: "Format Document", OnSelect: func() { a.format(ed, "manual", nil) }},
+		}, items...)
+	}
+}
 
 // Close saves the session and releases editors and watchers.
 func (a *App) Close() {

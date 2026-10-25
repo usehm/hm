@@ -46,17 +46,6 @@ func (a *App) openFolder(root string) {
 	}
 }
 
-// saveFile writes path. Saving a config file applies it right away.
-func (a *App) saveFile(path string) error {
-	if err := a.bufs.Save(path); err != nil {
-		return err
-	}
-	if user, project := a.cfg.Paths(); path == user || path == project {
-		a.reloadConfig()
-	}
-	return nil
-}
-
 // askOpenFolder picks a folder and opens it, confirming unsaved changes.
 func (a *App) askOpenFolder() {
 	a.ctx.Files().Show(ui.FileDialogOpts{
@@ -101,7 +90,7 @@ func (a *App) closeTab(i int) {
 			{Label: "Cancel"},
 			{Label: "Don't Save", OnClick: func() { a.closePath(path) }},
 			{Label: "Save", Primary: true, OnClick: func() {
-				if err := a.saveFile(path); err != nil {
+				if err := a.saveFileNow(path); err != nil {
 					a.fail("Save failed", err)
 					return
 				}
@@ -139,7 +128,7 @@ func (a *App) confirmDiscard(title string, fn func()) {
 			{Label: "Cancel"},
 			{Label: "Discard", OnClick: fn},
 			{Label: "Save All", Primary: true, OnClick: func() {
-				if a.saveAll() {
+				if a.saveAll(true) {
 					fn()
 				}
 			}},
@@ -155,12 +144,17 @@ func (a *App) save() {
 	a.fail("Save failed", a.saveFile(t.Path))
 }
 
-// saveAll writes every modified tab and reports whether all succeeded.
-func (a *App) saveAll() bool {
+// saveAll writes every modified tab and reports whether all succeeded. With
+// now set, every file is written before it returns.
+func (a *App) saveAll(now bool) bool {
 	ok := true
+	save := a.saveFile
+	if now {
+		save = a.saveFileNow
+	}
 	for i, t := range a.ws.Tabs {
 		if a.ws.Modified(i) {
-			if err := a.saveFile(t.Path); err != nil {
+			if err := save(t.Path); err != nil {
 				a.fail("Save failed", err)
 				ok = false
 			}

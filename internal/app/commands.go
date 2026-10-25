@@ -13,6 +13,8 @@ const (
 	scopeFiles  = "files"
 	scopeThemes = "themes"
 	scopeTabs   = "tabs"
+	// scopeLocations lists references, definitions and symbols.
+	scopeLocations = "locations"
 )
 
 // registerCommands lists every action. Menus, buttons and shortcuts all go
@@ -27,7 +29,7 @@ func (a *App) registerCommands(c *ui.Ctx) {
 		ui.Cmd("file.openFolder").Title("Open Folder…").Shortcut(a.key("file.openFolder")).Icon(icons.FolderOpen).Run(a.askOpenFolder),
 		ui.Cmd("file.newFile").Title("New File…").Shortcut(a.key("file.newFile")).Icon(icons.FilePlus).Run(func() { a.newEntry(a.newFileDir(), false) }),
 		ui.Cmd("file.save").Title("Save").Shortcut(a.key("file.save")).Icon(icons.Save).Enabled(hasEd).Run(a.save),
-		ui.Cmd("file.saveAll").Title("Save All").Shortcut(a.key("file.saveAll")).Icon(icons.Save).Run(func() { a.saveAll() }),
+		ui.Cmd("file.saveAll").Title("Save All").Shortcut(a.key("file.saveAll")).Icon(icons.Save).Run(func() { a.saveAll(false) }),
 		ui.Cmd("file.close").Title("Close Tab").Shortcut(a.key("file.close")).Icon(icons.X).Enabled(a.ws.ActiveTab() != nil).Run(func() { a.closeTab(a.ws.Active) }),
 		ui.Cmd("file.revealActive").Title("Reveal Active File in Explorer").Icon(icons.Locate).Enabled(hasEd).Run(func() {
 			a.sideOpen = true
@@ -40,6 +42,24 @@ func (a *App) registerCommands(c *ui.Ctx) {
 		ui.Cmd("editor.replace").Title("Replace in File").Shortcut(a.key("editor.replace")).Icon(icons.Replace).Enabled(hasEd).Run(func() { ed.OpenFind(true) }),
 		ui.Cmd("editor.undo").Title("Undo").Icon(icons.Undo2).Enabled(hasEd).Hidden(true).Run(func() { ed.Undo() }),
 		ui.Cmd("editor.redo").Title("Redo").Icon(icons.Redo2).Enabled(hasEd).Hidden(true).Run(func() { ed.Redo() }),
+
+		ui.Section("Code"),
+		ui.Cmd("editor.definition").Title("Go to Definition").Shortcut(a.key("editor.definition")).Icon(icons.SquareArrowOutUpRight).
+			Enabled(hasEd).Run(func() { a.definition(ed, ed.Caret()) }),
+		ui.Cmd("editor.implementation").Title("Go to Implementation").Shortcut(a.key("editor.implementation")).Icon(icons.SquareArrowOutUpRight).
+			Enabled(hasEd).Run(func() { a.implementation(ed, ed.Caret()) }),
+		ui.Cmd("editor.references").Title("Find References").Shortcut(a.key("editor.references")).Icon(icons.ListTree).
+			Enabled(hasEd).Run(func() { a.references(ed, ed.Caret()) }),
+		ui.Cmd("editor.rename").Title("Rename Symbol").Shortcut(a.key("editor.rename")).Icon(icons.PencilLine).
+			Enabled(hasEd).Run(func() { a.rename(ed) }),
+		ui.Cmd("editor.symbols").Title("Go to Symbol in File…").Shortcut(a.key("editor.symbols")).Icon(icons.Hash).
+			Enabled(hasEd).Run(func() { a.documentSymbols(ed) }),
+		ui.Cmd("editor.format").Title("Format Document").Shortcut(a.key("editor.format")).Icon(icons.WandSparkles).
+			Enabled(hasEd).Run(func() { a.format(ed, "manual", nil) }),
+		ui.Cmd("lsp.restart").Title("Restart Language Servers").Icon(icons.RefreshCw).Run(func() {
+			a.lang.Restart()
+			a.toast("Language servers restarted", ui.ToastInfo)
+		}),
 
 		ui.Section("View"),
 		ui.Cmd("view.sidebar").Title("Toggle Sidebar").Shortcut(a.key("view.sidebar")).Icon(icons.PanelLeft).Run(a.toggleSide),
@@ -81,6 +101,7 @@ func (a *App) registerCommands(c *ui.Ctx) {
 				Icon(icons.File).Scope(scopeFiles).Run(func() { a.openFile(p) }))
 		}
 	}
+	cmds = append(cmds, a.locations...)
 	c.Commands().Register(cmds...)
 }
 

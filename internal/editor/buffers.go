@@ -16,6 +16,8 @@ type Buffers struct {
 	mu   sync.Mutex
 	eds  map[string]*ui.Editor
 	opts func() []ui.EditorOption
+	// OnOpen runs for each new editor, to attach app hooks.
+	OnOpen func(*ui.Editor)
 }
 
 // New returns an empty registry. opts, when set, supplies the options every
@@ -50,6 +52,9 @@ func (b *Buffers) Open(path string) (*ui.Editor, error) {
 	}
 	ed := ui.NewEditorFor(path, content, opts...)
 	b.eds[path] = ed
+	if b.OnOpen != nil {
+		b.OnOpen(ed)
+	}
 	return ed, nil
 }
 

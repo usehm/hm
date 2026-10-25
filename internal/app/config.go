@@ -50,6 +50,7 @@ func (a *App) applyConfig(cfg config.Config) {
 	ui.EditorDefaults.SoftWrap = ed.SoftWrap
 	ui.EditorDefaults.LineNumbers = ed.LineNumbers
 	ui.EditorDefaults.IndentSpaces = ed.InsertSpaces
+	a.lang.Apply(cfg.Languages)
 	if a.tree != nil {
 		hidden := ed.ShowHidden
 		a.tree.Hidden = func(name string, dir bool) bool {

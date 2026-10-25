@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/mirzakhany/yoga"
 	"github.com/mirzakhany/yoga/input"
@@ -39,7 +40,7 @@ func newHarness(t *testing.T, root string, session bool) *harness {
 	c.SetIcons(sheet)
 	c.SetClipboard(clip)
 	h := &harness{t: t, c: c, mouse: &input.Mouse{}, kb: &input.Keyboard{}, root: root}
-	h.app = Build(Options{Root: root, NoSession: !session})
+	h.app = Build(Options{Root: root, NoSession: !session, KeepPath: true})
 	t.Cleanup(h.app.cfg.Close)
 	h.frame()
 	return h
@@ -63,6 +64,19 @@ func (h *harness) frame() *layout.Element {
 	h.mouse.EndFrame()
 	h.kb.EndFrame()
 	return ui.BuildFrame(h.c, a.Body, 1280, 820, h.mouse, h.kb)
+}
+
+// until runs frames until cond holds or the deadline passes.
+func (h *harness) until(what string, d time.Duration, cond func() bool) {
+	h.t.Helper()
+	deadline := time.Now().Add(d)
+	for !cond() {
+		if time.Now().After(deadline) {
+			h.t.Fatalf("timed out waiting for %s", what)
+		}
+		time.Sleep(20 * time.Millisecond)
+		h.frame()
+	}
 }
 
 func (h *harness) press(key input.Key, mods input.Mod) {

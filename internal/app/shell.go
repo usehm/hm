@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/mirzakhany/yoga/icons"
+	"github.com/mirzakhany/yoga/lsp"
 	"github.com/mirzakhany/yoga/ui"
 
 	"github.com/mirzakhany/hm/internal/workspace"
@@ -207,15 +208,23 @@ func (a *App) footer(c *ui.Ctx) ui.View {
 		items = append(items, ui.Button("ft-branch", ui.Caption(br)).Ghost().HoverFill().
 			IconStart(icons.GitBranch).Tooltip("Git").OnClick(func() { a.showPanel(panelGit) }))
 	}
+	errs, warns := countProblems(a.problems())
 	items = append(items,
-		ui.Button("ft-problems", ui.Caption("0 problems")).Ghost().HoverFill().
-			IconStart(icons.TriangleAlert).OnClick(func() { a.showPanel(panelProblems) }),
+		ui.Button("ft-problems", ui.Row(
+			ui.Icon(icons.CircleX, 14, th.ErrorForeground), ui.Caption(fmt.Sprint(errs)),
+			ui.Icon(icons.TriangleAlert, 14, th.WarningForeground), ui.Caption(fmt.Sprint(warns)),
+		).Gap(th.Spacing.XXS)).Ghost().HoverFill().Tooltip("Problems").
+			OnClick(func() { a.togglePanel(panelProblems) }),
 		ui.Spacer(),
 	)
+	if len(a.formatting) > 0 {
+		items = append(items, ui.Spinner("ft-formatting", 12), ui.Caption("Formatting…"))
+	}
 	if ed := a.ws.ActiveEditor(); ed != nil {
 		line, col := ed.LineCol(ed.Caret())
 		items = append(items,
 			ui.Caption(languageName(ed.Path)),
+			a.serverStatus(c, ed.Path),
 			ui.Caption(fmt.Sprintf("Ln %d, Col %d", line+1, col+1)).MarginXY(th.Spacing.S, 0),
 		)
 	}
@@ -245,6 +254,24 @@ func (a *App) footer(c *ui.Ctx) ui.View {
 	)
 	return ui.Row(items...).Gap(th.Spacing.XS).PaddingXY(th.Spacing.S, 0).Height(26).
 		Background(ui.TokenChrome).BorderTop(ui.TokenBorder, th.Stroke.Thin)
+}
+
+// serverStatus shows the language server state for path.
+func (a *App) serverStatus(c *ui.Ctx, path string) ui.View {
+	if !a.lang.HasServer(path) {
+		return nil
+	}
+	th := c.Theme()
+	cfg, _ := lsp.ForPath(path)
+	icon, color, tip := icons.CircleDashed, th.ForegroundMuted, cfg.Command+" starting"
+	if a.lang.Running(path) {
+		icon, color, tip = icons.CircleCheck, th.SuccessForeground, cfg.Command+" running"
+	}
+	return ui.Button("ft-lsp", ui.Caption(cfg.Command)).Ghost().HoverFill().
+		Tooltip(tip + " · click to restart").
+		IconStart(icon).
+		OnClick(func() { a.lang.Restart(); a.toast("Language servers restarted", ui.ToastInfo) }).
+		Style(ui.Spec{}.TextColorLit(color))
 }
 
 // gitBranch reads the current branch from .git/HEAD; the git package replaces

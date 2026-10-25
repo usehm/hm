@@ -53,7 +53,13 @@ type Search struct {
 }
 
 type Language struct {
-	Extensions []string    `yaml:"extensions"`
+	Extensions []string `yaml:"extensions"`
+	// LanguageID is the LSP language id; it defaults to the language's key.
+	LanguageID string `yaml:"language_id"`
+	// LanguageIDs overrides it per extension (.tsx: typescriptreact).
+	LanguageIDs map[string]string `yaml:"language_ids"`
+	// Highlight names the built-in grammar; it defaults to the key.
+	Highlight  string      `yaml:"highlight"`
 	LSP        *LSP        `yaml:"lsp"`
 	Formatters []Formatter `yaml:"formatters"`
 }
@@ -64,6 +70,13 @@ type LSP struct {
 	RootMarkers []string          `yaml:"root_markers"`
 	Env         map[string]string `yaml:"env"`
 	Options     map[string]any    `yaml:"initialization_options"`
+	// Settings answer the server's workspace/configuration requests.
+	Settings map[string]any `yaml:"settings"`
+	// Install lists commands that install the server, in order of
+	// preference; the first whose tool is on PATH is offered.
+	Install []Installer `yaml:"install"`
+	// Disabled turns the server off without deleting its settings.
+	Disabled bool `yaml:"disabled"`
 }
 
 type Formatter struct {
@@ -71,6 +84,14 @@ type Formatter struct {
 	Args    []string `yaml:"args"`
 	Stdin   bool     `yaml:"stdin"`
 	On      []string `yaml:"on"` // save | manual | paste
+	// Install, as for language servers.
+	Install []Installer `yaml:"install"`
+}
+
+// Installer is a command that installs a tool, such as npm install -g x.
+type Installer struct {
+	Tool string   `yaml:"tool"`
+	Args []string `yaml:"args"`
 }
 
 // Formatter triggers.

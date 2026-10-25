@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/mirzakhany/yoga/input"
 	"github.com/mirzakhany/yoga/ui"
@@ -32,9 +33,7 @@ func TestEditAndSaveWithShortcut(t *testing.T) {
 		t.Fatal("typing should mark the tab dirty")
 	}
 	h.press(input.KeyS, input.ModSuper)
-	if h.app.ws.Modified(0) {
-		t.Fatal("⌘S should save")
-	}
+	h.until("⌘S to save", 5*time.Second, func() bool { return !h.app.ws.Modified(0) })
 	got, _ := os.ReadFile(main)
 	if string(got) != "//package main\n\nfunc main() {}\n" {
 		t.Fatalf("saved %q", got)

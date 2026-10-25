@@ -33,6 +33,11 @@ keys:                         # command id -> chord; overrides built-ins
   panel.git: cmd+shift+g
   panel.problems: cmd+shift+m
   agent.toggle: cmd+l
+  editor.definition: f12
+  editor.references: shift+f12
+  editor.rename: f2
+  editor.format: shift+alt+f
+  editor.symbols: cmd+shift+o
   app.settings: cmd+,
 
 search:
@@ -41,33 +46,104 @@ search:
   max_results: 5000
 
 languages:
+  # Each language maps extensions to a grammar, a language server and
+  # formatters. "on" picks when a formatter runs: save, manual, paste.
+  # {file} is the file being formatted; stdin: true pipes the buffer in and
+  # takes stdout back. With no formatters, the server's formatting is used.
   go:
     extensions: [.go]
-    lsp: { command: gopls, args: [serve], root_markers: [go.mod, go.work] }
+    lsp:
+      command: gopls
+      args: [serve]
+      root_markers: [go.work, go.mod]
+      install:
+        - { tool: go, args: [install, golang.org/x/tools/gopls@latest] }
+        - { tool: brew, args: [install, gopls] }
     formatters:
       - { command: gofmt, args: ["-w", "{file}"], on: [save, manual] }
   typescript:
     extensions: [.ts, .tsx, .mts, .cts]
-    lsp: { command: typescript-language-server, args: [--stdio], root_markers: [package.json, tsconfig.json] }
+    language_ids: { .tsx: typescriptreact }
+    lsp:
+      command: typescript-language-server
+      args: [--stdio]
+      root_markers: [tsconfig.json, package.json]
+      install:
+        - { tool: npm, args: [install, -g, typescript-language-server, typescript] }
+        - { tool: brew, args: [install, typescript-language-server] }
     formatters:
-      - { command: prettier, args: ["--stdin-filepath", "{file}"], stdin: true, on: [save, manual] }
+      - command: prettier
+        args: ["--stdin-filepath", "{file}"]
+        stdin: true
+        on: [save, manual]
+        install: [{ tool: npm, args: [install, -g, prettier] }]
   javascript:
     extensions: [.js, .jsx, .mjs, .cjs]
-    lsp: { command: typescript-language-server, args: [--stdio], root_markers: [package.json, jsconfig.json] }
+    language_ids: { .jsx: javascriptreact }
+    lsp:
+      command: typescript-language-server
+      args: [--stdio]
+      root_markers: [jsconfig.json, package.json]
+      install:
+        - { tool: npm, args: [install, -g, typescript-language-server, typescript] }
     formatters:
-      - { command: prettier, args: ["--stdin-filepath", "{file}"], stdin: true, on: [save, manual] }
+      - command: prettier
+        args: ["--stdin-filepath", "{file}"]
+        stdin: true
+        on: [save, manual]
+        install: [{ tool: npm, args: [install, -g, prettier] }]
   python:
-    extensions: [.py]
-    lsp: { command: pyright-langserver, args: [--stdio], root_markers: [pyproject.toml, setup.py] }
+    extensions: [.py, .pyi]
+    lsp:
+      command: pyright-langserver
+      args: [--stdio]
+      root_markers: [pyproject.toml, setup.py, pyrightconfig.json]
+      install:
+        - { tool: npm, args: [install, -g, pyright] }
+        - { tool: pip3, args: [install, --user, pyright] }
   rust:
     extensions: [.rs]
-    lsp: { command: rust-analyzer, root_markers: [Cargo.toml] }
+    lsp:
+      command: rust-analyzer
+      root_markers: [Cargo.toml]
+      install:
+        - { tool: rustup, args: [component, add, rust-analyzer] }
+        - { tool: brew, args: [install, rust-analyzer] }
   yaml:
     extensions: [.yaml, .yml]
-    lsp: { command: yaml-language-server, args: [--stdio] }
+    lsp:
+      command: yaml-language-server
+      args: [--stdio]
+      install: [{ tool: npm, args: [install, -g, yaml-language-server] }]
   json:
-    extensions: [.json]
-    lsp: { command: vscode-json-language-server, args: [--stdio] }
+    extensions: [.json, .jsonc]
+    lsp:
+      command: vscode-json-language-server
+      args: [--stdio]
+      install: [{ tool: npm, args: [install, -g, vscode-langservers-extracted] }]
+  bash:
+    extensions: [.sh, .bash, .zsh]
+    language_id: shellscript
+    lsp:
+      command: bash-language-server
+      args: [start]
+      install: [{ tool: npm, args: [install, -g, bash-language-server] }]
+  css:
+    extensions: [.css]
+    lsp:
+      command: vscode-css-language-server
+      args: [--stdio]
+      install: [{ tool: npm, args: [install, -g, vscode-langservers-extracted] }]
+  html:
+    extensions: [.html, .htm]
+    lsp:
+      command: vscode-html-language-server
+      args: [--stdio]
+      install: [{ tool: npm, args: [install, -g, vscode-langservers-extracted] }]
+  markdown:
+    extensions: [.md, .markdown]
+  sql:
+    extensions: [.sql]
 
 terminal:
   shell: auto                 # auto = $SHELL, or pwsh on Windows

@@ -30,7 +30,7 @@ func main() {
 	sheet := render.NewSpriteSheet(text.Atlas)
 	yoga.SetResources(text, sheet, clip)
 
-	a := app.Build(app.Options{Root: flag.Arg(0), NoSession: true})
+	a := app.Build(app.Options{Root: flag.Arg(0), NoSession: true, KeepPath: true})
 	defer a.Close()
 
 	c := ui.New(text, ui.NewFocusScope(), nil)
