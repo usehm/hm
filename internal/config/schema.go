@@ -145,6 +145,8 @@ type MCPServer struct {
 	Env       map[string]string `yaml:"env"`
 	URL       string            `yaml:"url"`
 	Headers   map[string]string `yaml:"headers"`
+	// Approval applies to all of the server's tools: auto | ask | deny.
+	Approval string `yaml:"approval"`
 }
 
 type CommandTool struct {

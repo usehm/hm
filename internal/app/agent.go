@@ -11,7 +11,9 @@ import (
 	"github.com/mirzakhany/yoga/ui"
 
 	"github.com/mirzakhany/hm/internal/agent"
+	"github.com/mirzakhany/hm/internal/agent/mcp"
 	"github.com/mirzakhany/hm/internal/agent/provider"
+	"github.com/mirzakhany/hm/internal/agent/skills"
 	"github.com/mirzakhany/hm/internal/agent/tools"
 	"github.com/mirzakhany/hm/internal/config"
 	"github.com/mirzakhany/hm/internal/diff"
@@ -39,8 +41,10 @@ type agentState struct {
 	approval *pendingApproval
 	question *pendingQuestion
 
-	shells *tools.Shells
-	todos  *tools.Todos
+	shells   *tools.Shells
+	todos    *tools.Todos
+	mcp      *mcp.Manager
+	borrowed map[string]bool // buffers opened for the agent's language tools
 
 	turnCheckpoint checkpoint
 	lastCheckpoint *checkpoint
@@ -90,6 +94,13 @@ func (a *App) initAgent() {
 	st.store = agent.NewStore(workspace.StateDir(), a.ws.Root)
 	st.shells, st.todos = tools.NewShells(), &tools.Todos{}
 	st.calls = map[string]callView{}
+	a.newMCP()
+	a.startMCP(a.cfg.Current().Tools.MCP)
+	go func() {
+		if err := skills.Materialize(builtinSkillsDir()); err != nil {
+			a.onUI(func() { a.notifs.Add("Could not write the built-in skills: "+err.Error(), ui.ToastWarning) })
+		}
+	}()
 	cfg := a.cfg.Current().Agent
 	if st.mode == "" {
 		st.mode = cfg.DefaultMode
@@ -161,11 +172,13 @@ func (a *App) sendAgent() {
 	}
 	s := a.currentSession()
 	s.Mode, s.Provider = st.mode, st.provider
-	reg := tools.NewRegistry(tools.Builtin(st.shells, st.todos)...).Filter(mode.Tools)
+	ts := a.agentToolset(mode)
+	policy := agent.NewPolicy(a.ws.Root, ts.rules)
+	policy.ReadRoots = ts.readRoots
 	ag := &agent.Agent{
 		Provider: prov, Model: pc.Model, Effort: pc.Effort,
-		System: agent.System(mode, a.ws.Root, s.Created, ""),
-		Tools:  reg, Policy: agent.NewPolicy(a.ws.Root, mode.Approval), Env: agentEnv{a},
+		System: agent.System(mode, a.ws.Root, s.Created, ts.extra),
+		Tools:  ts.reg, Policy: policy, Env: agentEnv{a},
 		Hooks: agent.Hooks{
 			Event:   func(e agent.Event) { a.onUI(func() { a.agentEvent(e) }) },
 			Approve: a.agentApprove,
@@ -190,6 +203,7 @@ func (a *App) sendAgent() {
 			st.running, st.cancel = false, nil
 			st.stream, st.thinking, st.streamTool = "", "", ""
 			st.approval, st.question = nil, nil
+			a.releaseAgentBuffers()
 			if len(st.turnCheckpoint.order) > 0 {
 				cp := st.turnCheckpoint
 				st.lastCheckpoint = &cp

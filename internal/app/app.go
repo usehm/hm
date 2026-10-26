@@ -237,6 +237,9 @@ func (a *App) Close() {
 	if a.agent.shells != nil {
 		a.agent.shells.StopAll()
 	}
+	if a.agent.mcp != nil {
+		a.agent.mcp.Close()
+	}
 	if a.search.cancel != nil {
 		a.search.cancel()
 	}

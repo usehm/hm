@@ -1,6 +1,8 @@
 package agent
 
 import (
+	"path"
+	"strings"
 	"sync"
 
 	"github.com/mirzakhany/hm/internal/agent/tools"
@@ -36,12 +38,17 @@ var defaultApproval = map[string]string{
 	tools.CatDelete:  "ask",
 	tools.CatShell:   "ask",
 	tools.CatGitPush: "ask",
+	"mcp":            "ask",
+	tools.CatCommand: "auto",
 }
 
 // Policy decides which tool calls run, ask, or are refused.
 type Policy struct {
 	Root  string
 	Rules map[string]string // tool name or category -> auto | ask | deny
+	// ReadRoots are folders outside the workspace that may be read without
+	// asking, such as the skills' folders.
+	ReadRoots []string
 
 	mu      sync.Mutex
 	granted map[string]bool // "allow for this session" answers
@@ -63,7 +70,7 @@ func (p *Policy) Decide(tool string, plan tools.Plan) (Decision, string) {
 		return Ask, "destructive git commands always ask"
 	}
 	for _, path := range plan.Paths {
-		if path != "" && !tools.Inside(p.Root, path) {
+		if path != "" && !tools.Inside(p.Root, path) && !p.readable(plan.Category, path) {
 			return Ask, "it reaches outside the workspace"
 		}
 	}
@@ -80,6 +87,18 @@ func (p *Policy) rule(tool, category string) string {
 	if r, ok := p.Rules[tool]; ok {
 		return r
 	}
+	// Globs such as mcp__github__*; the longest pattern wins.
+	best, rule := -1, ""
+	for pat, r := range p.Rules {
+		if strings.ContainsAny(pat, "*?[") && len(pat) > best {
+			if ok, _ := path.Match(pat, tool); ok {
+				best, rule = len(pat), r
+			}
+		}
+	}
+	if best >= 0 {
+		return rule
+	}
 	if r, ok := p.Rules[category]; ok {
 		return r
 	}
@@ -87,6 +106,18 @@ func (p *Policy) rule(tool, category string) string {
 		return r
 	}
 	return "ask"
+}
+
+func (p *Policy) readable(category, path string) bool {
+	if category != tools.CatRead {
+		return false
+	}
+	for _, r := range p.ReadRoots {
+		if path == r || tools.Inside(r, path) {
+			return true
+		}
+	}
+	return false
 }
 
 // CanGrant reports whether "allow for this session" may be offered.

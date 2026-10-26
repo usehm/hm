@@ -190,6 +190,6 @@ tools:
   mcp: {}
   commands: {}
   skills:
-    paths: [~/.config/hm/skills, .hm/skills]
+    paths: [~/.config/hm/skills, .hm/skills, .cursor/skills, .claude/skills]
   web:
     search: { provider: duckduckgo }   # duckduckgo | searxng | brave | tavily | exa

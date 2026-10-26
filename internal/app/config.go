@@ -84,6 +84,9 @@ func (a *App) reloadConfig() {
 		return
 	}
 	a.applyConfig(cfg)
+	if !reflect.DeepEqual(before.Tools.MCP, cfg.Tools.MCP) {
+		a.startMCP(cfg.Tools.MCP)
+	}
 	a.toast("Settings applied", ui.ToastSuccess)
 }
 

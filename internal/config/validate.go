@@ -190,6 +190,7 @@ var Enums = map[string][]string{
 	"agent.providers.*.effort":       {"low", "medium", "high", "xhigh", "max"},
 	"modes.*.approval.*":             {"auto", "ask", "deny"},
 	"tools.mcp.*.transport":          {"stdio", "http"},
+	"tools.mcp.*.approval":           {"auto", "ask", "deny"},
 	"tools.commands.*.approval":      {"auto", "ask", "deny"},
 	"tools.web.search.provider":      {"duckduckgo", "searxng", "brave", "tavily", "exa"},
 	"languages.*.formatters.*.on.*":  FormatTriggers,

@@ -26,7 +26,8 @@ const (
 	CatShell   = "shell"
 	CatGitPush = "git_push" // and other destructive git commands
 	CatNetwork = "network"
-	CatMeta    = "meta" // todo, ask_user: talk to the user, change nothing
+	CatMeta    = "meta"    // todo, ask_user: talk to the user, change nothing
+	CatCommand = "command" // command tools the user defined in the config
 )
 
 // Env is the workspace as tools see it. The app implements it on top of
