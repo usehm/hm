@@ -11,6 +11,10 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/mirzakhany/yoga/ui"
+
+	"github.com/mirzakhany/hm/internal/agent/provider"
 )
 
 // toolCall is a scripted call the fake model makes.
@@ -294,4 +298,43 @@ agent:
 	h.app.agent.keys.Set("remote", "sk-test")
 	h.app.refreshProviderKeys()
 	h.until("key read", 10*time.Second, func() bool { return h.app.providerReady("remote") })
+}
+
+// The composer opens tall at the top of a new session and moves to the
+// bottom, shorter, once the chat has a message.
+func TestComposerMovesDownAfterFirstMessage(t *testing.T) {
+	h := newHarness(t, project(t), false)
+	h.app.agentOpen = true
+	h.frame()
+	input := func() *ui.TextInput {
+		return h.c.Widget("agent-input", func() any { return nil }).(*ui.TextInput)
+	}
+	fresh := input().FocusEl().Frame
+	if fresh.Y > 200 {
+		t.Fatalf("a new session's composer should sit at the top, y=%v", fresh.Y)
+	}
+
+	s := h.app.currentSession()
+	s.Messages = append(s.Messages, provider.Message{Role: provider.User,
+		Blocks: []provider.Block{{Type: provider.Text, Text: "hello"}}})
+	h.frame()
+	h.frame()
+	chat := input().FocusEl().Frame
+	if chat.Y < 600 {
+		t.Fatalf("once the chat starts the composer should sit at the bottom, y=%v", chat.Y)
+	}
+	if chat.H >= fresh.H {
+		t.Fatalf("the composer should shrink: %v -> %v", fresh.H, chat.H)
+	}
+}
+
+func TestOpeningAgentFocusesInput(t *testing.T) {
+	h := newHarness(t, project(t), false)
+	h.app.toggleAgent()
+	h.frame()
+	h.frame()
+	tf := h.c.Widget("agent-input", func() any { return nil }).(*ui.TextInput)
+	if !tf.Focused() {
+		t.Fatal("opening the agent panel should focus the message box")
+	}
 }

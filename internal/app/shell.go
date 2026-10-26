@@ -37,7 +37,14 @@ func (a *App) titleBar(c *ui.Ctx) ui.View {
 }
 
 func (a *App) toggleSide()  { a.sideOpen = !a.sideOpen }
-func (a *App) toggleAgent() { a.agentOpen = !a.agentOpen }
+func (a *App) toggleAgent() { a.setAgentOpen(!a.agentOpen) }
+
+// setAgentOpen shows or hides the agent panel; opening it focuses the
+// message box.
+func (a *App) setAgentOpen(v bool) {
+	a.agentOpen = v
+	a.agent.focusInput = v
+}
 
 // center is everything between the title bar and the footer: the explorer,
 // the tabs and editor, the bottom panel and the agent drawer.
@@ -56,7 +63,7 @@ func (a *App) center(c *ui.Ctx) ui.View {
 		Push().
 		Size(380).
 		Resizable(true).
-		OnOpenChange(func(v bool) { a.agentOpen = v }).
+		OnOpenChange(a.setAgentOpen).
 		Grow(1)
 	if !a.sideOpen {
 		return work

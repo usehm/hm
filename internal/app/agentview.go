@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/mirzakhany/yoga/icons"
 	"github.com/mirzakhany/yoga/ui"
@@ -22,9 +23,20 @@ func (a *App) agentView(c *ui.Ctx) ui.View {
 	th := c.Theme()
 	st := &a.agent
 	body := []ui.View{a.agentHeader(c)}
-	if st.sessionsOpen {
+	switch {
+	case st.sessionsOpen:
 		body = append(body, a.sessionList(c))
-	} else {
+	case a.agentFresh():
+		// Before the first message the composer sits at the top, tall.
+		body = append(body, ui.Column(a.composer(c, true), ui.Caption(
+			"Enter to send · Shift+Enter for a new line")).
+			Gap(th.Spacing.S).Padding(th.Spacing.M))
+		if st.errText != "" {
+			body = append(body, a.agentError(c))
+		}
+		body = append(body, ui.Spacer())
+		return ui.Column(body...).Grow(1).Background(ui.TokenChrome).BorderLeft(ui.TokenBorder, th.Stroke.Thin)
+	default:
 		body = append(body, a.transcript(c))
 	}
 	if t := a.todoView(c); t != nil {
@@ -37,43 +49,30 @@ func (a *App) agentView(c *ui.Ctx) ui.View {
 		body = append(body, a.questionCard(c, q))
 	}
 	if st.errText != "" {
-		body = append(body, ui.Row(
-			ui.Paragraph(st.errText).Style(ui.Spec{}.TextColor(ui.TokenError)).Grow(1),
-			ui.IconButton("agent-err-close", icons.X).OnClick(func() { st.errText = "" }),
-		).Gap(th.Spacing.XS).PaddingXY(th.Spacing.S, th.Spacing.XXS))
+		body = append(body, a.agentError(c))
 	}
-	body = append(body, a.agentInput(c))
+	body = append(body, ui.Column(a.composer(c, false)).Padding(th.Spacing.S))
 	return ui.Column(body...).Grow(1).Background(ui.TokenChrome).BorderLeft(ui.TokenBorder, th.Stroke.Thin)
+}
+
+// agentFresh reports whether the session has nothing in it yet.
+func (a *App) agentFresh() bool {
+	st := &a.agent
+	return !st.running && (st.session == nil || len(st.session.Snapshot()) == 0)
+}
+
+func (a *App) agentError(c *ui.Ctx) ui.View {
+	th := c.Theme()
+	st := &a.agent
+	return ui.Row(
+		ui.Paragraph(st.errText).Style(ui.Spec{}.TextColor(ui.TokenError)).Grow(1),
+		ui.IconButton("agent-err-close", icons.X).OnClick(func() { st.errText = "" }),
+	).Gap(th.Spacing.XS).PaddingXY(th.Spacing.M, th.Spacing.XXS)
 }
 
 func (a *App) agentHeader(c *ui.Ctx) ui.View {
 	th := c.Theme()
 	st := &a.agent
-	modes := agent.ModeNames(a.modes())
-	modeOpts := make([]ui.SelectOption, len(modes))
-	modeSel := 0
-	for i, m := range modes {
-		modeOpts[i] = ui.SelectOption{Label: m, Value: m}
-		if m == st.mode {
-			modeSel = i
-		}
-	}
-	provs := a.providerNames()
-	provOpts := make([]ui.SelectOption, len(provs))
-	provSel := 0
-	for i, p := range provs {
-		label := providerLabel(p)
-		if m := a.modelOf(p); m != "" {
-			label += " · " + m
-		}
-		if !a.providerReady(p) {
-			label += " (no key)"
-		}
-		provOpts[i] = ui.SelectOption{Label: label, Value: p}
-		if p == st.provider {
-			provSel = i
-		}
-	}
 	usage := ""
 	if s := st.session; s != nil && s.UsageNow().Input+s.UsageNow().Output > 0 {
 		u := s.UsageNow()
@@ -82,25 +81,17 @@ func (a *App) agentHeader(c *ui.Ctx) ui.View {
 			usage += fmt.Sprintf(" · $%.3f", u.Cost)
 		}
 	}
-	return ui.Column(
-		ui.Row(
-			ui.Strong("Agent"),
-			ui.Spacer(),
-			ui.Caption(usage).Tooltip("Tokens in (cached included) and out, and cost when known"),
-			ui.IconButton("agent-undo", icons.Undo2).Tooltip("Undo the last agent turn's file changes").
-				Disabled(st.lastCheckpoint == nil || st.running).OnClick(a.undoAgentTurn),
-			ui.IconButton("agent-history", icons.Clock).Tooltip("Sessions").
-				OnClick(func() { st.sessionsOpen = !st.sessionsOpen }),
-			ui.IconButton("agent-new", icons.SquarePen).Tooltip("New session").Disabled(st.running).OnClick(a.newAgentSession),
-			ui.IconButton("agent-close", icons.X).Tooltip("Close").OnClick(func() { a.agentOpen = false }),
-		).Gap(th.Spacing.XXS),
-		ui.Row(
-			ui.Select("agent-mode", modeOpts).Selected(modeSel).Grow(1).Disabled(st.running).
-				OnChange(func(v string) { st.mode = v }),
-			ui.Select("agent-provider", provOpts).Selected(provSel).Grow(1).Disabled(st.running).
-				OnChange(func(v string) { st.provider = v }),
-		).Gap(th.Spacing.XS),
-	).Gap(th.Spacing.XS).PaddingXY(th.Spacing.M, th.Spacing.S).BorderBottom(ui.TokenBorder, th.Stroke.Thin)
+	return ui.Row(
+		ui.Strong("Agent"),
+		ui.Spacer(),
+		ui.Caption(usage).Tooltip("Tokens in (cached included) and out, and cost when known"),
+		ui.IconButton("agent-undo", icons.Undo2).Tooltip("Undo the last agent turn's file changes").
+			Disabled(st.lastCheckpoint == nil || st.running).OnClick(a.undoAgentTurn),
+		ui.IconButton("agent-history", icons.Clock).Tooltip("Sessions").
+			OnClick(a.toggleSessions),
+		ui.IconButton("agent-new", icons.SquarePen).Tooltip("New session").Disabled(st.running).OnClick(a.newAgentSession),
+		ui.IconButton("agent-close", icons.X).Tooltip("Close").OnClick(func() { a.agentOpen = false }),
+	).Gap(th.Spacing.XXS).PaddingXY(th.Spacing.M, th.Spacing.S).BorderBottom(ui.TokenBorder, th.Stroke.Thin)
 }
 
 func tokens(n int64) string {
@@ -113,28 +104,92 @@ func tokens(n int64) string {
 	return fmt.Sprint(n)
 }
 
+// toggleSessions opens or closes the history list, reading it on open.
+func (a *App) toggleSessions() {
+	st := &a.agent
+	st.sessionsOpen = !st.sessionsOpen
+	if !st.sessionsOpen {
+		st.focusInput = true
+		return
+	}
+	st.sessions = st.sessions[:0]
+	for _, s := range st.store.List() {
+		if s.Turns > 0 {
+			st.sessions = append(st.sessions, s)
+		}
+	}
+}
+
 func (a *App) sessionList(c *ui.Ctx) ui.View {
 	th := c.Theme()
 	st := &a.agent
-	rows := []ui.View{ui.Caption("Sessions in this workspace")}
-	for i, s := range st.store.List() {
-		s := s
-		title := s.Title
-		if title == "" {
-			title = "(empty)"
-		}
-		rows = append(rows, ui.Button(fmt.Sprintf("agent-sess-%d", i), ui.Column(
-			ui.Text(title).Ellipsis(ui.EllipsisEnd),
-			ui.Caption(s.Mode+" · "+s.Updated.Format("Jan 2 15:04")),
-		).Gap(th.Spacing.XXS)).Ghost().HoverFill().OnClick(func() {
-			a.resumeAgentSession(s.ID)
-			st.sessionsOpen = false
-		}))
+	rows := []ui.View{ui.Row(
+		ui.Strong("Sessions"),
+		ui.Spacer(),
+		ui.Caption(fmt.Sprintf("%d in this workspace", len(st.sessions))),
+	).Gap(th.Spacing.XS)}
+	for i, s := range st.sessions {
+		rows = append(rows, a.sessionCard(c, i, s))
 	}
-	if len(rows) == 1 {
+	if len(st.sessions) == 0 {
 		rows = append(rows, ui.Muted("No saved sessions yet"))
 	}
-	return ui.Scroll("agent-sessions", ui.Column(rows...).Gap(th.Spacing.XS).Padding(th.Spacing.M)).Grow(1)
+	return ui.Scroll("agent-sessions", ui.Column(rows...).Gap(th.Spacing.S).Padding(th.Spacing.M)).Grow(1)
+}
+
+// sessionCard is one saved session: its title, then its mode, size and age.
+func (a *App) sessionCard(c *ui.Ctx, i int, s agent.Summary) ui.View {
+	th := c.Theme()
+	st := &a.agent
+	title := s.Title
+	if title == "" {
+		title = "Untitled session"
+	}
+	icon, ok := modeIcons[s.Mode]
+	if !ok {
+		icon = icons.Bot
+	}
+	turns := "1 message"
+	if s.Turns != 1 {
+		turns = fmt.Sprintf("%d messages", s.Turns)
+	}
+	meta := []ui.View{
+		ui.Icon(icon, th.Metrics.IconSizeSM, th.ForegroundMuted),
+		ui.Caption(s.Mode + " · " + turns),
+	}
+	if s.Cost >= 0.005 {
+		meta = append(meta, ui.Caption(fmt.Sprintf("· $%.2f", s.Cost)))
+	}
+	meta = append(meta, ui.Spacer(), ui.Caption(ago(s.Updated)).Tooltip(s.Updated.Format("Mon Jan 2 2006, 15:04")))
+	border := ui.TokenBorder
+	if cur := st.session; cur != nil && cur.ID == s.ID {
+		border = ui.TokenAccent
+	}
+	// A button is one control high unless told otherwise; the card has two
+	// lines.
+	h := 2*th.Spacing.S + th.Typography.Body.LineHeight + th.Spacing.XS + th.Metrics.IconSizeSM + th.Spacing.XXS
+	return ui.Button(fmt.Sprintf("agent-sess-%d", i), ui.Column(
+		ui.Text(title).Weight(600).Ellipsis(ui.EllipsisEnd),
+		ui.Row(meta...).Gap(th.Spacing.XS),
+	).Gap(th.Spacing.XS).Grow(1)).Ghost().HoverFill().
+		Height(h).Padding(th.Spacing.S).Radius(th.Radius.XLarge).Border(border, th.Stroke.Thin).Background(ui.TokenSurface).
+		OnClick(func() { a.resumeAgentSession(s.ID) })
+}
+
+// ago says how long ago t was, coarsely.
+func ago(t time.Time) string {
+	d := time.Since(t)
+	switch {
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		return fmt.Sprintf("%dm ago", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%dh ago", int(d.Hours()))
+	case d < 7*24*time.Hour:
+		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
+	}
+	return t.Format("Jan 2")
 }
 
 // transcript shows the session's messages, then the turn in progress.
@@ -395,23 +450,96 @@ func (a *App) questionCard(c *ui.Ctx, q *pendingQuestion) ui.View {
 	).Gap(th.Spacing.S).Padding(th.Spacing.M).BorderTop(ui.TokenAccent, th.Stroke.Thick).Background(ui.TokenChromeMuted)
 }
 
-func (a *App) agentInput(c *ui.Ctx) ui.View {
+// composer is the message box with the mode and model pickers under it. A
+// fresh session shows it tall; once the chat starts it shrinks to grow with
+// its text.
+func (a *App) composer(c *ui.Ctx, fresh bool) ui.View {
 	th := c.Theme()
 	st := &a.agent
-	field := ui.TextField("agent-input", st.input).
-		Placeholder(fmt.Sprintf("Ask in %s mode… (/mode to switch)", st.mode)).
+	minRows, maxRows := 1, 8
+	if fresh {
+		minRows, maxRows = 5, 14
+	}
+	// The box shows focus, not the field inside it.
+	tf := c.Widget("agent-input", func() any { return ui.NewTextInput(ui.TextFieldConfig{Multiline: true}) }).(*ui.TextInput)
+	border := ui.TokenBorder
+	if tf.Focused() {
+		border = ui.TokenFocusRing
+		// The panel may open over a few frames before the field is laid
+		// out, so keep asking for focus until it lands.
+		st.focusInput = false
+	}
+	field := ui.TextArea("agent-input", st.input).Rows(minRows, maxRows).
+		Placeholder("Plan, build, / for commands, @ for context").
 		OnChange(func(v string) { st.input = v }).
 		OnSubmit(func(string) { a.sendAgent() }).
 		Suggest(a.agentSuggest).
-		Grow(1)
+		DefaultFocus().FocusNow(st.focusInput).
+		Style(ui.Background(ui.TokenUnset).Border(ui.TokenUnset, 0).When(ui.Focused, ui.Spec{}.Border(ui.TokenUnset, 0)))
 	var btn ui.View
 	if st.running {
-		btn = ui.Button("agent-stop", ui.Text("Stop")).IconStart(icons.Square).OnClick(a.stopAgent)
+		btn = ui.IconButton("agent-stop", icons.Square).Tooltip("Stop").OnClick(a.stopAgent)
 	} else {
-		btn = ui.Button("agent-send", ui.Text("Send")).Primary().IconStart(icons.Send).
-			Disabled(strings.TrimSpace(st.input) == "").OnClick(a.sendAgent)
+		btn = ui.Button("agent-send", ui.Icon(icons.ArrowUp, th.Metrics.IconSizeSM, th.AccentForeground)).Primary().
+			Tooltip("Send (Enter)").Disabled(strings.TrimSpace(st.input) == "").OnClick(a.sendAgent)
 	}
-	return ui.Row(field, btn).Gap(th.Spacing.XS).Padding(th.Spacing.S).BorderTop(ui.TokenBorder, th.Stroke.Thin)
+	return ui.Column(
+		field,
+		ui.Row(a.modePicker(), a.composerModel(), ui.Spacer(), btn).Gap(th.Spacing.XS).PaddingXY(th.Spacing.XS, 0),
+	).Gap(th.Spacing.XXS).PaddingXY(0, th.Spacing.XS).Radius(th.Radius.XLarge).
+		Border(border, th.Stroke.Thin).Background(ui.TokenSurface)
+}
+
+// modeIcons marks the built-in modes in the mode picker.
+var modeIcons = map[string]icons.Icon{
+	"lazy":        icons.Coffee,
+	"rubber-duck": icons.MessageCircle,
+	"auto":        icons.Sparkles,
+	"fullstack":   icons.Layers,
+}
+
+func (a *App) modePicker() ui.View {
+	st := &a.agent
+	modes := agent.ModeNames(a.modes())
+	items := make([]ui.MenuItem, len(modes))
+	for i, m := range modes {
+		m := m
+		items[i] = ui.MenuItem{Label: m, Checked: m == st.mode, OnSelect: func() { st.mode = m }}
+	}
+	icon, ok := modeIcons[st.mode]
+	if !ok {
+		icon = icons.Bot
+	}
+	return ui.MenuButton("agent-mode", st.mode, items).IconStart(icon).Subtle().Disabled(st.running)
+}
+
+// composerModel switches between the configured providers, each shown by the
+// model it runs; the model itself is picked in Settings.
+func (a *App) composerModel() ui.View {
+	st := &a.agent
+	var items []ui.MenuItem
+	for _, p := range a.providerNames() {
+		p := p
+		label, hint := a.modelOf(p), providerLabel(p)
+		if label == "" {
+			label = providerLabel(p)
+			hint = ""
+		}
+		if !a.providerReady(p) {
+			hint = "no key"
+		}
+		items = append(items, ui.MenuItem{Label: label, Shortcut: hint, Checked: p == st.provider,
+			OnSelect: func() { st.provider = p }})
+	}
+	items = append(items, ui.MenuSeparator, ui.MenuItem{Label: "Models and keys…", OnSelect: a.openSettings})
+	label := a.modelOf(st.provider)
+	switch {
+	case !a.providerReady(st.provider):
+		label = "Set up a model"
+	case label == "":
+		label = providerLabel(st.provider)
+	}
+	return ui.MenuButton("agent-model", label, items).Ghost().Disabled(st.running)
 }
 
 // agentSuggest completes slash commands, mode names and @ mentions.

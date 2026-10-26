@@ -53,7 +53,11 @@ type agentState struct {
 	lastCheckpoint *checkpoint
 
 	sessionsOpen bool
-	keys         secrets.Store
+	// sessions is the history list, read when it opens.
+	sessions []agent.Summary
+	// focusInput moves focus to the message box on the next build.
+	focusInput bool
+	keys       secrets.Store
 	// keyOK says which providers' keys resolve. Reading the keychain runs
 	// a process, so it is read off the UI goroutine by refreshProviderKeys.
 	keyOK  map[string]bool
@@ -405,6 +409,7 @@ func (a *App) newAgentSession() {
 	st.session, st.errText, st.lastCheckpoint = nil, "", nil
 	st.calls = map[string]callView{}
 	st.todos.Set(nil)
+	st.sessionsOpen, st.focusInput = false, true
 }
 
 func (a *App) resumeAgentSession(id string) {
@@ -426,6 +431,7 @@ func (a *App) resumeAgentSession(id string) {
 		st.provider = s.Provider
 	}
 	st.todos.Set(s.Todos)
+	st.sessionsOpen, st.focusInput = false, true
 }
 
 func (a *App) providerNames() []string {
@@ -503,7 +509,7 @@ func (e agentEnv) diagnosticsNow() []string {
 
 // askAboutSelection opens the agent with the selection attached.
 func (a *App) askAboutSelection() {
-	a.agentOpen = true
+	a.agentOpen, a.agent.focusInput = true, true
 	if a.agent.input == "" {
 		a.agent.input = "@selection "
 	}

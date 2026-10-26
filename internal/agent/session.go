@@ -123,8 +123,11 @@ func (st *Store) Load(id string) (*Session, error) {
 
 // Summary describes a saved session for the list.
 type Summary struct {
-	ID, Title, Mode string
-	Updated         time.Time
+	ID, Title, Mode, Provider string
+	Updated                   time.Time
+	// Turns counts the user's messages.
+	Turns int
+	Cost  float64
 }
 
 // List returns saved sessions, newest first.
@@ -140,7 +143,14 @@ func (st *Store) List() []Summary {
 		if err != nil {
 			continue
 		}
-		out = append(out, Summary{ID: s.ID, Title: s.Title, Mode: s.Mode, Updated: s.Updated})
+		turns := 0
+		for _, m := range s.Messages {
+			if m.Role == provider.User && strings.TrimSpace(m.TextOf()) != "" {
+				turns++
+			}
+		}
+		out = append(out, Summary{ID: s.ID, Title: s.Title, Mode: s.Mode, Provider: s.Provider,
+			Updated: s.Updated, Turns: turns, Cost: s.Usage.Cost})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Updated.After(out[j].Updated) })
 	return out
