@@ -17,7 +17,14 @@ func main() {
 	if os.Getenv(gitx.AskPassEnv) == "1" {
 		os.Exit(gitx.AskPass(os.Args[1:], os.Stdout))
 	}
+	installCLI := flag.Bool("install-cli", false, "install the `hm` shell command and exit")
 	flag.Parse()
+	if *installCLI {
+		if err := app.InstallCLI(os.Stdout); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	if err := app.Run(app.Options{Root: flag.Arg(0)}); err != nil {
 		log.Fatal(err)
 	}

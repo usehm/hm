@@ -73,6 +73,8 @@ func (a *App) registerCommands(c *ui.Ctx) {
 		ui.Cmd("git.fetch").Title("Git: Fetch").Icon(icons.RefreshCw).Run(func() { a.gitst.page.Fetch() }),
 		ui.Cmd("git.newBranch").Title("Git: New Branch…").Icon(icons.GitBranchPlus).Run(func() { a.gitst.page.NewBranch() }),
 		ui.Cmd("app.checkUpdates").Title("Check for Updates").Icon(icons.Download).Run(a.checkUpdatesNow),
+		ui.Cmd("app.installCLI").Title("Install 'hm' Command in PATH").Icon(icons.SquareTerminal).Hidden(!cliSupported()).Run(a.installCLICommand),
+		ui.Cmd("app.uninstallCLI").Title("Uninstall 'hm' Command from PATH").Icon(icons.SquareTerminal).Hidden(!cliSupported()).Run(a.uninstallCLICommand),
 
 		ui.Section("View"),
 		ui.Cmd("view.sidebar").Title("Toggle Sidebar").Shortcut(a.key("view.sidebar")).Icon(icons.PanelLeft).Run(a.toggleSide),

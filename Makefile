@@ -1,0 +1,53 @@
+TAG_NAME ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0)
+
+# Packaging runs through the yoga CLI (see yoga.toml); make install_deps
+# installs the version go.mod builds the app with. Artifacts land in dist/<os>/.
+YOGA ?= yoga
+YOGA_VERSION = $(shell go list -m -f '{{.Version}}' github.com/mirzakhany/yoga)
+ARCH ?= $(shell go env GOARCH)
+APP = dist/darwin/Hm.app
+
+.PHONY: install_deps
+install_deps:
+	go install github.com/mirzakhany/yoga/cmd/yoga@$(YOGA_VERSION)
+
+.PHONY: run
+run:
+	go run ./cmd/hm .
+
+.PHONY: test
+test:
+	go test ./...
+
+# Redraws build/appicon-1024.png and build/appicon.png from the Swift source.
+.PHONY: icon
+icon:
+	swift build/icon/appicon.swift build/appicon-1024.png
+	sips -z 512 512 build/appicon-1024.png --out build/appicon.png >/dev/null
+
+# Unsigned (ad-hoc) Hm.app and DMG for this Mac's architecture. The binary
+# reports version "dev", so a local build never offers to update itself.
+.PHONY: app
+app:
+	$(YOGA) package -os darwin -arch $(ARCH) -version $(TAG_NAME) \
+		-ldflags "-X github.com/mirzakhany/hm/internal/version.Version=dev"
+
+# Builds Hm.app, copies it to /Applications and installs the `hm` command.
+# Inside the app, "Install 'hm' Command in PATH" does the same last step.
+.PHONY: install
+install: app
+	rm -rf /Applications/Hm.app
+	cp -R $(APP) /Applications/Hm.app
+	/Applications/Hm.app/Contents/MacOS/Hm -install-cli
+
+.PHONY: clean
+clean:
+	rm -rf ./dist
+
+.PHONY: build_linux
+build_linux:
+	$(YOGA) package -os linux -version $(TAG_NAME)
+
+.PHONY: build_windows
+build_windows:
+	$(YOGA) package -os windows -arch amd64 -version $(TAG_NAME)
