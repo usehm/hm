@@ -135,8 +135,14 @@ func (a *App) modelsFor(name string) (models []string, loading bool, errText str
 // modelSetting is the Settings row that picks a provider's model from the
 // list its key can use.
 func (a *App) modelSetting(name string) ui.FormItem {
-	id := "set-agent-model-" + name
-	cur := a.modelOf(name)
+	return a.modelPicker("set-agent-model-"+name, name, a.modelOf(name),
+		[]string{"agent", "providers", name, "model"}, func(v string) { a.setModel(name, v) })
+}
+
+// modelPicker is a Settings row choosing cur from provider name's model
+// list; set receives the choice. When the list cannot be read it falls back
+// to a text field over the config key.
+func (a *App) modelPicker(id, name, cur string, key []string, set func(string)) ui.FormItem {
 	models, loading, errText := a.modelsFor(name)
 	switch {
 	case loading:
@@ -144,8 +150,7 @@ func (a *App) modelSetting(name string) ui.FormItem {
 			[]ui.SelectOption{{Label: orNone(cur), Value: cur}}, 0, func(string) {})
 	case errText != "":
 		return ui.FormText(id+"-text", "Model", "Could not list the models ("+errText+"); type the model id",
-			a.textValue([]string{"agent", "providers", name, "model"}, cur),
-			func(v string) { a.setTextSetting([]string{"agent", "providers", name, "model"}, v) })
+			a.textValue(key, cur), func(v string) { a.setTextSetting(key, v) })
 	}
 	opts := make([]ui.SelectOption, 0, len(models)+1)
 	sel := -1
@@ -160,8 +165,7 @@ func (a *App) modelSetting(name string) ui.FormItem {
 		opts = append([]ui.SelectOption{{Label: orNone(cur), Value: cur}}, opts...)
 		sel = 0
 	}
-	return ui.FormSelect(id, "Model", "From the models this key can use", opts, sel,
-		func(v string) { a.setModel(name, v) })
+	return ui.FormSelect(id, "Model", "From the models this key can use", opts, sel, set)
 }
 
 func orNone(model string) string {

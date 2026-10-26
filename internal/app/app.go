@@ -60,6 +60,7 @@ type App struct {
 	gitst  gitState
 	term   terminals
 	agent  agentState
+	compl  complState
 	upd    *updater
 
 	// ctx is the window context, valid for the window's lifetime. Callbacks
@@ -172,6 +173,7 @@ func (a *App) Body(c *ui.Ctx) ui.View {
 	a.formatAfterPaste()
 	a.pumpSearch(c)
 	a.pumpGit(c)
+	a.pumpCompletion(c)
 	if a.cfg.TakeChange() {
 		a.reloadConfig()
 	}

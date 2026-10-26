@@ -30,6 +30,7 @@ keys:                         # command id -> chord; overrides built-ins
   view.theme: cmd+k
   view.tabs: cmd+shift+e
   panel.terminal: ctrl+`
+  completion.trigger: alt+\
   terminal.new: ctrl+shift+`
   panel.git: cmd+shift+g
   panel.problems: cmd+shift+m
@@ -166,6 +167,14 @@ agent:
     # Any OpenAI-compatible endpoint: OpenAI, OpenRouter
     # (https://openrouter.ai/api/v1), Ollama (http://localhost:11434/v1), ...
     openai: { type: openai, base_url: "https://api.openai.com/v1", api_key: "keychain:openai" }
+
+# AI inline completions: ghost text at the caret, Tab accepts, Esc dismisses.
+completion:
+  enabled: true
+  provider: ""                # a name under agent.providers; empty = agent.default_provider
+  model: ""                   # a small, fast model; empty = off
+  delay: 300ms                # pause in typing before asking
+  max_tokens: 256
 
 modes:
   lazy:

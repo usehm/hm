@@ -13,15 +13,16 @@ import (
 
 // Config is the merged configuration.
 type Config struct {
-	Editor    Editor              `yaml:"editor"`
-	Keys      map[string]string   `yaml:"keys"`
-	Search    Search              `yaml:"search"`
-	Languages map[string]Language `yaml:"languages"`
-	Terminal  Terminal            `yaml:"terminal"`
-	Updates   Updates             `yaml:"updates"`
-	Agent     Agent               `yaml:"agent"`
-	Modes     map[string]Mode     `yaml:"modes"`
-	Tools     Tools               `yaml:"tools"`
+	Editor     Editor              `yaml:"editor"`
+	Keys       map[string]string   `yaml:"keys"`
+	Search     Search              `yaml:"search"`
+	Languages  map[string]Language `yaml:"languages"`
+	Terminal   Terminal            `yaml:"terminal"`
+	Updates    Updates             `yaml:"updates"`
+	Agent      Agent               `yaml:"agent"`
+	Completion Completion          `yaml:"completion"`
+	Modes      map[string]Mode     `yaml:"modes"`
+	Tools      Tools               `yaml:"tools"`
 }
 
 type Editor struct {
@@ -122,6 +123,18 @@ type Provider struct {
 	MaxTokens int    `yaml:"max_tokens"`
 	// Effort sets how hard the model thinks: low | medium | high | xhigh | max.
 	Effort string `yaml:"effort"`
+}
+
+// Completion configures AI inline completions in the editor.
+type Completion struct {
+	Enabled bool `yaml:"enabled"`
+	// Provider names an entry under agent.providers, whose endpoint and key
+	// it uses; empty means agent.default_provider.
+	Provider string `yaml:"provider"`
+	// Model should be small and fast; empty turns completions off.
+	Model     string   `yaml:"model"`
+	Delay     Duration `yaml:"delay"` // pause in typing before asking
+	MaxTokens int      `yaml:"max_tokens"`
 }
 
 type Mode struct {

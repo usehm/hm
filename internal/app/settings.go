@@ -104,7 +104,7 @@ func (a *App) settingsPage(c *ui.Ctx) ui.View {
 	).Grouped()
 
 	body := append([]ui.View{header}, alerts...)
-	body = append(body, form, a.agentSettings(c),
+	body = append(body, form, a.agentSettings(c), a.completionSettings(),
 		ui.Caption("Keyboard shortcuts, languages, provider details, modes and tools are edited in YAML."))
 	return ui.Scroll("settings-scroll",
 		ui.Column(body...).Gap(th.Spacing.M).Padding(th.Spacing.XL).Width(760),
@@ -204,6 +204,44 @@ func (a *App) agentSettings(c *ui.Ctx) ui.View {
 		).Gap(th.Spacing.XS))
 	}
 	return ui.Column(rows...).Gap(th.Spacing.M)
+}
+
+// completionSettings turns AI inline completions on and picks the provider
+// and model they use.
+func (a *App) completionSettings() ui.View {
+	cc := a.cfg.Current().Completion
+	name := a.completionProvider()
+	provs := a.providerNames()
+	popts := make([]ui.SelectOption, len(provs))
+	psel := 0
+	for i, p := range provs {
+		popts[i] = ui.SelectOption{Label: providerLabel(p), Value: p}
+		if p == name {
+			psel = i
+		}
+	}
+	status := "Ghost text at the caret: Tab accepts, Esc dismisses"
+	if !a.providerReady(name) {
+		status = "Add a key for " + providerLabel(name) + " under Agent to choose a model"
+	} else if cc.Model == "" {
+		status = "Choose a small, fast model to turn completions on"
+	}
+	items := []ui.FormItem{
+		ui.FormHeading("Completion", status),
+		ui.FormSwitch("set-compl-on", "AI completions", "Suggest code as you type",
+			cc.Enabled, func(v bool) { a.setSetting([]string{"completion", "enabled"}, v) }),
+		ui.FormSelect("set-compl-provider", "Provider", "Uses that provider's endpoint and key", popts, psel,
+			func(v string) { a.setSetting([]string{"completion", "provider"}, v) }),
+	}
+	if a.providerReady(name) {
+		key := []string{"completion", "model"}
+		items = append(items, a.modelPicker("set-compl-model", name, cc.Model, key,
+			func(v string) { a.setSetting(key, v) }))
+	}
+	items = append(items, ui.FormNumber("set-compl-delay", "Delay", "Milliseconds of pause in typing before asking",
+		float64(cc.Delay.Milliseconds()), 0, 5000, 50,
+		func(v float64) { a.setSetting([]string{"completion", "delay"}, strconv.Itoa(int(v))+"ms") }))
+	return ui.Form("completion-form", items...).Grouped()
 }
 
 // askProviderKey asks for an API key and keeps it in the keychain.

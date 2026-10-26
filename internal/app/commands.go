@@ -56,6 +56,11 @@ func (a *App) registerCommands(c *ui.Ctx) {
 			Enabled(hasEd).Run(func() { a.documentSymbols(ed) }),
 		ui.Cmd("editor.format").Title("Format Document").Shortcut(a.key("editor.format")).Icon(icons.WandSparkles).
 			Enabled(hasEd).Run(func() { a.format(ed, "manual", nil) }),
+		ui.Cmd("completion.trigger").Title("Suggest AI Completion").Shortcut(a.key("completion.trigger")).Icon(icons.Sparkles).
+			Enabled(hasEd).Run(a.triggerCompletion),
+		ui.Cmd("completion.toggle").Title("Toggle AI Completion").Icon(icons.Sparkles).Run(func() {
+			a.setUserSetting([]string{"completion", "enabled"}, !a.cfg.Current().Completion.Enabled)
+		}),
 		ui.Cmd("lsp.restart").Title("Restart Language Servers").Icon(icons.RefreshCw).Run(func() {
 			a.lang.Restart()
 			a.toast("Language servers restarted", ui.ToastInfo)

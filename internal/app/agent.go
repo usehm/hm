@@ -527,6 +527,7 @@ func (a *App) saveProviderKey(name, key string) {
 	a.toast("Saved the "+name+" key in the keychain", ui.ToastSuccess)
 	a.refreshProviderKeys()
 	a.forgetModels(name)
+	a.compl.forgetProvider()
 }
 
 // hasProviderKey reports whether the provider's key resolves, as last read
