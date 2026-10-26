@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,6 +18,10 @@ const maxWatchedDirs = 1500
 
 // watchSettle coalesces a burst of events (a git checkout, a build).
 const watchSettle = 120 * time.Millisecond
+
+// debugWatch logs every event, to find what wakes an idle window:
+// HM_DEBUG_WATCH=1.
+var debugWatch = os.Getenv("HM_DEBUG_WATCH") != ""
 
 // Changes is what changed on disk since the last Take.
 type Changes struct {
@@ -97,6 +102,15 @@ func (w *Watcher) loop() {
 }
 
 func (w *Watcher) event(ev fsnotify.Event) {
+	if debugWatch {
+		log.Printf("watch: %s %s", ev.Op, ev.Name)
+	}
+	if ev.Op == fsnotify.Chmod {
+		// Attribute changes only. kqueue reports one on .git/index each
+		// time git reads it, so counting them would make every status
+		// read schedule another.
+		return
+	}
 	name := filepath.Clean(ev.Name)
 	gitDir := filepath.Join(w.root, ".git")
 	w.mu.Lock()

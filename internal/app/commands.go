@@ -113,13 +113,17 @@ func (a *App) registerCommands(c *ui.Ctx) {
 		cmds = append(cmds, ui.Item("tab."+itoa(i)+"."+t.Path).Title(m.Title).Detail(a.ws.Rel(t.Path)).
 			Icon(m.Icon).Scope(scopeTabs).Run(func() { a.ws.Active = i }))
 	}
-	if a.idx != nil {
-		for _, p := range a.idx.files {
-			p := p
-			rel := a.ws.Rel(p)
-			cmds = append(cmds, ui.Item("open."+p).Title(filepath.Base(p)).Detail(filepath.Dir(rel)).
-				Icon(icons.File).Scope(scopeFiles).Run(func() { a.openFile(p) }))
+	if x := a.idx; x != nil {
+		if x.cmds == nil {
+			x.cmds = make([]*ui.Command, 0, len(x.files))
+			for _, p := range x.files {
+				p := p
+				rel := a.ws.Rel(p)
+				x.cmds = append(x.cmds, ui.Item("open."+p).Title(filepath.Base(p)).Detail(filepath.Dir(rel)).
+					Icon(icons.File).Scope(scopeFiles).Run(func() { a.openFile(p) }))
+			}
 		}
+		cmds = append(cmds, x.cmds...)
 	}
 	cmds = append(cmds, a.locations...)
 	c.Commands().Register(cmds...)

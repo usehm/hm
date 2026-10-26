@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"sort"
 	"sync"
+
+	"github.com/mirzakhany/yoga/ui"
 )
 
 // maxIndexed caps the quick-open list so huge trees stay responsive.
@@ -21,6 +23,9 @@ type fileIndex struct {
 	gen     int
 
 	files []string // UI goroutine only
+	// cmds are the quick-open entries for files, built once per walk
+	// rather than every frame. UI goroutine only.
+	cmds []*ui.Command
 }
 
 func newFileIndex(root string, wake func()) *fileIndex {
@@ -83,6 +88,7 @@ func (x *fileIndex) drain() {
 	x.mu.Lock()
 	if x.ready {
 		x.files, x.pending, x.ready = x.pending, nil, false
+		x.cmds = nil
 	}
 	x.mu.Unlock()
 }

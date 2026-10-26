@@ -229,7 +229,19 @@ func (g *Git) applyPending() bool {
 }
 
 // Refresh reads the repository again: status, items and history.
-func (g *Git) Refresh() {
+func (g *Git) Refresh() { g.refresh(false) }
+
+// RefreshStatus reads only the status and the changed items, for when the
+// page is hidden; the branches, remote and history wait for the next
+// Refresh. It is a Refresh until the page has read the repository.
+func (g *Git) RefreshStatus() {
+	if g.loading {
+		return // the read in flight brings a newer status
+	}
+	g.refresh(true)
+}
+
+func (g *Git) refresh(statusOnly bool) {
 	g.refreshSeq++
 	seq := g.refreshSeq
 	g.loading = true
@@ -241,8 +253,21 @@ func (g *Git) Refresh() {
 		// Another workspace: don't show the old one's changes meanwhile.
 		g.snap = nil
 	}
+	// The git binary and the repository don't change between reads; a
+	// failed read finds them again, in case the folder became a repository.
+	var prev *gitSnapshot
+	if s := g.snap; s != nil && s.err == nil && s.repo != nil && dirErr == nil {
+		cp := *s
+		prev = &cp
+	}
 	g.do(func(ctx context.Context) func() {
-		snap := readGit(ctx, dir, dirErr)
+		var snap *gitSnapshot
+		if statusOnly && prev != nil {
+			snap = prev
+			snap.err = readStatus(ctx, snap)
+		} else {
+			snap = readGit(ctx, dir, dirErr, prev)
+		}
 		return func() {
 			if seq != g.refreshSeq {
 				return
@@ -253,46 +278,63 @@ func (g *Git) Refresh() {
 	})
 }
 
-// readGit reads everything the page shows.
-func readGit(ctx context.Context, dir string, dirErr error) *gitSnapshot {
+// readGit reads everything the page shows. prev, when set, is an earlier
+// read of dir whose git and repository are reused.
+func readGit(ctx context.Context, dir string, dirErr error, prev *gitSnapshot) *gitSnapshot {
 	snap := &gitSnapshot{dir: dir}
 	if dirErr != nil {
 		snap.err = dirErr
 		return snap
 	}
-	git, err := gitx.Find(ctx)
-	if err != nil {
-		snap.err = err
-		return snap
+	if prev != nil {
+		snap.version, snap.repo = prev.version, prev.repo
+	} else {
+		git, err := gitx.Find(ctx)
+		if err != nil {
+			snap.err = err
+			return snap
+		}
+		snap.version = git.Version()
+		repo, err := git.Open(ctx, dir)
+		if err != nil {
+			snap.err = err
+			return snap
+		}
+		snap.repo = repo
 	}
-	snap.version = git.Version()
-	repo, err := git.Open(ctx, dir)
-	if err != nil {
-		snap.err = err
-		return snap
-	}
-	snap.repo = repo
+	repo := snap.repo
+	var err error
 	if snap.remote, snap.remoteURL, err = repo.Remote(ctx); err != nil {
 		snap.err = err
 		return snap
 	}
-	if snap.status, err = repo.Status(ctx); err != nil {
-		snap.err = err
+	if snap.err = readStatus(ctx, snap); snap.err != nil {
 		return snap
 	}
-	snap.op, snap.opMsg = repo.InProgress(ctx)
 	if snap.branches, err = repo.Branches(ctx); err != nil {
 		snap.err = err
 		return snap
 	}
-	for _, c := range snap.status.Changes {
-		snap.entries = append(snap.entries, gitEntry{change: c, item: itemFor(c.Path)})
-	}
-	sortEntries(snap.entries)
 	if snap.commits, err = repo.Log(ctx, gitLogLimit); err != nil {
 		snap.err = err
 	}
 	return snap
+}
+
+// readStatus reads snap's status, operation in progress and changed items.
+func readStatus(ctx context.Context, snap *gitSnapshot) error {
+	st, err := snap.repo.Status(ctx)
+	if err != nil {
+		return err
+	}
+	snap.status = st
+	snap.op, snap.opMsg = snap.repo.InProgress(ctx)
+	snap.entries = nil
+	for _, c := range st.Changes {
+		snap.entries = append(snap.entries, gitEntry{change: c, item: itemFor(c.Path)})
+	}
+	sortEntries(snap.entries)
+	return nil
 }
 
 // sortEntries orders the list by path.

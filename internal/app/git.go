@@ -26,7 +26,6 @@ type gitState struct {
 	repo    *gitx.Repo // nil until opened, or when the folder is not a repository
 	head    string
 	polled  time.Time
-	stop    chan struct{}
 	bases   map[string]*gitBase // HEAD versions of open files, for change bars
 	watcher *workspace.Watcher
 }
@@ -62,8 +61,6 @@ func (a *App) startGit() {
 	})
 	g.page.Refresh()
 	g.polled = time.Now()
-	stop := make(chan struct{})
-	g.stop = stop
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -78,18 +75,6 @@ func (a *App) startGit() {
 			}
 		})
 	}()
-	go func() {
-		t := time.NewTicker(gitPollInterval)
-		defer t.Stop()
-		for {
-			select {
-			case <-stop:
-				return
-			case <-t.C:
-				a.invalidate()
-			}
-		}
-	}()
 	if w, err := workspace.Watch(root, func(name string) bool { return hiddenNames[name] || skipDirs[name] }, a.invalidate); err == nil {
 		g.watcher = w
 	} else {
@@ -99,10 +84,6 @@ func (a *App) startGit() {
 
 func (a *App) stopGit() {
 	g := &a.gitst
-	if g.stop != nil {
-		close(g.stop)
-		g.stop = nil
-	}
 	g.watcher.Close()
 	g.watcher = nil
 	if g.page != nil {
@@ -133,9 +114,17 @@ func (a *App) pumpGit(c *ui.Ctx) {
 	if !ch.Empty() {
 		a.diskChanged(ch)
 	}
-	if time.Since(g.polled) >= gitPollInterval || ch.Git || len(ch.Files) > 0 {
+	if wait := gitPollInterval - time.Since(g.polled); wait <= 0 || ch.Git || len(ch.Files) > 0 {
 		g.polled = time.Now()
-		g.page.Refresh()
+		if a.panelOpen && a.panel == panelGit {
+			g.page.Refresh()
+		} else {
+			// Hidden page: the footer and change bars need only the status.
+			g.page.RefreshStatus()
+		}
+		c.Animate(gitPollInterval)
+	} else {
+		c.Animate(wait)
 	}
 	if ed := a.ws.ActiveEditor(); ed != nil {
 		a.updateChangeBars(ed)

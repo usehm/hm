@@ -54,6 +54,10 @@ type agentState struct {
 
 	sessionsOpen bool
 	keys         secrets.Store
+	// keyOK says which providers' keys resolve. Reading the keychain runs
+	// a process, so it is read off the UI goroutine by refreshProviderKeys.
+	keyOK  map[string]bool
+	keySeq uint64
 }
 
 // callView is what the transcript shows for a tool call.
@@ -112,6 +116,7 @@ func (a *App) initAgent() {
 		st.provider = cfg.DefaultProvider
 	}
 	st.session = nil
+	a.refreshProviderKeys()
 }
 
 func (a *App) currentSession() *agent.Session {
@@ -508,14 +513,35 @@ func (a *App) saveProviderKey(name, key string) {
 		a.setUserSetting([]string{"agent", "providers", name, "api_key"}, ref)
 	}
 	a.toast("Saved the "+name+" key in the keychain", ui.ToastSuccess)
+	a.refreshProviderKeys()
 }
 
-// hasProviderKey reports whether the provider's key resolves.
-func (a *App) hasProviderKey(name string) bool {
-	pc := a.cfg.Current().Agent.Providers[name]
-	if pc.APIKey == "" {
-		return false
+// hasProviderKey reports whether the provider's key resolves, as last read
+// by refreshProviderKeys. It never reads the keychain: Body calls it.
+func (a *App) hasProviderKey(name string) bool { return a.agent.keyOK[name] }
+
+// refreshProviderKeys resolves every provider's key in the background and
+// updates what hasProviderKey reports.
+func (a *App) refreshProviderKeys() {
+	st := &a.agent
+	st.keySeq++
+	seq := st.keySeq
+	refs := map[string]string{}
+	for name, pc := range a.cfg.Current().Agent.Providers {
+		refs[name] = pc.APIKey
 	}
-	v, err := config.Resolve(pc.APIKey)
-	return err == nil && v != ""
+	go func() {
+		ok := make(map[string]bool, len(refs))
+		for name, ref := range refs {
+			if ref != "" {
+				v, err := config.Resolve(ref)
+				ok[name] = err == nil && v != ""
+			}
+		}
+		a.onUI(func() {
+			if seq == st.keySeq {
+				st.keyOK = ok
+			}
+		})
+	}()
 }

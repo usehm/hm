@@ -87,6 +87,9 @@ func (a *App) reloadConfig() {
 	if !reflect.DeepEqual(before.Tools.MCP, cfg.Tools.MCP) {
 		a.startMCP(cfg.Tools.MCP)
 	}
+	if !reflect.DeepEqual(before.Agent.Providers, cfg.Agent.Providers) {
+		a.refreshProviderKeys()
+	}
 	a.toast("Settings applied", ui.ToastSuccess)
 }
 
