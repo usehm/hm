@@ -155,6 +155,42 @@ type oaChunk struct {
 	} `json:"error"`
 }
 
+// Models lists the endpoint's models from GET /models, sorted.
+func (o *OpenAI) Models(ctx context.Context) ([]string, error) {
+	hr, err := http.NewRequestWithContext(ctx, http.MethodGet, o.base+"/models", nil)
+	if err != nil {
+		return nil, err
+	}
+	if o.key != "" {
+		hr.Header.Set("Authorization", "Bearer "+o.key)
+	}
+	resp, err := o.http.Do(hr)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<10))
+		return nil, apiError(resp.Status, b)
+	}
+	var body struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("reading the model list: %w", err)
+	}
+	out := make([]string, 0, len(body.Data))
+	for _, m := range body.Data {
+		if m.ID != "" {
+			out = append(out, m.ID)
+		}
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
 func (o *OpenAI) Stream(ctx context.Context, req Request, onEvent func(Event)) (Response, error) {
 	if req.Model == "" {
 		return Response{}, errors.New("set a model for this provider in the config")

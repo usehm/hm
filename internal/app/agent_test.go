@@ -110,6 +110,11 @@ func sameTask() [][]toolCall {
 func agentProject(t *testing.T, kind string, model *fakeModel) (*harness, string) {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/models") {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"data":[{"id":"test-model"},{"id":"other-model"}]}`)
+			return
+		}
 		if kind == "anthropic" {
 			model.anthropic(w, r)
 		} else {
@@ -239,5 +244,26 @@ func TestManualEditReviewPerHunk(t *testing.T) {
 	h.until("turn end", 10*time.Second, func() bool { return !h.app.agent.running })
 	if data, _ := os.ReadFile(filepath.Join(root, "util", "strings.go")); string(data) != "package util\n" {
 		t.Fatalf("rejected hunk was applied: %q", data)
+	}
+}
+
+func TestPickModelFromProviderList(t *testing.T) {
+	for _, kind := range []string{"anthropic", "openai"} {
+		t.Run(kind, func(t *testing.T) {
+			model := &fakeModel{turns: [][]toolCall{nil}}
+			h, _ := agentProject(t, kind, model)
+			h.app.pickModel("test")
+			h.until("model list", 10*time.Second, func() bool { return h.app.agent.models["test"] != nil })
+			if got := h.app.agent.models["test"]; len(got) != 2 || len(h.app.modelCommands()) != 2 {
+				t.Fatalf("models %v", got)
+			}
+			h.app.slashCommand("/model other-model")
+			h.until("config reload", 10*time.Second, func() bool { return h.app.modelOf("test") == "other-model" })
+			runTask(t, h, "hi")
+			h.until("turn end", 10*time.Second, func() bool { return !h.app.agent.running })
+			if got := model.requests[0]["model"]; got != "other-model" {
+				t.Fatalf("request model %v", got)
+			}
+		})
 	}
 }

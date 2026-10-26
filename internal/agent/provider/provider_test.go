@@ -197,3 +197,37 @@ func TestOpenAIErrorBody(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestModels(t *testing.T) {
+	var auth []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth = append(auth, r.Header.Get("Authorization")+r.Header.Get("X-Api-Key"))
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v1/models":
+			if r.Header.Get("X-Api-Key") != "" {
+				_, _ = io.WriteString(w, `{"data":[{"id":"claude-opus-5-5","type":"model"},{"id":"claude-haiku-5-5","type":"model"}],"has_more":false}`)
+				return
+			}
+			_, _ = io.WriteString(w, `{"object":"list","data":[{"id":"zeta"},{"id":"alpha"}]}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	got, err := NewOpenAI(Config{BaseURL: srv.URL + "/v1", APIKey: "k"}).Models(context.Background())
+	if err != nil || strings.Join(got, ",") != "alpha,zeta" {
+		t.Fatalf("openai models %v %v", got, err)
+	}
+	got, err = NewAnthropic(Config{BaseURL: srv.URL, APIKey: "k"}).Models(context.Background())
+	if err != nil || strings.Join(got, ",") != "claude-opus-5-5,claude-haiku-5-5" {
+		t.Fatalf("anthropic models %v %v", got, err)
+	}
+	if auth[0] != "Bearer k" || auth[1] != "k" {
+		t.Fatalf("auth %q", auth)
+	}
+	if _, err := NewOpenAI(Config{BaseURL: srv.URL + "/nope", APIKey: "k"}).Models(context.Background()); err == nil {
+		t.Fatal("want an error for a missing endpoint")
+	}
+}

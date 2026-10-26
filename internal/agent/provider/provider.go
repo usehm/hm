@@ -155,6 +155,8 @@ type Provider interface {
 	// Stream runs req, calling onEvent as output arrives, and returns the
 	// whole response. It stops early when ctx ends.
 	Stream(ctx context.Context, req Request, onEvent func(Event)) (Response, error)
+	// Models lists the model ids the API offers.
+	Models(ctx context.Context) ([]string, error)
 }
 
 // Config builds a provider.

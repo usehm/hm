@@ -23,6 +23,8 @@ type script struct {
 
 func (s *script) Name(m string) string { return "script:" + m }
 
+func (s *script) Models(context.Context) ([]string, error) { return nil, nil }
+
 func (s *script) Stream(_ context.Context, req provider.Request, on func(provider.Event)) (provider.Response, error) {
 	s.requests = append(s.requests, req)
 	if len(s.turns) == 0 {

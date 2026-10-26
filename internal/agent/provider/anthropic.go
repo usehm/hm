@@ -170,6 +170,19 @@ func toAnthropic(m Message, name string) (anthropic.BetaMessageParam, error) {
 	return anthropic.BetaMessageParam{Role: role, Content: blocks}, nil
 }
 
+// Models lists the models the key can use, newest first.
+func (a *Anthropic) Models(ctx context.Context) ([]string, error) {
+	var out []string
+	it := a.client.Models.ListAutoPaging(ctx, anthropic.ModelListParams{Limit: anthropic.Int(1000)})
+	for it.Next() {
+		out = append(out, it.Current().ID)
+	}
+	if err := it.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (a *Anthropic) Stream(ctx context.Context, req Request, onEvent func(Event)) (Response, error) {
 	p, err := a.params(req)
 	if err != nil {

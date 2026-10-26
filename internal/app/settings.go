@@ -187,13 +187,10 @@ func (a *App) agentSettings(c *ui.Ctx) ui.View {
 		if pc.Type == "openai" && strings.Contains(pc.BaseURL, "localhost") {
 			status = "Local, no key needed"
 		}
-		model := pc.Model
-		if model == "" && pc.Type == "anthropic" {
-			model = "claude-opus-5-5"
-		}
 		rows = append(rows, ui.Row(
-			ui.Column(ui.Strong(name), ui.Caption(pc.Type+" · "+model)).Gap(th.Spacing.XXS).Grow(1),
+			ui.Column(ui.Strong(name), ui.Caption(pc.Type)).Gap(th.Spacing.XXS).Grow(1),
 			ui.Caption(status),
+			a.modelButton("agent-model-"+name, name),
 			ui.Button("agent-key-"+name, ui.Text("Add key")).IconStart(icons.KeyRound).
 				OnClick(func() { a.askProviderKey(name) }),
 		).Gap(th.Spacing.S).PaddingXY(th.Spacing.M, th.Spacing.S).Radius(th.Radius.Medium).Border(ui.TokenBorder, th.Stroke.Thin))

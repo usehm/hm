@@ -58,6 +58,12 @@ type agentState struct {
 	// a process, so it is read off the UI goroutine by refreshProviderKeys.
 	keyOK  map[string]bool
 	keySeq uint64
+
+	// models caches each provider's model list; modelsLoading marks
+	// fetches in flight.
+	models        map[string][]string
+	modelsLoading map[string]bool
+	pickFor       string // the provider the model picker lists
 }
 
 // callView is what the transcript shows for a tool call.
@@ -138,6 +144,13 @@ func (a *App) newProvider(name string) (provider.Provider, config.Provider, erro
 	if !ok {
 		return nil, pc, fmt.Errorf("no provider named %q in agent.providers", name)
 	}
+	p, err := buildProvider(name, pc)
+	return p, pc, err
+}
+
+// buildProvider resolves pc's key and builds the provider. Reading the
+// keychain runs a process, so callers off the UI goroutine are welcome.
+func buildProvider(name string, pc config.Provider) (provider.Provider, error) {
 	key := ""
 	if pc.APIKey != "" {
 		var err error
@@ -147,11 +160,10 @@ func (a *App) newProvider(name string) (provider.Provider, config.Provider, erro
 			key, err = "", nil
 		}
 		if err != nil {
-			return nil, pc, fmt.Errorf("%s API key: %w; add it in Settings → Agent", name, err)
+			return nil, fmt.Errorf("%s API key: %w; add it in Settings → Agent", name, err)
 		}
 	}
-	p, err := provider.New(provider.Config{Type: pc.Type, BaseURL: pc.BaseURL, APIKey: key})
-	return p, pc, err
+	return provider.New(provider.Config{Type: pc.Type, BaseURL: pc.BaseURL, APIKey: key})
 }
 
 // sendAgent starts a turn with the input box's text, or runs a slash
@@ -351,7 +363,7 @@ func (a *App) agentAsk(ctx context.Context, question string) (string, error) {
 	}
 }
 
-// slashCommand runs /mode, /new and /provider.
+// slashCommand runs /mode, /provider, /model and /new.
 func (a *App) slashCommand(text string) {
 	st := &a.agent
 	f := strings.Fields(text)
@@ -378,10 +390,17 @@ func (a *App) slashCommand(text string) {
 			return
 		}
 		st.provider, st.errText = f[1], ""
+	case "/model":
+		if len(f) < 2 {
+			a.pickModel(st.provider)
+			return
+		}
+		a.setModel(st.provider, f[1])
+		st.errText = ""
 	case "/new", "/clear":
 		a.newAgentSession()
 	default:
-		st.errText = "Unknown command " + f[0] + ". Try /mode, /provider or /new."
+		st.errText = "Unknown command " + f[0] + ". Try /mode, /provider, /model or /new."
 	}
 }
 
@@ -514,6 +533,7 @@ func (a *App) saveProviderKey(name, key string) {
 	}
 	a.toast("Saved the "+name+" key in the keychain", ui.ToastSuccess)
 	a.refreshProviderKeys()
+	delete(a.agent.models, name)
 }
 
 // hasProviderKey reports whether the provider's key resolves, as last read
