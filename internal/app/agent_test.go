@@ -139,6 +139,7 @@ agent:
 `, typ, base))
 	h := newHarness(t, root, false)
 	h.app.agent.keys.Set("test", "sk-test")
+	h.app.refreshProviderKeys()
 	h.app.agentOpen = true
 	h.frame()
 	return h, root
@@ -247,17 +248,24 @@ func TestManualEditReviewPerHunk(t *testing.T) {
 	}
 }
 
-func TestPickModelFromProviderList(t *testing.T) {
+func TestModelSettingFromProviderList(t *testing.T) {
 	for _, kind := range []string{"anthropic", "openai"} {
 		t.Run(kind, func(t *testing.T) {
 			model := &fakeModel{turns: [][]toolCall{nil}}
 			h, _ := agentProject(t, kind, model)
-			h.app.pickModel("test")
-			h.until("model list", 10*time.Second, func() bool { return h.app.agent.models["test"] != nil })
-			if got := h.app.agent.models["test"]; len(got) != 2 || len(h.app.modelCommands()) != 2 {
-				t.Fatalf("models %v", got)
+			h.until("key read", 10*time.Second, func() bool { return h.app.providerReady("test") })
+			h.until("model list", 10*time.Second, func() bool {
+				m, _, errText := h.app.modelsFor("test")
+				if errText != "" {
+					t.Fatal(errText)
+				}
+				return m != nil
+			})
+			item := h.app.modelSetting("test")
+			if len(item.Options) != 2 || item.Options[item.Selected].Value != "test-model" {
+				t.Fatalf("options %+v selected %d", item.Options, item.Selected)
 			}
-			h.app.slashCommand("/model other-model")
+			item.OnChange("other-model")
 			h.until("config reload", 10*time.Second, func() bool { return h.app.modelOf("test") == "other-model" })
 			runTask(t, h, "hi")
 			h.until("turn end", 10*time.Second, func() bool { return !h.app.agent.running })
@@ -266,4 +274,24 @@ func TestPickModelFromProviderList(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestModelSettingNeedsKey(t *testing.T) {
+	root := project(t)
+	writeFile(t, filepath.Join(root, ".hm", "config.yaml"), `
+agent:
+  providers:
+    remote: { type: openai, base_url: "https://example.invalid/v1", api_key: "keychain:remote" }
+    local: { type: openai, base_url: "http://localhost:11434/v1" }
+`)
+	h := newHarness(t, root, false)
+	if h.app.providerReady("remote") {
+		t.Fatal("a remote provider without a key is ready")
+	}
+	if !h.app.providerReady("local") {
+		t.Fatal("a local provider needs no key")
+	}
+	h.app.agent.keys.Set("remote", "sk-test")
+	h.app.refreshProviderKeys()
+	h.until("key read", 10*time.Second, func() bool { return h.app.providerReady("remote") })
 }

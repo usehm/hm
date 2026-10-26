@@ -59,11 +59,11 @@ type agentState struct {
 	keyOK  map[string]bool
 	keySeq uint64
 
-	// models caches each provider's model list; modelsLoading marks
-	// fetches in flight.
+	// models caches each provider's model list by modelsKey; modelsErr
+	// holds failed fetches and modelsLoading those in flight.
 	models        map[string][]string
+	modelsErr     map[string]string
 	modelsLoading map[string]bool
-	pickFor       string // the provider the model picker lists
 }
 
 // callView is what the transcript shows for a tool call.
@@ -363,7 +363,7 @@ func (a *App) agentAsk(ctx context.Context, question string) (string, error) {
 	}
 }
 
-// slashCommand runs /mode, /provider, /model and /new.
+// slashCommand runs /mode, /new and /provider.
 func (a *App) slashCommand(text string) {
 	st := &a.agent
 	f := strings.Fields(text)
@@ -390,17 +390,10 @@ func (a *App) slashCommand(text string) {
 			return
 		}
 		st.provider, st.errText = f[1], ""
-	case "/model":
-		if len(f) < 2 {
-			a.pickModel(st.provider)
-			return
-		}
-		a.setModel(st.provider, f[1])
-		st.errText = ""
 	case "/new", "/clear":
 		a.newAgentSession()
 	default:
-		st.errText = "Unknown command " + f[0] + ". Try /mode, /provider, /model or /new."
+		st.errText = "Unknown command " + f[0] + ". Try /mode, /provider or /new."
 	}
 }
 
@@ -533,7 +526,7 @@ func (a *App) saveProviderKey(name, key string) {
 	}
 	a.toast("Saved the "+name+" key in the keychain", ui.ToastSuccess)
 	a.refreshProviderKeys()
-	delete(a.agent.models, name)
+	a.forgetModels(name)
 }
 
 // hasProviderKey reports whether the provider's key resolves, as last read

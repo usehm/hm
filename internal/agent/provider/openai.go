@@ -193,7 +193,7 @@ func (o *OpenAI) Models(ctx context.Context) ([]string, error) {
 
 func (o *OpenAI) Stream(ctx context.Context, req Request, onEvent func(Event)) (Response, error) {
 	if req.Model == "" {
-		return Response{}, errors.New("set a model for this provider in the config")
+		return Response{}, errors.New("pick a model for this provider in Settings → Agent")
 	}
 	data, err := o.body(req)
 	if err != nil {

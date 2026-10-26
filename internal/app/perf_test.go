@@ -34,6 +34,8 @@ agent:
 	}
 	h.app.refreshProviderKeys()
 	h.until("the key status", 2*time.Second, func() bool { return h.app.hasProviderKey("test") })
+	// The settings page lists the models once, off the UI goroutine.
+	h.until("the model list", 5*time.Second, func() bool { _, loading, _ := h.app.modelsFor("test"); return !loading })
 
 	reads.Store(0)
 	h.app.agentOpen = true

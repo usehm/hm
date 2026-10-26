@@ -62,8 +62,11 @@ func (a *App) agentHeader(c *ui.Ctx) ui.View {
 	provOpts := make([]ui.SelectOption, len(provs))
 	provSel := 0
 	for i, p := range provs {
-		label := p
-		if !a.hasProviderKey(p) && a.cfg.Current().Agent.Providers[p].Type == "openai" && !strings.Contains(a.cfg.Current().Agent.Providers[p].BaseURL, "localhost") {
+		label := providerLabel(p)
+		if m := a.modelOf(p); m != "" {
+			label += " · " + m
+		}
+		if !a.providerReady(p) {
 			label += " (no key)"
 		}
 		provOpts[i] = ui.SelectOption{Label: label, Value: p}
@@ -97,7 +100,6 @@ func (a *App) agentHeader(c *ui.Ctx) ui.View {
 			ui.Select("agent-provider", provOpts).Selected(provSel).Grow(1).Disabled(st.running).
 				OnChange(func(v string) { st.provider = v }),
 		).Gap(th.Spacing.XS),
-		a.modelButton("agent-model", st.provider).Disabled(st.running),
 	).Gap(th.Spacing.XS).PaddingXY(th.Spacing.M, th.Spacing.S).BorderBottom(ui.TokenBorder, th.Stroke.Thin)
 }
 
@@ -431,14 +433,8 @@ func (a *App) agentSuggest(value string, caret int) ([]ui.Suggestion, int, int) 
 				out = append(out, ui.Suggestion{Label: p, Detail: "provider"})
 			}
 		}
-	case strings.HasPrefix(value, "/model ") && start == len("/model "):
-		for _, m := range a.agent.models[a.agent.provider] {
-			if strings.Contains(m, word) {
-				out = append(out, ui.Suggestion{Label: m, Detail: "model"})
-			}
-		}
 	case start == 0 && strings.HasPrefix(word, "/"):
-		for _, cmd := range []string{"/mode ", "/provider ", "/model ", "/new"} {
+		for _, cmd := range []string{"/mode ", "/provider ", "/new"} {
 			if strings.HasPrefix(cmd, word) {
 				out = append(out, ui.Suggestion{Label: cmd})
 			}

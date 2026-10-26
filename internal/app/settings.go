@@ -147,8 +147,9 @@ func enumIndex(path, v string) int {
 	return 0
 }
 
-// agentSettings picks the default provider and mode and stores API keys in
-// the OS keychain.
+// agentSettings picks the default provider and mode, and per provider the
+// endpoint, the API key (kept in the OS keychain) and, once a key is set,
+// the model.
 func (a *App) agentSettings(c *ui.Ctx) ui.View {
 	th := c.Theme()
 	cfg := a.cfg.Current().Agent
@@ -156,7 +157,7 @@ func (a *App) agentSettings(c *ui.Ctx) ui.View {
 	popts := make([]ui.SelectOption, len(provs))
 	psel := 0
 	for i, p := range provs {
-		popts[i] = ui.SelectOption{Label: p, Value: p}
+		popts[i] = ui.SelectOption{Label: providerLabel(p), Value: p}
 		if p == cfg.DefaultProvider {
 			psel = i
 		}
@@ -171,7 +172,7 @@ func (a *App) agentSettings(c *ui.Ctx) ui.View {
 		}
 	}
 	rows := []ui.View{ui.Form("agent-form",
-		ui.FormHeading("Agent", "Providers, models and modes live under agent: and modes: in the YAML"),
+		ui.FormHeading("Agent", "Providers and modes live under agent: and modes: in the YAML"),
 		ui.FormSelect("set-agent-provider", "Default provider", "Used by new sessions", popts, psel,
 			func(v string) { a.setSetting([]string{"agent", "default_provider"}, v) }),
 		ui.FormSelect("set-agent-mode", "Default mode", "lazy, rubber-duck, auto, fullstack, or your own", mopts, msel,
@@ -180,22 +181,29 @@ func (a *App) agentSettings(c *ui.Ctx) ui.View {
 	for _, name := range provs {
 		name := name
 		pc := cfg.Providers[name]
-		status := "No key"
+		status, keyLabel := "No key: add one to choose a model", "Add key"
 		if a.hasProviderKey(name) {
-			status = "Key set"
+			status, keyLabel = "Key set", "Replace key"
+		} else if pc.Type == "openai" && localEndpoint(pc.BaseURL) {
+			status = "Local endpoint, no key needed"
 		}
-		if pc.Type == "openai" && strings.Contains(pc.BaseURL, "localhost") {
-			status = "Local, no key needed"
+		items := []ui.FormItem{ui.FormHeading(providerLabel(name), status)}
+		if pc.Type == "openai" {
+			base := []string{"agent", "providers", name, "base_url"}
+			items = append(items, ui.FormText("set-agent-base-"+name, "Base URL",
+				"OpenAI, OpenRouter, Ollama, LM Studio, Groq, DeepSeek, …",
+				a.textValue(base, pc.BaseURL), func(v string) { a.setTextSetting(base, v) }))
 		}
-		rows = append(rows, ui.Row(
-			ui.Column(ui.Strong(name), ui.Caption(pc.Type)).Gap(th.Spacing.XXS).Grow(1),
-			ui.Caption(status),
-			a.modelButton("agent-model-"+name, name),
-			ui.Button("agent-key-"+name, ui.Text("Add key")).IconStart(icons.KeyRound).
-				OnClick(func() { a.askProviderKey(name) }),
-		).Gap(th.Spacing.S).PaddingXY(th.Spacing.M, th.Spacing.S).Radius(th.Radius.Medium).Border(ui.TokenBorder, th.Stroke.Thin))
+		if a.providerReady(name) {
+			items = append(items, a.modelSetting(name))
+		}
+		rows = append(rows, ui.Column(
+			ui.Form("agent-provider-form-"+name, items...).Grouped(),
+			ui.Row(ui.Spacer(), ui.Button("agent-key-"+name, ui.Text(keyLabel)).IconStart(icons.KeyRound).
+				OnClick(func() { a.askProviderKey(name) })),
+		).Gap(th.Spacing.XS))
 	}
-	return ui.Column(rows...).Gap(th.Spacing.S)
+	return ui.Column(rows...).Gap(th.Spacing.M)
 }
 
 // askProviderKey asks for an API key and keeps it in the keychain.

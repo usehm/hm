@@ -94,7 +94,6 @@ func (a *App) registerCommands(c *ui.Ctx) {
 		ui.Cmd("agent.stop").Title("Agent: Stop").Icon(icons.Square).Enabled(a.agent.running).Run(a.stopAgent),
 		ui.Cmd("agent.askSelection").Title("Ask Agent About Selection").Shortcut(a.key("agent.askSelection")).Icon(icons.Bot).
 			Enabled(hasEd && ed.HasSelection()).Run(a.askAboutSelection),
-		ui.Cmd("agent.model").Title("Agent: Select Model…").Icon(icons.Bot).Run(func() { a.pickModel(a.agent.provider) }),
 		ui.Cmd("agent.toggle").Title("Toggle Agent").Shortcut(a.key("agent.toggle")).Icon(icons.Bot).Run(a.toggleAgent),
 		ui.Section("Settings"),
 		ui.Cmd("settings.yaml").Title("Settings: Open User Config (YAML)").Icon(icons.FileCode).Run(func() { a.openConfigYAML(false) }),
@@ -127,7 +126,6 @@ func (a *App) registerCommands(c *ui.Ctx) {
 		cmds = append(cmds, x.cmds...)
 	}
 	cmds = append(cmds, a.locations...)
-	cmds = append(cmds, a.modelCommands()...)
 	c.Commands().Register(cmds...)
 }
 
