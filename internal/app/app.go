@@ -58,6 +58,7 @@ type App struct {
 
 	search projectSearch
 	gitst  gitState
+	term   terminals
 	agent  agentState
 	upd    *updater
 
@@ -234,6 +235,8 @@ func (a *App) attachEditor(ed *ui.Editor) {
 func (a *App) Close() {
 	a.saveSession()
 	a.stopAgent()
+	a.closeAllTerminals()
+	a.agent.materialize.Wait()
 	if a.agent.shells != nil {
 		a.agent.shells.StopAll()
 	}

@@ -42,7 +42,10 @@ func newHarness(t *testing.T, root string, session bool) *harness {
 	c.SetClipboard(clip)
 	h := &harness{t: t, c: c, mouse: &input.Mouse{}, kb: &input.Keyboard{}, root: root}
 	h.app = Build(Options{Root: root, NoSession: !session, KeepPath: true, NoUpdates: true, Keys: secrets.Memory{}})
-	t.Cleanup(h.app.cfg.Close)
+	t.Cleanup(func() {
+		h.app.cfg.Close()
+		h.app.agent.materialize.Wait() // before TempDir removes the skills
+	})
 	h.frame()
 	return h
 }
@@ -53,6 +56,7 @@ func (h *harness) frame() *layout.Element {
 	root := ui.BuildFrame(h.c, a.Body, 1280, 820, h.mouse, h.kb)
 	layout.Dispatch(root, h.mouse)
 	h.c.Focus().HandleMouse(h.mouse)
+	h.c.Focus().RouteClaimed(h.kb)
 	h.c.Commands().Dispatch(h.kb)
 	kept := h.kb.Keys[:0]
 	for _, k := range h.kb.Keys {

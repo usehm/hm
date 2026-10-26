@@ -30,6 +30,7 @@ keys:                         # command id -> chord; overrides built-ins
   view.theme: cmd+k
   view.tabs: cmd+shift+e
   panel.terminal: ctrl+`
+  terminal.new: ctrl+shift+`
   panel.git: cmd+shift+g
   panel.problems: cmd+shift+m
   agent.toggle: cmd+l

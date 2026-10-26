@@ -78,6 +78,13 @@ func (a *App) registerCommands(c *ui.Ctx) {
 			c.Commands().ShowScope(scopeTabs, "Go to tab")
 		}),
 		ui.Cmd("panel.terminal").Title("Toggle Terminal").Shortcut(a.key("panel.terminal")).Icon(icons.SquareTerminal).Run(func() { a.togglePanel(panelTerminal) }),
+		ui.Cmd("terminal.new").Title("Terminal: New").Shortcut(a.key("terminal.new")).Icon(icons.SquareTerminal).Run(a.newTerminal),
+		ui.Cmd("terminal.kill").Title("Terminal: Kill").Icon(icons.Trash2).Enabled(len(a.term.tabs) > 0).Run(func() { a.closeTerminal(a.term.active) }),
+		ui.Cmd("terminal.clear").Title("Terminal: Clear").Icon(icons.Eraser).Enabled(len(a.term.tabs) > 0).Run(func() {
+			if t := a.activeTerminal(); t != nil {
+				t.view.Clear()
+			}
+		}),
 		ui.Cmd("panel.git").Title("Toggle Git").Shortcut(a.key("panel.git")).Icon(icons.GitBranch).Run(func() { a.togglePanel(panelGit) }),
 		ui.Cmd("panel.problems").Title("Toggle Problems").Shortcut(a.key("panel.problems")).Icon(icons.TriangleAlert).Run(func() { a.togglePanel(panelProblems) }),
 		ui.Cmd("panel.output").Title("Toggle Output").Icon(icons.ScrollText).Run(func() { a.togglePanel(panelOutput) }),

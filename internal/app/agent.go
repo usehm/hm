@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/mirzakhany/yoga/ui"
 
@@ -23,11 +24,13 @@ import (
 
 // agentState is the agent panel's state.
 type agentState struct {
-	store    *agent.Store
-	session  *agent.Session
-	mode     string
-	provider string
-	input    string
+	// materialize tracks writing the built-in skills to disk.
+	materialize sync.WaitGroup
+	store       *agent.Store
+	session     *agent.Session
+	mode        string
+	provider    string
+	input       string
 
 	running bool
 	cancel  context.CancelFunc
@@ -96,11 +99,11 @@ func (a *App) initAgent() {
 	st.calls = map[string]callView{}
 	a.newMCP()
 	a.startMCP(a.cfg.Current().Tools.MCP)
-	go func() {
+	a.agent.materialize.Go(func() {
 		if err := skills.Materialize(builtinSkillsDir()); err != nil {
 			a.onUI(func() { a.notifs.Add("Could not write the built-in skills: "+err.Error(), ui.ToastWarning) })
 		}
-	}()
+	})
 	cfg := a.cfg.Current().Agent
 	if st.mode == "" {
 		st.mode = cfg.DefaultMode

@@ -27,6 +27,9 @@ func (a *App) showPanel(k panelKind) {
 		// The work tree changes outside hm; read it each time the panel opens.
 		a.gitst.page.Refresh()
 	}
+	if k == panelTerminal {
+		a.term.focus = true
+	}
 	a.panel, a.panelOpen = k, true
 }
 
@@ -53,7 +56,12 @@ func (a *App) panelView(c *ui.Ctx) ui.View {
 	var body ui.View
 	switch a.panel {
 	case panelTerminal:
-		body = ui.EmptyState("Terminal", "The interactive terminal arrives in a later milestone.").EmptyIcon(icons.SquareTerminal)
+		// The drawer builds its panel while closed too; a hidden terminal
+		// must neither start a shell nor hold keyboard focus.
+		body = ui.Spacer()
+		if a.panelOpen {
+			body = a.terminalView(c)
+		}
 	case panelGit:
 		body = a.gitst.page.Layout(c)
 	case panelProblems:
