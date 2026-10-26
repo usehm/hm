@@ -225,7 +225,7 @@ func (a *App) transcript(c *ui.Ctx) ui.View {
 				}
 			case provider.Text:
 				if strings.TrimSpace(b.Text) != "" {
-					rows = append(rows, ui.Paragraph(strings.TrimSpace(b.Text)))
+					rows = append(rows, a.agentMarkdown(fmt.Sprintf("msg-%d-%d", i, j), strings.TrimSpace(b.Text)))
 				}
 			case provider.ToolUse:
 				res, done := results[b.ToolID]
@@ -238,7 +238,7 @@ func (a *App) transcript(c *ui.Ctx) ui.View {
 			rows = append(rows, a.thinkingView(c, "think-live", st.thinking))
 		}
 		if st.stream != "" {
-			rows = append(rows, ui.Paragraph(st.stream))
+			rows = append(rows, a.agentMarkdown("msg-live", st.stream))
 		}
 		status := "Thinking…"
 		if st.streamTool != "" {
@@ -255,6 +255,11 @@ func (a *App) transcript(c *ui.Ctx) ui.View {
 			"to add context. /mode switches mode.").EmptyIcon(icons.Bot)).Grow(1)
 	}
 	return ui.Scroll("agent-transcript", ui.Column(rows...).Gap(th.Spacing.S).Padding(th.Spacing.M)).Grow(1)
+}
+
+// agentMarkdown renders assistant text; links resolve against the workspace.
+func (a *App) agentMarkdown(id, text string) ui.View {
+	return ui.Markdown(id, text).OnLink(func(u string) { a.openLink(a.ws.Root, u) })
 }
 
 // userShown hides attached context, which can be long, from the bubble.

@@ -29,6 +29,7 @@ keys:                         # command id -> chord; overrides built-ins
   view.sidebar: cmd+b
   view.theme: cmd+k
   view.tabs: cmd+shift+e
+  markdown.preview: cmd+shift+v
   panel.terminal: ctrl+`
   completion.trigger: alt+\
   terminal.new: ctrl+shift+`

@@ -183,7 +183,7 @@ func (a *App) activeView(c *ui.Ctx) ui.View {
 	view := ui.ViewOf(ed).Grow(1)
 	if ed.HighlightOversize() {
 		th := c.Theme()
-		return ui.Column(
+		view = ui.Column(
 			ui.Row(
 				ui.Caption("Highlighting is off for this large file."),
 				ui.Spacer(),
@@ -191,6 +191,9 @@ func (a *App) activeView(c *ui.Ctx) ui.View {
 			).PaddingXY(th.Spacing.M, th.Spacing.XS).Background(ui.TokenChromeMuted),
 			view,
 		).Grow(1)
+	}
+	if isMarkdown(ed.Path) {
+		return a.markdownView(c, ed, view)
 	}
 	return view
 }

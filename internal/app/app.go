@@ -35,6 +35,7 @@ type App struct {
 	panelOpen  bool
 	agentOpen  bool
 	treeQuery  string
+	mdDocs     map[string]*mdDoc // preview state per Markdown file
 	noSession  bool
 	noUpdates  bool
 
