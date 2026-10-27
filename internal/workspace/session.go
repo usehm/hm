@@ -14,6 +14,12 @@ type Session struct {
 	Tabs   []SessionTab `json:"tabs"`
 	Active int          `json:"active"`
 	Side   *bool        `json:"side,omitempty"`
+	// Agent is true when the agent was showing.
+	Agent bool `json:"agent,omitempty"`
+	// AgentSession is the agent session that was open.
+	AgentSession string `json:"agent_session,omitempty"`
+	// Panel is the bottom panel that was open: terminal, problems or output.
+	Panel string `json:"panel,omitempty"`
 }
 
 // SessionTab is one tab with the caret it had.

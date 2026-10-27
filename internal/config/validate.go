@@ -186,6 +186,7 @@ var Enums = map[string][]string{
 	"editor.auto_save":               {AutoSaveOff, AutoSaveFocusChange, AutoSaveDelay},
 	"search.engine":                  {"auto", "ripgrep", "builtin"},
 	"updates.channel":                {"stable", "prerelease", "off"},
+	"agent.layout":                   {"fullscreen", "panel"},
 	"agent.providers.*.type":         {"anthropic", "openai"},
 	"agent.providers.*.effort":       {"low", "medium", "high", "xhigh", "max"},
 	"modes.*.approval.*":             {"auto", "ask", "deny"},

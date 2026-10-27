@@ -179,6 +179,9 @@ func (a *App) agentSettings(c *ui.Ctx) ui.View {
 			func(v string) { a.setSetting([]string{"agent", "default_provider"}, v) }),
 		ui.FormSelect("set-agent-mode", "Default mode", "lazy, rubber-duck, auto, fullstack, or your own", mopts, msel,
 			func(v string) { a.setSetting([]string{"agent", "default_mode"}, v) }),
+		ui.FormSelect("set-agent-layout", "Layout", "Full screen, toggled with the editor, or a panel beside it",
+			enumOptions("agent.layout"), enumIndex("agent.layout", cfg.Layout),
+			func(v string) { a.setSetting([]string{"agent", "layout"}, v) }),
 	).Grouped()}
 	for _, name := range provs {
 		name := name

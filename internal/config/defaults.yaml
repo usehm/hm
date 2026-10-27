@@ -161,6 +161,7 @@ updates:
 agent:
   default_provider: anthropic
   default_mode: auto
+  layout: fullscreen          # fullscreen (toggles with the editor) | panel (beside it)
   # Keys live in the OS keychain: "keychain:<name>" (Settings → Agent → Add key)
   # or an environment variable: "${OPENAI_API_KEY}". Pick the model in
   # Settings → Agent once a key is set.

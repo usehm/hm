@@ -148,6 +148,7 @@ func Build(opts Options) *App {
 		for _, p := range a.ws.Restore(sess) {
 			a.notifs.Add("Could not reopen "+p, ui.ToastWarning)
 		}
+		a.restoreViews(sess)
 	}
 	return a
 }
@@ -256,6 +257,23 @@ func (a *App) Close() {
 	a.bufs.CloseAll()
 }
 
+// restoreViews brings back the agent, its session and the bottom panel as
+// the last run left them.
+func (a *App) restoreViews(s workspace.Session) {
+	a.agentOpen = s.Agent
+	if s.AgentSession != "" {
+		if _, err := a.agent.store.Load(s.AgentSession); err == nil {
+			a.resumeAgentSession(s.AgentSession)
+		}
+	}
+	a.agent.focusInput = a.agentOpen
+	for i, p := range panelTabs {
+		if p.Value == s.Panel {
+			a.showPanel(panelKind(i))
+		}
+	}
+}
+
 func (a *App) saveSession() {
 	if a.ws == nil || a.noSession {
 		return
@@ -263,6 +281,13 @@ func (a *App) saveSession() {
 	s := a.ws.Snapshot()
 	side := a.sideOpen
 	s.Side = &side
+	s.Agent = a.agentOpen
+	if as := a.agent.session; as != nil && len(as.Snapshot()) > 0 {
+		s.AgentSession = as.ID
+	}
+	if a.panelOpen {
+		s.Panel = panelTabs[a.panel].Value
+	}
 	_ = workspace.SaveSession(s)
 }
 

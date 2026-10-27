@@ -17,9 +17,16 @@ func (a *App) titleBar(c *ui.Ctx) ui.View {
 	if a.sideOpen {
 		sideIcon = icons.PanelLeftClose
 	}
-	agentIcon := icons.PanelRight
+	agentIcon, agentTip := icons.PanelRight, "Agent"
 	if a.agentOpen {
 		agentIcon = icons.PanelRightClose
+	}
+	if a.agentFullscreen() {
+		// The button switches views: to the agent, or back to the editor.
+		agentIcon = icons.BotMessageSquare
+		if a.agentOpen {
+			agentIcon, agentTip = icons.SquareCode, "Editor"
+		}
 	}
 	return ui.TitleBar(
 		ui.IconButton("tb-side", sideIcon).Tooltip("Toggle sidebar").OnClick(a.toggleSide),
@@ -27,7 +34,7 @@ func (a *App) titleBar(c *ui.Ctx) ui.View {
 			IconStart(icons.FolderOpen).Tooltip(a.ws.Root).OnClick(a.askOpenFolder),
 		ui.Spacer(),
 		ui.IconButton("tb-settings", icons.Settings).Tooltip("Settings").OnClick(a.openSettings),
-		ui.IconButton("tb-agent", agentIcon).Tooltip("Agent").OnClick(a.toggleAgent),
+		ui.IconButton("tb-agent", agentIcon).Tooltip(agentTip+" ("+a.key("agent.toggle")+")").OnClick(a.toggleAgent),
 	).Center(
 		ui.Button("tb-palette", ui.Text("Search commands…")).Width(320).
 			IconStart(icons.Search).
@@ -36,7 +43,11 @@ func (a *App) titleBar(c *ui.Ctx) ui.View {
 	)
 }
 
-func (a *App) toggleSide()  { a.sideOpen = !a.sideOpen }
+func (a *App) toggleSide() { a.sideOpen = !a.sideOpen }
+
+// agentFullscreen reports whether the agent takes the editor's place
+// (agent.layout: fullscreen) rather than docking beside it.
+func (a *App) agentFullscreen() bool { return a.cfg.Current().Agent.Layout != "panel" }
 func (a *App) toggleAgent() { a.setAgentOpen(!a.agentOpen) }
 
 // setAgentOpen shows or hides the agent panel; opening it focuses the
@@ -49,6 +60,16 @@ func (a *App) setAgentOpen(v bool) {
 // center is everything between the title bar and the footer: the explorer,
 // the tabs and editor, the bottom panel and the agent drawer.
 func (a *App) center(c *ui.Ctx) ui.View {
+	if a.agentFullscreen() && a.agentOpen {
+		return ui.Drawer("bottom-panel", a.panelView(c), a.agentFullView(c)).
+			Open(a.panelOpen).
+			Edge(ui.EdgeBottom).
+			Push().
+			Size(220).
+			Resizable(true).
+			OnOpenChange(func(v bool) { a.panelOpen = v }).
+			Grow(1)
+	}
 	work := ui.Drawer("bottom-panel", a.panelView(c), a.editorArea(c)).
 		Open(a.panelOpen).
 		Edge(ui.EdgeBottom).
@@ -58,7 +79,7 @@ func (a *App) center(c *ui.Ctx) ui.View {
 		OnOpenChange(func(v bool) { a.panelOpen = v }).
 		Grow(1)
 	work = ui.Drawer("agent-panel", a.agentView(c), work).
-		Open(a.agentOpen).
+		Open(a.agentOpen && !a.agentFullscreen()).
 		Edge(ui.EdgeRight).
 		Push().
 		Size(380).
@@ -251,7 +272,9 @@ func (a *App) footer(c *ui.Ctx) ui.View {
 	if len(a.formatting) > 0 {
 		items = append(items, ui.Spinner("ft-formatting", 12), ui.Caption("Formatting…"))
 	}
-	if ed := a.ws.ActiveEditor(); ed != nil {
+	if a.agentFullscreen() && a.agentOpen {
+		items = append(items, a.agentStatus(c)...)
+	} else if ed := a.ws.ActiveEditor(); ed != nil {
 		line, col := ed.LineCol(ed.Caret())
 		items = append(items,
 			ui.Caption(languageName(ed.Path)),

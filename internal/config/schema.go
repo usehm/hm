@@ -112,9 +112,12 @@ type Updates struct {
 }
 
 type Agent struct {
-	DefaultProvider string              `yaml:"default_provider"`
-	DefaultMode     string              `yaml:"default_mode"`
-	Providers       map[string]Provider `yaml:"providers"`
+	DefaultProvider string `yaml:"default_provider"`
+	DefaultMode     string `yaml:"default_mode"`
+	// Layout is where the agent shows: fullscreen swaps it with the editor,
+	// panel docks it beside the editor.
+	Layout    string              `yaml:"layout"`
+	Providers map[string]Provider `yaml:"providers"`
 }
 
 type Provider struct {

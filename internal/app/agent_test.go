@@ -300,10 +300,11 @@ agent:
 	h.until("key read", 10*time.Second, func() bool { return h.app.providerReady("remote") })
 }
 
-// The composer opens tall at the top of a new session and moves to the
-// bottom, shorter, once the chat has a message.
+// Docked as a panel, the composer opens tall at the top of a new session
+// and moves to the bottom, shorter, once the chat has a message.
 func TestComposerMovesDownAfterFirstMessage(t *testing.T) {
 	h := newHarness(t, project(t), false)
+	h.app.setSetting([]string{"agent", "layout"}, "panel")
 	h.app.agentOpen = true
 	h.frame()
 	input := func() *ui.TextInput {

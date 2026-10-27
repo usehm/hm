@@ -22,7 +22,7 @@ const maxResultLines = 40
 func (a *App) agentView(c *ui.Ctx) ui.View {
 	th := c.Theme()
 	st := &a.agent
-	body := []ui.View{a.agentHeader(c)}
+	body := []ui.View{a.agentHeader(c, false)}
 	switch {
 	case st.sessionsOpen:
 		body = append(body, a.sessionList(c))
@@ -70,28 +70,120 @@ func (a *App) agentError(c *ui.Ctx) ui.View {
 	).Gap(th.Spacing.XS).PaddingXY(th.Spacing.M, th.Spacing.XXS)
 }
 
-func (a *App) agentHeader(c *ui.Ctx) ui.View {
+// agentHeader is the agent's toolbar. Full screen, usage moves to the footer
+// and there is nothing to close: the title bar switches back to the editor.
+func (a *App) agentHeader(c *ui.Ctx, full bool) ui.View {
 	th := c.Theme()
 	st := &a.agent
-	usage := ""
-	if s := st.session; s != nil && s.UsageNow().Input+s.UsageNow().Output > 0 {
-		u := s.UsageNow()
-		usage = fmt.Sprintf("↑%s ↓%s", tokens(u.Input+u.CacheRead+u.CacheWrite), tokens(u.Output))
-		if u.Cost > 0 {
-			usage += fmt.Sprintf(" · $%.3f", u.Cost)
-		}
+	title := "Agent"
+	if full && st.session != nil && st.session.Title != "" {
+		title = st.session.Title
 	}
-	return ui.Row(
-		ui.Strong("Agent"),
-		ui.Spacer(),
-		ui.Caption(usage).Tooltip("Tokens in (cached included) and out, and cost when known"),
+	items := []ui.View{ui.Strong(title).Ellipsis(ui.EllipsisEnd).Shrink(1), ui.Spacer()}
+	if !full {
+		items = append(items, ui.Caption(a.agentUsage()).Tooltip("Tokens in (cached included) and out, and cost when known"))
+	}
+	items = append(items,
 		ui.IconButton("agent-undo", icons.Undo2).Tooltip("Undo the last agent turn's file changes").
 			Disabled(st.lastCheckpoint == nil || st.running).OnClick(a.undoAgentTurn),
 		ui.IconButton("agent-history", icons.Clock).Tooltip("Sessions").
 			OnClick(a.toggleSessions),
 		ui.IconButton("agent-new", icons.SquarePen).Tooltip("New session").Disabled(st.running).OnClick(a.newAgentSession),
-		ui.IconButton("agent-close", icons.X).Tooltip("Close").OnClick(func() { a.agentOpen = false }),
-	).Gap(th.Spacing.XXS).PaddingXY(th.Spacing.M, th.Spacing.S).BorderBottom(ui.TokenBorder, th.Stroke.Thin)
+	)
+	if !full {
+		items = append(items, ui.IconButton("agent-close", icons.X).Tooltip("Close").OnClick(func() { a.agentOpen = false }))
+	}
+	return ui.Row(items...).Gap(th.Spacing.XXS).PaddingXY(th.Spacing.M, th.Spacing.S).BorderBottom(ui.TokenBorder, th.Stroke.Thin)
+}
+
+// agentUsage is the session's tokens in and out, and cost when known.
+func (a *App) agentUsage() string {
+	s := a.agent.session
+	if s == nil || s.UsageNow().Input+s.UsageNow().Output == 0 {
+		return ""
+	}
+	u := s.UsageNow()
+	usage := fmt.Sprintf("↑%s ↓%s", tokens(u.Input+u.CacheRead+u.CacheWrite), tokens(u.Output))
+	if u.Cost > 0 {
+		usage += fmt.Sprintf(" · $%.3f", u.Cost)
+	}
+	return usage
+}
+
+// agentFullView is the agent in the editor's place: the conversation in a
+// centered column, the short composer under it.
+func (a *App) agentFullView(c *ui.Ctx) ui.View {
+	th := c.Theme()
+	st := &a.agent
+	var main ui.View
+	switch {
+	case st.sessionsOpen:
+		main = a.sessionList(c)
+	case a.agentFresh():
+		main = a.agentIntro(c)
+	default:
+		main = a.transcript(c)
+	}
+	col := []ui.View{ui.ViewOf(main).Grow(1)}
+	if t := a.todoView(c); t != nil {
+		col = append(col, t)
+	}
+	if p := st.approval; p != nil {
+		col = append(col, a.approvalCard(c, p))
+	}
+	if q := st.question; q != nil {
+		col = append(col, a.questionCard(c, q))
+	}
+	if st.errText != "" {
+		col = append(col, a.agentError(c))
+	}
+	col = append(col, ui.Column(a.composer(c, false)).PaddingXY(th.Spacing.S, th.Spacing.M))
+	return ui.Column(
+		a.agentHeader(c, true),
+		ui.Row(ui.Column(col...).Grow(1).MaxWidth(agentColumnW)).Justify(ui.JustifyCenter).Align(ui.AlignStretch).Grow(1),
+	).Grow(1).Background(ui.TokenSurface)
+}
+
+// agentColumnW is the widest the full-screen conversation gets.
+const agentColumnW = 880
+
+// agentIntro fills a new full-screen session: what the agent can do and how
+// to steer it.
+func (a *App) agentIntro(c *ui.Ctx) ui.View {
+	th := c.Theme()
+	tip := func(icon icons.Icon, text string) ui.View {
+		return ui.Row(ui.Icon(icon, th.Metrics.IconSizeSM, th.ForegroundMuted), ui.Muted(text)).Gap(th.Spacing.S)
+	}
+	return ui.Center(ui.Column(
+		ui.Title("Hm"),
+		ui.Muted("Ask about this project, or tell the agent what to build or fix."),
+		ui.Column(
+			tip(icons.AtSign, "@file, @folder, @selection, @diagnostics or @git-diff add context"),
+			tip(icons.SlidersHorizontal, "/mode switches between lazy, rubber-duck, auto and fullstack"),
+			tip(icons.Clock, "Earlier sessions are under the clock above"),
+			tip(icons.SquareCode, "The title bar button, or "+a.key("agent.toggle")+", goes back to the editor"),
+		).Gap(th.Spacing.S).MarginXY(0, th.Spacing.M),
+	).Gap(th.Spacing.S).Align(ui.AlignStart))
+}
+
+// agentStatus is the footer's agent part, full screen: mode, model, usage.
+func (a *App) agentStatus(c *ui.Ctx) []ui.View {
+	th := c.Theme()
+	st := &a.agent
+	icon, ok := modeIcons[st.mode]
+	if !ok {
+		icon = icons.Bot
+	}
+	out := []ui.View{
+		ui.Row(ui.Icon(icon, 14, th.ForegroundMuted), ui.Caption(st.mode)).Gap(th.Spacing.XXS).Tooltip("Mode · /mode to switch"),
+	}
+	if m := a.modelOf(st.provider); m != "" {
+		out = append(out, ui.Caption(m).Tooltip(providerLabel(st.provider)))
+	}
+	if u := a.agentUsage(); u != "" {
+		out = append(out, ui.Caption(u).Tooltip("Tokens in (cached included) and out, and cost when known"))
+	}
+	return out
 }
 
 func tokens(n int64) string {

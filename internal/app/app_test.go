@@ -130,3 +130,49 @@ func labels(items []ui.MenuItem) []string {
 	}
 	return out
 }
+
+func TestSessionRestoresViews(t *testing.T) {
+	root := project(t)
+	h := newHarness(t, root, true)
+	h.app.openFile(filepath.Join(root, "main.go"))
+	h.app.openGit()
+	h.app.toggleAgent()
+	h.app.showPanel(panelProblems)
+	h.frame()
+	h.app.Close()
+
+	h2 := newHarness(t, root, true)
+	if !h2.app.agentOpen {
+		t.Fatal("agent view not restored")
+	}
+	if !h2.app.panelOpen || h2.app.panel != panelProblems {
+		t.Fatalf("panel open=%v kind=%v, want problems", h2.app.panelOpen, h2.app.panel)
+	}
+	if !h2.app.gitTabActive() {
+		t.Fatal("git tab not restored as the active tab")
+	}
+	h2.frame()
+}
+
+func TestAgentToggleSwapsTheEditorFullScreen(t *testing.T) {
+	root := project(t)
+	h := newHarness(t, root, false)
+	if !h.app.agentFullscreen() {
+		t.Fatal("full screen should be the default layout")
+	}
+	h.app.openFile(filepath.Join(root, "main.go"))
+	h.frame()
+	h.app.toggleAgent()
+	h.frame()
+	if !h.app.agentOpen || !h.app.agentFresh() {
+		t.Fatal("toggle should show a fresh agent")
+	}
+	if h.c.Widget("agent-input", nil) == nil {
+		t.Fatal("composer not built in the full-screen view")
+	}
+	h.app.toggleAgent()
+	h.frame()
+	if h.app.agentOpen {
+		t.Fatal("toggle should go back to the editor")
+	}
+}
