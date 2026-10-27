@@ -364,6 +364,7 @@ var languageNames = map[string]string{
 	".md": "Markdown", ".py": "Python", ".ts": "TypeScript", ".tsx": "TypeScript React",
 	".js": "JavaScript", ".jsx": "JavaScript React", ".rs": "Rust", ".sh": "Shell",
 	".sql": "SQL", ".css": "CSS", ".html": "HTML", ".xml": "XML", ".toml": "TOML",
+	".java": "Java", ".proto": "Protocol Buffers", ".pyi": "Python",
 }
 
 func languageName(path string) string {

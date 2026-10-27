@@ -106,6 +106,13 @@ languages:
       install:
         - { tool: npm, args: [install, -g, pyright] }
         - { tool: pip3, args: [install, --user, pyright] }
+    formatters:
+      - command: ruff
+        args: [format, "{file}"]
+        on: [save, manual]
+        install:
+          - { tool: brew, args: [install, ruff] }
+          - { tool: pip3, args: [install, --user, ruff] }
   rust:
     extensions: [.rs]
     lsp:
@@ -114,6 +121,33 @@ languages:
       install:
         - { tool: rustup, args: [component, add, rust-analyzer] }
         - { tool: brew, args: [install, rust-analyzer] }
+    formatters:
+      - command: rustfmt
+        args: [--edition, "2021", "{file}"]
+        on: [save, manual]
+        install: [{ tool: rustup, args: [component, add, rustfmt] }]
+  java:
+    extensions: [.java]
+    lsp:
+      command: jdtls
+      root_markers: [pom.xml, build.gradle, build.gradle.kts, settings.gradle]
+      install: [{ tool: brew, args: [install, jdtls] }]
+    formatters:
+      - command: google-java-format
+        args: [--replace, "{file}"]
+        on: [manual]
+        install: [{ tool: brew, args: [install, google-java-format] }]
+  proto:
+    extensions: [.proto]
+    lsp:
+      command: protols
+      root_markers: [buf.yaml, buf.work.yaml]
+      install: [{ tool: cargo, args: [install, protols] }]
+    formatters:
+      - command: buf
+        args: [format, -w, "{file}"]
+        on: [save, manual]
+        install: [{ tool: brew, args: [install, bufbuild/buf/buf] }]
   yaml:
     extensions: [.yaml, .yml]
     lsp:

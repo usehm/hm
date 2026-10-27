@@ -47,6 +47,43 @@ func (p Problem) Error() string {
 type Layer struct {
 	Name string // path shown in problems
 	Data []byte
+	// Under nests the file's mapping under these keys, as a language file
+	// (languages/rust.yaml) holds just languages.rust.
+	Under []string
+}
+
+// LanguagesDir is the folder of per-language files next to a config file:
+// each languages/<name>.yaml holds what languages.<name> would.
+func LanguagesDir(configFile string) string {
+	return filepath.Join(filepath.Dir(configFile), "languages")
+}
+
+// languageLayers reads the language files in dir, in name order.
+func languageLayers(dir string) ([]Layer, []Problem) {
+	entries, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, []Problem{{File: dir, Msg: err.Error()}}
+	}
+	var layers []Layer
+	var problems []Problem
+	for _, e := range entries {
+		ext := filepath.Ext(e.Name())
+		if e.IsDir() || (ext != ".yaml" && ext != ".yml") {
+			continue
+		}
+		path := filepath.Join(dir, e.Name())
+		l, err := ReadLayer(path)
+		if err != nil {
+			problems = append(problems, Problem{File: path, Msg: err.Error()})
+			continue
+		}
+		l.Under = []string{"languages", strings.TrimSuffix(e.Name(), ext)}
+		layers = append(layers, l)
+	}
+	return layers, problems
 }
 
 // ReadLayer reads path; a missing file is an empty layer.
@@ -111,6 +148,10 @@ func parseLayer(l Layer) (*yaml.Node, []Problem) {
 	}
 	if root.Kind != yaml.MappingNode {
 		return nil, []Problem{{File: l.Name, Line: root.Line, Col: root.Column, Msg: "the file must be a mapping of settings"}}
+	}
+	for i := len(l.Under) - 1; i >= 0; i-- {
+		key := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: l.Under[i]}
+		root = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map", Content: []*yaml.Node{key, root}}
 	}
 	v := validator{file: l.Name}
 	v.walk(root, reflect.TypeOf(Config{}), nil)

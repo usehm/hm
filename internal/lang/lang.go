@@ -5,6 +5,7 @@ package lang
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
@@ -135,8 +136,11 @@ func (s *Service) queue(e *lsp.ServerError) {
 }
 
 // Apply installs the languages from cfg: language servers and highlighters
-// by extension. Running servers restart when their settings changed.
-func (s *Service) Apply(langs map[string]config.Language) {
+// by extension. Running servers restart when their settings changed. It
+// returns what is wrong with the languages' highlight queries; those
+// languages keep the built-in colors.
+func (s *Service) Apply(langs map[string]config.Language) []error {
+	var errs []error
 	s.mu.Lock()
 	old := s.langs
 	s.langs = langs
@@ -158,9 +162,25 @@ func (s *Service) Apply(langs map[string]config.Language) {
 		if hl == "" {
 			hl = name
 		}
+		queried := map[string]highlight.Factory{} // grammar -> factory with the language's queries
 		for _, ext := range l.Extensions {
 			ext = strings.ToLower(ext)
-			if factory, ok := highlight.ByName(grammarFor(hl, ext)); ok {
+			grammar := grammarFor(hl, ext)
+			factory, ok := highlight.ByName(grammar)
+			if len(l.HighlightQueries) > 0 {
+				f, seen := queried[grammar]
+				if !seen {
+					var err error
+					if f, err = queryFactory(grammar, l.HighlightQueries); err != nil {
+						errs = append(errs, fmt.Errorf("languages.%s.highlight_queries: %w", name, err))
+					}
+					queried[grammar] = f
+				}
+				if f != nil {
+					factory, ok = f, true
+				}
+			}
+			if ok {
 				highlight.Register(ext, factory)
 				s.hlExts[ext] = true
 			}
@@ -190,6 +210,23 @@ func (s *Service) Apply(langs map[string]config.Language) {
 			s.mgr.Restart(id)
 		}
 	}
+	return errs
+}
+
+// queryFactory colors grammar with its built-in query followed by the
+// patterns in files, which win where they overlap.
+func queryFactory(grammar string, files []string) (highlight.Factory, error) {
+	var b strings.Builder
+	b.WriteString(highlight.BuiltinQuery(grammar))
+	for _, f := range files {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			return nil, err
+		}
+		b.WriteString("\n")
+		b.Write(data)
+	}
+	return highlight.QueryFactory(grammar, b.String())
 }
 
 // grammarFor picks the grammar for one extension of a language: TypeScript

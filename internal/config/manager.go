@@ -54,9 +54,12 @@ func (m *Manager) Reload() (applied bool, problems []Problem) {
 		l, err := ReadLayer(p)
 		if err != nil {
 			problems = append(problems, Problem{File: p, Msg: err.Error()})
-			continue
+		} else {
+			layers = append(layers, l)
 		}
-		layers = append(layers, l)
+		ls, ps := languageLayers(LanguagesDir(p))
+		layers = append(layers, ls...)
+		problems = append(problems, ps...)
 	}
 	cfg, ps := Load(layers...)
 	problems = append(problems, ps...)
@@ -129,6 +132,7 @@ func (m *Manager) rewatch() {
 			_ = os.MkdirAll(dir, 0o755)
 		}
 		_ = m.watcher.Add(dir)
+		_ = m.watcher.Add(LanguagesDir(f)) // fails quietly until it exists
 		if f == m.project {
 			_ = m.watcher.Add(filepath.Dir(dir))
 		}
@@ -160,6 +164,21 @@ func (m *Manager) event(ev fsnotify.Event) {
 	defer m.mu.Unlock()
 	name := filepath.Clean(ev.Name)
 	relevant := name == m.user || name == m.project
+	for _, f := range []string{m.user, m.project} {
+		if f == "" {
+			continue
+		}
+		switch dir := LanguagesDir(f); {
+		case name == dir: // the languages folder appeared or went away
+			relevant = true
+			if ev.Has(fsnotify.Create) && m.watcher != nil {
+				_ = m.watcher.Add(name)
+			}
+		case filepath.Dir(name) == dir:
+			ext := filepath.Ext(name)
+			relevant = relevant || ext == ".yaml" || ext == ".yml"
+		}
+	}
 	if m.project != "" && name == filepath.Dir(m.project) {
 		relevant = true // .hm created or removed
 		if ev.Has(fsnotify.Create) && m.watcher != nil {

@@ -62,9 +62,13 @@ type Language struct {
 	// LanguageIDs overrides it per extension (.tsx: typescriptreact).
 	LanguageIDs map[string]string `yaml:"language_ids"`
 	// Highlight names the built-in grammar; it defaults to the key.
-	Highlight  string      `yaml:"highlight"`
-	LSP        *LSP        `yaml:"lsp"`
-	Formatters []Formatter `yaml:"formatters"`
+	Highlight string `yaml:"highlight"`
+	// HighlightQueries are .scm files of tree-sitter highlight patterns
+	// read after the grammar's built-in query, so their patterns win. Paths
+	// are absolute, start with ~, or are relative to the config folder.
+	HighlightQueries []string    `yaml:"highlight_queries"`
+	LSP              *LSP        `yaml:"lsp"`
+	Formatters       []Formatter `yaml:"formatters"`
 }
 
 type LSP struct {

@@ -6,7 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/mirzakhany/yoga/highlight"
 	"github.com/mirzakhany/yoga/lsp"
@@ -124,4 +126,40 @@ languages:
 	if _, ok := lsp.ForPath("a.zig"); ok {
 		t.Fatal("Apply(nil) should unregister")
 	}
+}
+
+func TestHighlightQueriesExtendTheGrammar(t *testing.T) {
+	q := filepath.Join(t.TempDir(), "extra.scm")
+	if err := os.WriteFile(q, []byte(`((identifier) @constant (#match? @constant "^[A-Z][A-Z_]+$"))`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	bad := filepath.Join(t.TempDir(), "bad.scm")
+	if err := os.WriteFile(bad, []byte(`(no_such_node) @x`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s := New(nil)
+	defer s.Apply(nil)
+	errs := s.Apply(map[string]config.Language{
+		"go":   {Extensions: []string{".go"}, HighlightQueries: []string{q}},
+		"rust": {Extensions: []string{".rs"}, HighlightQueries: []string{bad}},
+	})
+	if len(errs) != 1 || !strings.Contains(errs[0].Error(), "languages.rust.highlight_queries") {
+		t.Fatalf("errs %v, want one for rust", errs)
+	}
+	h := highlight.ForPath("a.go")
+	defer h.Close()
+	src := "package p\n\nvar x = MAX_N\n"
+	h.Update([]byte(src))
+	for range 300 {
+		if toks, ok := h.Poll(); ok {
+			for _, tk := range toks {
+				if src[tk.Start:tk.End] == "MAX_N" && tk.Class == highlight.ClassConstant {
+					return
+				}
+			}
+			t.Fatalf("MAX_N not a constant: %v", toks)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("no tokens")
 }

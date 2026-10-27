@@ -247,3 +247,33 @@ func TestChordsParse(t *testing.T) {
 		}
 	}
 }
+
+func TestLanguageFilesAddLanguages(t *testing.T) {
+	dir := t.TempDir()
+	user := filepath.Join(dir, "config.yaml")
+	langs := filepath.Join(dir, "languages")
+	if err := os.MkdirAll(langs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write := func(name, body string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(langs, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("zig.yaml", "extensions: [.zig]\nlsp: { command: zls }\n")
+	write("go.yaml", "highlight_queries: [queries/go.scm]\n")
+	m := NewManager(user, "")
+	cfg := m.Current()
+	if z := cfg.Languages["zig"]; len(z.Extensions) != 1 || z.LSP == nil || z.LSP.Command != "zls" {
+		t.Fatalf("zig from its file: %+v", z)
+	}
+	if g := cfg.Languages["go"]; g.LSP == nil || g.LSP.Command != "gopls" || len(g.HighlightQueries) != 1 {
+		t.Fatalf("go merged with the defaults: %+v", g)
+	}
+
+	write("bad.yaml", "extensionz: [.x]\n")
+	if _, ps := m.Reload(); len(ps) == 0 || !strings.Contains(ps[0].Error(), "bad.yaml") || ps[0].Line != 1 {
+		t.Fatalf("problems %v, want one in bad.yaml at line 1", ps)
+	}
+}

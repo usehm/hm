@@ -51,7 +51,9 @@ func (a *App) applyConfig(cfg config.Config) {
 	ui.EditorDefaults.LineNumbers = ed.LineNumbers
 	ui.EditorDefaults.ScrollPastEnd = ed.ScrollPastEnd
 	ui.EditorDefaults.IndentSpaces = ed.InsertSpaces
-	a.lang.Apply(cfg.Languages)
+	for _, err := range a.lang.Apply(a.resolveQueryPaths(cfg.Languages)) {
+		a.notifs.Add(err.Error(), ui.ToastWarning)
+	}
 	if a.tree != nil {
 		hidden := ed.ShowHidden
 		a.tree.Hidden = func(name string, dir bool) bool {
@@ -315,4 +317,38 @@ func (a *App) autoSave(c *ui.Ctx) {
 type editSeen struct {
 	rev uint64
 	at  time.Time
+}
+
+// resolveQueryPaths makes the languages' highlight query paths absolute: a
+// relative one is looked up in the project's .hm folder, then the user's
+// config folder.
+func (a *App) resolveQueryPaths(langs map[string]config.Language) map[string]config.Language {
+	user, project := a.cfg.Paths()
+	out := make(map[string]config.Language, len(langs))
+	for name, l := range langs {
+		if len(l.HighlightQueries) > 0 {
+			qs := make([]string, len(l.HighlightQueries))
+			for i, q := range l.HighlightQueries {
+				q = config.ExpandHome(q)
+				if !filepath.IsAbs(q) {
+					abs := filepath.Join(filepath.Dir(user), q)
+					if project != "" {
+						if p := filepath.Join(filepath.Dir(project), q); fileExists(p) {
+							abs = p
+						}
+					}
+					q = abs
+				}
+				qs[i] = q
+			}
+			l.HighlightQueries = qs
+		}
+		out[name] = l
+	}
+	return out
+}
+
+func fileExists(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
 }
