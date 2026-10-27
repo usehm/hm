@@ -8,6 +8,7 @@ import (
 
 	"github.com/mirzakhany/yoga/input"
 	"github.com/mirzakhany/yoga/theme"
+	"github.com/mirzakhany/yoga/ui"
 
 	"github.com/mirzakhany/hm/internal/config"
 )
@@ -133,4 +134,29 @@ func hasNotification(h *harness, prefix string) bool {
 		}
 	}
 	return false
+}
+
+func TestSettingsApplyLive(t *testing.T) {
+	root := project(t)
+	h := newHarness(t, root, false)
+	h.app.setSetting([]string{"editor", "scroll_past_end"}, false)
+	if ui.EditorDefaults.ScrollPastEnd {
+		t.Fatal("scroll_past_end not applied")
+	}
+	h.app.setSetting([]string{"editor", "scroll_past_end"}, true)
+	if !ui.EditorDefaults.ScrollPastEnd {
+		t.Fatal("scroll_past_end not applied")
+	}
+
+	// A new default mode reaches the agent while it uses the old default...
+	h.app.setSetting([]string{"agent", "default_mode"}, "lazy")
+	if h.app.agent.mode != "lazy" {
+		t.Fatalf("agent mode %q, want the new default", h.app.agent.mode)
+	}
+	// ...but not once the user picked one.
+	h.app.agent.mode = "auto"
+	h.app.setSetting([]string{"agent", "default_mode"}, "rubber-duck")
+	if h.app.agent.mode != "auto" {
+		t.Fatalf("agent mode %q, want the user's pick kept", h.app.agent.mode)
+	}
 }

@@ -297,3 +297,20 @@ func TestSessionStore(t *testing.T) {
 		t.Fatalf("loaded %+v %v", s, err)
 	}
 }
+
+func TestGrantsOutliveOnePolicy(t *testing.T) {
+	root := t.TempDir()
+	rules := map[string]string{"shell": "ask"}
+	plan := tools.Plan{Category: tools.CatShell, GrantKey: "shell:go"}
+	first := NewPolicy(root, rules)
+	first.Grant("shell", plan)
+
+	next := NewPolicy(root, rules)
+	if d, _ := next.Decide("shell", plan); d != Ask {
+		t.Fatalf("a fresh policy decided %v, want Ask", d)
+	}
+	next.Grants = first.Grants
+	if d, _ := next.Decide("shell", plan); d != Allow {
+		t.Fatalf("shared grants decided %v, want Allow", d)
+	}
+}

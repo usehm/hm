@@ -49,14 +49,23 @@ type Policy struct {
 	// ReadRoots are folders outside the workspace that may be read without
 	// asking, such as the skills' folders.
 	ReadRoots []string
-
-	mu      sync.Mutex
-	granted map[string]bool // "allow for this session" answers
+	// Grants holds the "allow for this session" answers. Share one across
+	// the policies built for each message of a session.
+	Grants *Grants
 }
+
+// Grants are the calls the user allowed for the rest of a session.
+type Grants struct {
+	mu      sync.Mutex
+	granted map[string]bool
+}
+
+// NewGrants returns an empty set of grants.
+func NewGrants() *Grants { return &Grants{granted: map[string]bool{}} }
 
 // NewPolicy builds the policy for a mode.
 func NewPolicy(root string, rules map[string]string) *Policy {
-	return &Policy{Root: root, Rules: rules, granted: map[string]bool{}}
+	return &Policy{Root: root, Rules: rules, Grants: NewGrants()}
 }
 
 // Decide rules on one call and says why when it asks or refuses.
@@ -135,15 +144,17 @@ func (p *Policy) CanGrant(plan tools.Plan) bool {
 
 // Grant allows calls like this one for the rest of the session.
 func (p *Policy) Grant(tool string, plan tools.Plan) {
-	p.mu.Lock()
-	p.granted[grantKey(tool, plan)] = true
-	p.mu.Unlock()
+	g := p.Grants
+	g.mu.Lock()
+	g.granted[grantKey(tool, plan)] = true
+	g.mu.Unlock()
 }
 
 func (p *Policy) isGranted(key string) bool {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.granted[key]
+	g := p.Grants
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.granted[key]
 }
 
 func grantKey(tool string, plan tools.Plan) string {

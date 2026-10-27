@@ -28,6 +28,7 @@ type agentState struct {
 	materialize sync.WaitGroup
 	store       *agent.Store
 	session     *agent.Session
+	grants      *agent.Grants // "allow for this session" answers of session
 	mode        string
 	provider    string
 	input       string
@@ -125,7 +126,7 @@ func (a *App) initAgent() {
 	if st.provider == "" {
 		st.provider = cfg.DefaultProvider
 	}
-	st.session = nil
+	st.session, st.grants = nil, nil
 	a.refreshProviderKeys()
 }
 
@@ -199,6 +200,10 @@ func (a *App) sendAgent() {
 	ts := a.agentToolset(mode)
 	policy := agent.NewPolicy(a.ws.Root, ts.rules)
 	policy.ReadRoots = ts.readRoots
+	if st.grants == nil {
+		st.grants = agent.NewGrants()
+	}
+	policy.Grants = st.grants // grants last the session, not one message
 	ag := &agent.Agent{
 		Provider: prov, Model: pc.Model, Effort: pc.Effort,
 		System: agent.System(mode, a.ws.Root, s.Created, ts.extra),
@@ -407,7 +412,7 @@ func (a *App) newAgentSession() {
 	if st.running {
 		return
 	}
-	st.session, st.errText, st.lastCheckpoint = nil, "", nil
+	st.session, st.grants, st.errText, st.lastCheckpoint = nil, nil, "", nil
 	st.calls = map[string]callView{}
 	st.todos.Set(nil)
 	st.sessionsOpen, st.focusInput = false, true
@@ -423,7 +428,7 @@ func (a *App) resumeAgentSession(id string) {
 		a.fail("Could not open the session", err)
 		return
 	}
-	st.session, st.errText, st.lastCheckpoint = s, "", nil
+	st.session, st.grants, st.errText, st.lastCheckpoint = s, nil, "", nil
 	st.calls = map[string]callView{}
 	if s.Mode != "" {
 		st.mode = s.Mode
