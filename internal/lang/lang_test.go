@@ -133,6 +133,15 @@ languages:
 		t.Fatal("Makefile should be highlighted")
 	}
 	mk.Close()
+	for _, p := range []string{"/x/Cargo.toml", "/x/.gitignore", "/x/.env.local", "/x/.editorconfig",
+		"/x/Dockerfile", "/x/go.mod", "/x/fix.patch", "/x/main.c", "/x/a.hpp", "/x/A.cs", "/x/init.lua",
+		"/x/Gemfile", "/x/index.php"} {
+		h := highlight.ForPath(p)
+		if _, noop := h.(highlight.Noop); noop {
+			t.Errorf("%s should be highlighted", p)
+		}
+		h.Close()
+	}
 	if sc, ok := lsp.ForPath("/x/Cargo.toml"); !ok || sc.Command != "taplo" {
 		t.Fatalf("TOML server %+v %v", sc, ok)
 	}

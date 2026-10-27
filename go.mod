@@ -10,7 +10,7 @@ require (
 	github.com/charmbracelet/x/vt v0.1.0
 	github.com/creack/pty v1.1.24
 	github.com/fsnotify/fsnotify v1.10.1
-	github.com/mirzakhany/yoga v0.35.0
+	github.com/mirzakhany/yoga v0.36.0
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/net v0.58.0
@@ -70,18 +70,26 @@ require (
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
+	github.com/tree-sitter-grammars/tree-sitter-lua v0.5.0 // indirect
 	github.com/tree-sitter-grammars/tree-sitter-make v1.1.1 // indirect
+	github.com/tree-sitter-grammars/tree-sitter-toml v0.7.0 // indirect
 	github.com/tree-sitter-grammars/tree-sitter-xml v0.7.0 // indirect
 	github.com/tree-sitter-grammars/tree-sitter-yaml v0.7.2 // indirect
+	github.com/tree-sitter-grammars/tree-sitter-zig v1.1.2 // indirect
 	github.com/tree-sitter/go-tree-sitter v0.25.0 // indirect
 	github.com/tree-sitter/tree-sitter-bash v0.25.1 // indirect
+	github.com/tree-sitter/tree-sitter-c v0.24.2 // indirect
+	github.com/tree-sitter/tree-sitter-c-sharp v0.23.5 // indirect
+	github.com/tree-sitter/tree-sitter-cpp v0.23.4 // indirect
 	github.com/tree-sitter/tree-sitter-css v0.25.0 // indirect
 	github.com/tree-sitter/tree-sitter-go v0.25.0 // indirect
 	github.com/tree-sitter/tree-sitter-html v0.23.2 // indirect
 	github.com/tree-sitter/tree-sitter-java v0.23.5 // indirect
 	github.com/tree-sitter/tree-sitter-javascript v0.25.0 // indirect
 	github.com/tree-sitter/tree-sitter-json v0.24.8 // indirect
+	github.com/tree-sitter/tree-sitter-php v0.25.1 // indirect
 	github.com/tree-sitter/tree-sitter-python v0.23.6 // indirect
+	github.com/tree-sitter/tree-sitter-ruby v0.23.1 // indirect
 	github.com/tree-sitter/tree-sitter-rust v0.24.2 // indirect
 	github.com/tree-sitter/tree-sitter-typescript v0.23.2 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
