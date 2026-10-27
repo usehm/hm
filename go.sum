@@ -153,6 +153,8 @@ github.com/mattn/go-runewidth v0.0.28 h1:rPyg2ybwEKPebvpzVWe1gKBkH8EQFkxO4Y0hjBe
 github.com/mattn/go-runewidth v0.0.28/go.mod h1:3qAiGCV4Koz/yuveO58qUefmUTRm8r0IGEXZ9jeHp/8=
 github.com/mirzakhany/yoga v0.34.0 h1:Ap56XlFt9zlN+umZtLsYXHvu/aaL3GfdeqC2w+kX8kM=
 github.com/mirzakhany/yoga v0.34.0/go.mod h1:on8wk1Ji8ef0edKYMAPmfDZNofAOY9UUvwWhgkJ+Pbs=
+github.com/mirzakhany/yoga v0.35.0 h1:Xs7lsjsZ0dl3G9vRTKPoBqImvB60jeYwX6RZIOz1LYE=
+github.com/mirzakhany/yoga v0.35.0/go.mod h1:aA1fdJAooU8jDJh0TRZ+3pdfzU/zKg4dyNFR+4qyMmA=
 github.com/modelcontextprotocol/go-sdk v1.8.0 h1:KIvahhYqwtbeniWVPs3TcXEA7b8jEtwfBpOTAI+Urx4=
 github.com/modelcontextprotocol/go-sdk v1.8.0/go.mod h1:dL7u98E/zjJTGzEq+j30jQ8K2k1mb6LeAH4inEcSGts=
 github.com/muesli/cancelreader v0.2.2 h1:3I4Kt4BQjOR54NavqnDogx/MIoWBFa0StPA8ELUXHmA=
@@ -207,6 +209,8 @@ github.com/tidwall/pretty v1.2.1 h1:qjsOFOWWQl+N3RsoF5/ssm1pHmJJwhjlSbZ51I6wMl4=
 github.com/tidwall/pretty v1.2.1/go.mod h1:ITEVvHYasfjBbM0u2Pg8T2nJnzm8xPwvNhhsoaGGjNU=
 github.com/tidwall/sjson v1.2.5 h1:kLy8mja+1c9jlljvWTlSazM7cKDRfJuR/bOJhcY5NcY=
 github.com/tidwall/sjson v1.2.5/go.mod h1:Fvgq9kS/6ociJEDnK0Fk1cpYF4FIW6ZF7LAe+6jwd28=
+github.com/tree-sitter-grammars/tree-sitter-make v1.1.1 h1:JlFg2Gl++ldl0xzrZWMk9jilHKknc7jz2JNPd3uDBKk=
+github.com/tree-sitter-grammars/tree-sitter-make v1.1.1/go.mod h1:oS081OksouSnuE097RcJUtYVPJasQ24VvokDgwyFlfY=
 github.com/tree-sitter-grammars/tree-sitter-xml v0.7.0 h1:UwM6+GtRWjNEsSsgVAhZA/39HS+F9LQb1j6jkXwYdds=
 github.com/tree-sitter-grammars/tree-sitter-xml v0.7.0/go.mod h1:shxC3S8mp1r2gihmQGEGQDfnBIkM4GZ6hXYEcWCw3xE=
 github.com/tree-sitter-grammars/tree-sitter-yaml v0.7.2 h1:Mmr9LYGTdr+8iD3ZEK1+j2FKZtY1Jt3y5Wq9dedgwfs=

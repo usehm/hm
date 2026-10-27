@@ -128,6 +128,11 @@ languages:
 	if l, ok := s.For("/x/GNUmakefile"); !ok || l.Name != "make" || len(l.Formatters) == 0 {
 		t.Fatalf("For(GNUmakefile): %+v", l)
 	}
+	mk := highlight.ForPath("/x/Makefile")
+	if _, noop := mk.(highlight.Noop); noop {
+		t.Fatal("Makefile should be highlighted")
+	}
+	mk.Close()
 	if _, ok := s.For("/x/LICENSE"); ok {
 		t.Fatal("a file without an extension matched a language")
 	}

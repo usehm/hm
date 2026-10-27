@@ -10,7 +10,7 @@ require (
 	github.com/charmbracelet/x/vt v0.1.0
 	github.com/creack/pty v1.1.24
 	github.com/fsnotify/fsnotify v1.10.1
-	github.com/mirzakhany/yoga v0.34.0
+	github.com/mirzakhany/yoga v0.35.0
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/net v0.58.0
@@ -70,6 +70,7 @@ require (
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
+	github.com/tree-sitter-grammars/tree-sitter-make v1.1.1 // indirect
 	github.com/tree-sitter-grammars/tree-sitter-xml v0.7.0 // indirect
 	github.com/tree-sitter-grammars/tree-sitter-yaml v0.7.2 // indirect
 	github.com/tree-sitter/go-tree-sitter v0.25.0 // indirect
