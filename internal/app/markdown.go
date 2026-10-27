@@ -60,28 +60,30 @@ func (a *App) cycleMarkdownPreview() {
 	d.mode = (d.mode + 1) % mdMode(len(mdModeValues))
 }
 
-// markdownView wraps a Markdown file's editor with a source/split/preview
-// switch and the rendered preview.
+// markdownMode is the source/split/preview switch, sized to sit at the end
+// of the breadcrumb row.
+func (a *App) markdownMode(path string) ui.View {
+	d := a.mdDoc(path)
+	return ui.Segmented("md-mode",
+		ui.SegmentItem{Label: "Source", Value: mdModeValues[mdSource]},
+		ui.SegmentItem{Label: "Split", Value: mdModeValues[mdSplit]},
+		ui.SegmentItem{Label: "Preview", Value: mdModeValues[mdPreview]},
+	).Selected(int(d.mode)).OnChange(func(v string) {
+		for i, m := range mdModeValues {
+			if m == v {
+				d.mode = mdMode(i)
+			}
+		}
+	}).Height(22).Background(ui.TokenSurface).Border(ui.TokenSurface, 1)
+}
+
+// markdownView wraps a Markdown file's editor with the rendered preview.
 func (a *App) markdownView(c *ui.Ctx, ed *ui.Editor, editor ui.View) ui.View {
 	th := c.Theme()
 	path := ed.Path
 	d := a.mdDoc(path)
-	bar := ui.Row(
-		ui.Spacer(),
-		ui.Segmented("md-mode",
-			ui.SegmentItem{Label: "Source", Value: mdModeValues[mdSource]},
-			ui.SegmentItem{Label: "Split", Value: mdModeValues[mdSplit]},
-			ui.SegmentItem{Label: "Preview", Value: mdModeValues[mdPreview]},
-		).Selected(int(d.mode)).OnChange(func(v string) {
-			for i, m := range mdModeValues {
-				if m == v {
-					d.mode = mdMode(i)
-				}
-			}
-		}),
-	).PaddingXY(th.Spacing.M, th.Spacing.XXS).Background(ui.TokenChrome).BorderBottom(ui.TokenBorder, th.Stroke.Thin)
 	if d.mode == mdSource {
-		return ui.Column(bar, editor).Grow(1)
+		return editor
 	}
 	if rev := ed.Revision(); !d.read || rev != d.rev {
 		d.rev, d.text, d.read = rev, string(ed.Bytes()), true
@@ -95,7 +97,7 @@ func (a *App) markdownView(c *ui.Ctx, ed *ui.Editor, editor ui.View) ui.View {
 	if d.mode == mdSplit {
 		body = ui.Splitter("md-split", ui.Horizontal, editor, preview).Percents(50, 50).MinSizes(200, 200).Grow(1)
 	}
-	return ui.Column(bar, body).Grow(1)
+	return body
 }
 
 // openLink follows a link clicked in rendered Markdown. Web and mail links

@@ -208,7 +208,6 @@ func (a *App) activeView(c *ui.Ctx) ui.View {
 		return ui.Spacer()
 	}
 	view := ui.ViewOf(ed).Grow(1)
-	crumbs := a.breadcrumb(c, ed.Path)
 	if ed.HighlightOversize() {
 		th := c.Theme()
 		view = ui.Column(
@@ -221,15 +220,17 @@ func (a *App) activeView(c *ui.Ctx) ui.View {
 		).Grow(1)
 	}
 	var body ui.View = view
+	var trailing []ui.View
 	if isMarkdown(ed.Path) {
 		body = a.markdownView(c, ed, view)
+		trailing = append(trailing, a.markdownMode(ed.Path))
 	}
-	return ui.Column(crumbs, body).Grow(1)
+	return ui.Column(a.breadcrumb(c, ed.Path, trailing...), body).Grow(1)
 }
 
 // breadcrumb shows path relative to the workspace root; a folder crumb
-// reveals that folder in the explorer.
-func (a *App) breadcrumb(c *ui.Ctx, path string) ui.View {
+// reveals that folder in the explorer. Trailing views sit at the row's end.
+func (a *App) breadcrumb(c *ui.Ctx, path string, trailing ...ui.View) ui.View {
 	rel, err := filepath.Rel(a.ws.Root, path)
 	if err != nil || strings.HasPrefix(rel, "..") {
 		rel = path
@@ -246,8 +247,9 @@ func (a *App) breadcrumb(c *ui.Ctx, path string) ui.View {
 		}}
 	}
 	th := c.Theme()
-	return ui.Breadcrumb("editor-crumbs", segs...).Height(24).
-		Background(ui.TokenSurface).BorderBottom(ui.TokenBorder, th.Stroke.Thin)
+	crumbs := ui.Breadcrumb("editor-crumbs", segs...).Height(24).Grow(1)
+	return ui.Row(append([]ui.View{crumbs}, trailing...)...).Height(24).
+		PaddingRight(th.Spacing.XS).Background(ui.TokenSurface).BorderBottom(ui.TokenBorder, th.Stroke.Thin)
 }
 
 func (a *App) welcome(c *ui.Ctx) ui.View {
