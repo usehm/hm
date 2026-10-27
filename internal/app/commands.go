@@ -23,6 +23,7 @@ func (a *App) registerCommands(c *ui.Ctx) {
 	c.Commands().ToggleChord(a.key("palette"))
 	ed := a.ws.ActiveEditor()
 	hasEd := ed != nil
+	edFocused := hasEd && ed.Focused() // keys that mean something else in a text field
 	cmds := []*ui.Command{
 		ui.Section("File"),
 		ui.Cmd("file.quickOpen").Title("Go to File…").Shortcut(a.key("file.quickOpen")).Icon(icons.Search).Run(a.showQuickOpen),
@@ -50,6 +51,15 @@ func (a *App) registerCommands(c *ui.Ctx) {
 		ui.Cmd("editor.replace").Title("Replace in File").Shortcut(a.key("editor.replace")).Icon(icons.Replace).Enabled(hasEd).Run(func() { ed.OpenFind(true) }),
 		ui.Cmd("editor.undo").Title("Undo").Icon(icons.Undo2).Enabled(hasEd).Hidden(true).Run(func() { ed.Undo() }),
 		ui.Cmd("editor.redo").Title("Redo").Icon(icons.Redo2).Enabled(hasEd).Hidden(true).Run(func() { ed.Redo() }),
+
+		ui.Cmd("editor.addNextOccurrence").Title("Add Selection to Next Find Match").Shortcut(a.key("editor.addNextOccurrence")).
+			Icon(icons.TextCursorInput).Enabled(edFocused).Run(func() { ed.AddNextOccurrence() }),
+		ui.Cmd("editor.selectAllOccurrences").Title("Select All Occurrences").Shortcut(a.key("editor.selectAllOccurrences")).
+			Icon(icons.TextCursorInput).Enabled(edFocused).Run(func() { ed.SelectAllOccurrences() }),
+		ui.Cmd("editor.addCursorAbove").Title("Add Cursor Above").Shortcut(a.key("editor.addCursorAbove")).
+			Icon(icons.TextCursorInput).Enabled(edFocused).Run(func() { ed.AddCursorLine(-1) }),
+		ui.Cmd("editor.addCursorBelow").Title("Add Cursor Below").Shortcut(a.key("editor.addCursorBelow")).
+			Icon(icons.TextCursorInput).Enabled(edFocused).Run(func() { ed.AddCursorLine(1) }),
 
 		ui.Section("Code"),
 		ui.Cmd("editor.definition").Title("Go to Definition").Shortcut(a.key("editor.definition")).Icon(icons.SquareArrowOutUpRight).

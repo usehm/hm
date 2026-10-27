@@ -42,6 +42,10 @@ keys:                         # command id -> chord; overrides built-ins
   editor.rename: f2
   editor.format: shift+alt+f
   editor.symbols: cmd+shift+o
+  editor.addNextOccurrence: cmd+d
+  editor.selectAllOccurrences: cmd+alt+l   # cmd+shift+l asks the agent
+  editor.addCursorAbove: cmd+alt+up
+  editor.addCursorBelow: cmd+alt+down
   agent.askSelection: cmd+shift+l
   app.settings: cmd+,
 
