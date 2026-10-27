@@ -75,6 +75,8 @@ func (a *App) settingsPage(c *ui.Ctx) ui.View {
 			ed.SoftWrap, func(v bool) { a.setSetting(key("editor", "soft_wrap"), v) }),
 		ui.FormSwitch("set-lines", "Line numbers", "Show the line-number gutter",
 			ed.LineNumbers, func(v bool) { a.setSetting(key("editor", "line_numbers"), v) }),
+		ui.FormSwitch("set-past-end", "Scroll past end", "Leave room below the last line",
+			ed.ScrollPastEnd, func(v bool) { a.setSetting(key("editor", "scroll_past_end"), v) }),
 		ui.FormSwitch("set-format", "Format on save", "Run the language's formatters when saving",
 			ed.FormatOnSave, func(v bool) { a.setSetting(key("editor", "format_on_save"), v) }),
 		ui.FormSelect("set-autosave", "Auto save", "Save files without asking",

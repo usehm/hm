@@ -49,6 +49,7 @@ func (a *App) applyConfig(cfg config.Config) {
 	a.applied.ok = true
 	ui.EditorDefaults.SoftWrap = ed.SoftWrap
 	ui.EditorDefaults.LineNumbers = ed.LineNumbers
+	ui.EditorDefaults.ScrollPastEnd = ed.ScrollPastEnd
 	ui.EditorDefaults.IndentSpaces = ed.InsertSpaces
 	a.lang.Apply(cfg.Languages)
 	if a.tree != nil {

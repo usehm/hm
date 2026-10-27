@@ -10,6 +10,7 @@ editor:
   insert_spaces: false
   soft_wrap: false
   line_numbers: true
+  scroll_past_end: true       # let the last line scroll up to the top
   format_on_save: true
   auto_save: off              # off | focus_change | delay
   auto_save_delay: 1s

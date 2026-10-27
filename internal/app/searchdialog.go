@@ -276,6 +276,7 @@ func (a *App) selectMatch(f, m int) {
 	s.preview, s.previewRev = fr.Path, ed.Revision()
 	mt := fr.Matches[m]
 	ed.SetSelection(mt.Start, mt.End)
+	ed.CenterCaret()
 }
 
 // step moves the selection to the next (dir 1) or previous (-1) match.

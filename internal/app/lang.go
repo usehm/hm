@@ -116,6 +116,7 @@ func (a *App) goTo(loc lsp.Location, enc string) {
 	text := ed.Bytes()
 	lo, hi := lsp.OffsetAt(text, loc.Range.Start, enc), lsp.OffsetAt(text, loc.Range.End, enc)
 	ed.SetSelection(lo, hi)
+	ed.CenterCaret()
 	ed.Focus()
 }
 

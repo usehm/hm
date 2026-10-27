@@ -33,8 +33,10 @@ type Editor struct {
 	InsertSpaces bool   `yaml:"insert_spaces"`
 	SoftWrap     bool   `yaml:"soft_wrap"`
 	LineNumbers  bool   `yaml:"line_numbers"`
-	FormatOnSave bool   `yaml:"format_on_save"`
-	AutoSave     string `yaml:"auto_save"` // off | focus_change | delay
+	// ScrollPastEnd leaves room below the last line so it can scroll to the top.
+	ScrollPastEnd bool   `yaml:"scroll_past_end"`
+	FormatOnSave  bool   `yaml:"format_on_save"`
+	AutoSave      string `yaml:"auto_save"` // off | focus_change | delay
 	// AutoSaveDelay is the idle time before a delayed auto save.
 	AutoSaveDelay Duration `yaml:"auto_save_delay"`
 	ShowHidden    bool     `yaml:"show_hidden"`
