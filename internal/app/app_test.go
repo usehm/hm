@@ -82,7 +82,7 @@ func TestSessionRestore(t *testing.T) {
 func TestFrameRendersPanelsAndPalette(t *testing.T) {
 	root := project(t)
 	h := newHarness(t, root, false)
-	h.app.showPanel(panelGit)
+	h.app.openGit()
 	h.app.agentOpen = true
 	h.app.openSettings()
 	h.frame()

@@ -65,7 +65,7 @@ func TestFooterBranchAndGutterMarks(t *testing.T) {
 	h.until("dirty count", 10*time.Second, func() bool {
 		return h.app.gitst.status != nil && len(h.app.gitst.status.Changes) == 1
 	})
-	h.app.showPanel(panelGit)
+	h.app.openGit()
 	h.frame()
 }
 

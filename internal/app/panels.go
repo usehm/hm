@@ -9,24 +9,18 @@ type panelKind int
 
 const (
 	panelTerminal panelKind = iota
-	panelGit
 	panelProblems
 	panelOutput
 )
 
 var panelTabs = []ui.SegmentItem{
 	{Label: "Terminal", Value: "terminal"},
-	{Label: "Git", Value: "git"},
 	{Label: "Problems", Value: "problems"},
 	{Label: "Output", Value: "output"},
 }
 
 // showPanel opens the bottom panel on k.
 func (a *App) showPanel(k panelKind) {
-	if k == panelGit && (!a.panelOpen || a.panel != panelGit) && a.gitst.page != nil {
-		// The work tree changes outside hm; read it each time the panel opens.
-		a.gitst.page.Refresh()
-	}
 	if k == panelTerminal {
 		a.term.focus = true
 	}
@@ -62,8 +56,6 @@ func (a *App) panelView(c *ui.Ctx) ui.View {
 		if a.panelOpen {
 			body = a.terminalView(c)
 		}
-	case panelGit:
-		body = a.gitst.page.Layout(c)
 	case panelProblems:
 		body = a.problemsView(c)
 	default:

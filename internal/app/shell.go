@@ -118,6 +118,8 @@ func (a *App) tabModel(t workspace.Tab, i int) ui.TabModel {
 	switch t.Kind {
 	case workspace.KindSettings:
 		return ui.TabModel{Title: "Settings", Icon: icons.Settings}
+	case workspace.KindGit:
+		return ui.TabModel{Title: "Git", Icon: icons.GitBranch}
 	}
 	return ui.TabModel{Title: a.tabTitle(t.Path), Modified: a.ws.Modified(i), Icon: icons.File}
 }
@@ -161,6 +163,8 @@ func (a *App) activeView(c *ui.Ctx) ui.View {
 	switch t.Kind {
 	case workspace.KindSettings:
 		return a.settingsPage(c)
+	case workspace.KindGit:
+		return a.gitPage(c)
 	}
 	ed := a.ws.ActiveEditor()
 	if ed == nil {
@@ -263,7 +267,7 @@ func (a *App) footer(c *ui.Ctx) ui.View {
 		ui.Button("ft-terminal", ui.Caption("Terminal")).Ghost().HoverFill().
 			IconStart(icons.SquareTerminal).OnClick(func() { a.togglePanel(panelTerminal) }),
 		ui.Button("ft-git", ui.Caption("Git")).Ghost().HoverFill().
-			IconStart(icons.GitCompare).OnClick(func() { a.togglePanel(panelGit) }),
+			IconStart(icons.GitCompare).OnClick(a.toggleGit),
 		ui.Popover("ft-notifs-pop",
 			ui.Button("ft-notifs", ui.Caption(unread)).Ghost().HoverFill().IconStart(icons.Bell).Tooltip("Notifications"),
 			a.notifs.Layout(c),
@@ -329,7 +333,7 @@ func (a *App) branchButton(c *ui.Ctx) ui.View {
 		tip = "Tracking " + st.Upstream
 	}
 	return ui.Button("ft-branch", ui.Caption(label)).Ghost().HoverFill().
-		IconStart(icons.GitBranch).Tooltip(tip).OnClick(func() { a.togglePanel(panelGit) })
+		IconStart(icons.GitBranch).Tooltip(tip).OnClick(a.openGit)
 }
 
 var languageNames = map[string]string{

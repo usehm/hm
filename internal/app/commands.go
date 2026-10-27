@@ -102,7 +102,7 @@ func (a *App) registerCommands(c *ui.Ctx) {
 				t.view.Clear()
 			}
 		}),
-		ui.Cmd("panel.git").Title("Toggle Git").Shortcut(a.key("panel.git")).Icon(icons.GitBranch).Run(func() { a.togglePanel(panelGit) }),
+		ui.Cmd("panel.git").Title("Toggle Git").Shortcut(a.key("panel.git")).Icon(icons.GitBranch).Run(a.toggleGit),
 		ui.Cmd("panel.problems").Title("Toggle Problems").Shortcut(a.key("panel.problems")).Icon(icons.TriangleAlert).Run(func() { a.togglePanel(panelProblems) }),
 		ui.Cmd("panel.output").Title("Toggle Output").Icon(icons.ScrollText).Run(func() { a.togglePanel(panelOutput) }),
 		ui.Cmd("panel.close").Title("Close Panel").Icon(icons.PanelBottomClose).Enabled(a.panelOpen).Run(func() { a.panelOpen = false }),

@@ -17,6 +17,7 @@ type Kind int
 const (
 	KindFile Kind = iota
 	KindSettings
+	KindGit
 )
 
 // Tab is one entry in the tab strip.

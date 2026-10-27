@@ -106,6 +106,37 @@ func (a *App) gitChanged(st *gitx.Status) {
 	}
 }
 
+// openGit shows the Git page as a tab.
+func (a *App) openGit() {
+	if !a.gitTabActive() && a.gitst.page != nil {
+		// The work tree changes outside hm; read it each time the page shows.
+		a.gitst.page.Refresh()
+	}
+	a.ws.OpenPage(workspace.KindGit)
+}
+
+// toggleGit opens the Git tab, or closes it when it is the active tab.
+func (a *App) toggleGit() {
+	if a.gitTabActive() {
+		a.ws.Close(a.ws.Active)
+		return
+	}
+	a.openGit()
+}
+
+func (a *App) gitTabActive() bool {
+	t := a.ws.ActiveTab()
+	return t != nil && t.Kind == workspace.KindGit
+}
+
+// gitPage is the Git tab's content.
+func (a *App) gitPage(c *ui.Ctx) ui.View {
+	if a.gitst.page == nil {
+		return ui.EmptyState("No repository", "This folder is not a git repository").Grow(1)
+	}
+	return ui.ViewOf(a.gitst.page.Layout(c)).Grow(1)
+}
+
 // changeKinds maps each changed file, and every folder above it, to its kind
 // of change. A folder takes the most notable kind among its files.
 func changeKinds(root string, st *gitx.Status) map[string]gitx.ChangeKind {
@@ -168,7 +199,7 @@ func (a *App) pumpGit(c *ui.Ctx) {
 	}
 	if wait := gitPollInterval - time.Since(g.polled); wait <= 0 || ch.Git || len(ch.Files) > 0 {
 		g.polled = time.Now()
-		if a.panelOpen && a.panel == panelGit {
+		if a.gitTabActive() {
 			g.page.Refresh()
 		} else {
 			// Hidden page: the footer and change bars need only the status.
