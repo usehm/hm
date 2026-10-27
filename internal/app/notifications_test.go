@@ -11,6 +11,7 @@ func TestNotificationOpensWithItsAction(t *testing.T) {
 	root := project(t)
 	h := newHarness(t, root, false)
 	path := filepath.Join(root, "main.go")
+	h.app.notifs.items = nil // startup may have added some
 	h.app.notifs.Add("main.go changed", ui.ToastWarning, h.app.openFileAction(path))
 	h.app.notifs.Add("plain", ui.ToastInfo, h.app.openFileAction("defaults"))
 	if n := len(h.app.notifs.items[1].actions); n != 0 {
