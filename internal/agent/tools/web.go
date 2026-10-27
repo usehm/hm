@@ -278,7 +278,7 @@ func (t *webFetchTool) Prepare(_ Env, input json.RawMessage) (Plan, error) {
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return Plan{}, fmt.Errorf("%q is not an http(s) URL", in.URL)
 	}
-	return Plan{Category: CatNetwork, Summary: "Fetch " + u.String(), Run: func(ctx context.Context) Result {
+	return Plan{Category: CatNetwork, Summary: "Fetch " + u.String(), Hosts: []string{u.Hostname()}, Run: func(ctx context.Context) Result {
 		text, err := Fetch(ctx, t.http, u.String())
 		if err != nil {
 			return fail("fetch failed: %v", err)

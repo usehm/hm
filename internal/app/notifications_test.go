@@ -1,10 +1,13 @@
 package app
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/mirzakhany/yoga/ui"
+
+	"github.com/mirzakhany/hm/internal/agent/guard"
 )
 
 func TestNotificationOpensWithItsAction(t *testing.T) {
@@ -25,5 +28,16 @@ func TestNotificationOpensWithItsAction(t *testing.T) {
 	h.app.notifs.items[0].actions[0].run()
 	if ed := h.app.ws.ActiveEditor(); ed == nil || ed.Path != path {
 		t.Fatal("Open File action did not open the file")
+	}
+}
+
+func TestGuardTemplateLoads(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "guard.yaml")
+	if err := os.WriteFile(p, []byte(guardTemplate), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := guard.Load(p, "", dir); err != nil {
+		t.Fatal(err)
 	}
 }

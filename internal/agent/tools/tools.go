@@ -66,6 +66,11 @@ type Plan struct {
 	GrantKey string
 	// Question, for ask_user, is put to the user; the answer is the result.
 	Question string
+	// Command is the command line a shell or command tool runs, for the
+	// guard's command rules.
+	Command string
+	// Hosts are the network hosts a call reaches, for the guard.
+	Hosts []string
 }
 
 // Result is what goes back to the model.

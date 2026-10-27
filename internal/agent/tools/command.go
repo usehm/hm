@@ -117,7 +117,7 @@ func (t *commandTool) Prepare(env Env, input json.RawMessage) (Plan, error) {
 		timeout = defaultShellTimeout
 	}
 	summary := t.name + ": " + shownArgv(argv, t.argv)
-	return Plan{Category: CatCommand, Summary: summary, Paths: []string{env.Root()}, Run: func(ctx context.Context) Result {
+	return Plan{Category: CatCommand, Summary: summary, Paths: []string{env.Root()}, Command: strings.Join(argv, " "), Run: func(ctx context.Context) Result {
 		ctx, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
 		cmd := exec.CommandContext(ctx, config.ExpandHome(argv[0]), argv[1:]...)

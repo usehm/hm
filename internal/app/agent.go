@@ -12,6 +12,7 @@ import (
 	"github.com/mirzakhany/yoga/ui"
 
 	"github.com/mirzakhany/hm/internal/agent"
+	"github.com/mirzakhany/hm/internal/agent/guard"
 	"github.com/mirzakhany/hm/internal/agent/mcp"
 	"github.com/mirzakhany/hm/internal/agent/provider"
 	"github.com/mirzakhany/hm/internal/agent/skills"
@@ -195,6 +196,13 @@ func (a *App) sendAgent() {
 		st.errText = err.Error()
 		return
 	}
+	// Read per message, so edits to guard.yaml apply to the next one. A
+	// broken file stops the agent rather than letting it run unguarded.
+	grd, err := guard.Load(userGuardPath(), projectGuardPath(a.ws.Root), a.ws.Root)
+	if err != nil {
+		st.errText = "guard.yaml: " + err.Error()
+		return
+	}
 	s := a.currentSession()
 	s.Mode, s.Provider = st.mode, st.provider
 	ts := a.agentToolset(mode)
@@ -207,11 +215,17 @@ func (a *App) sendAgent() {
 	ag := &agent.Agent{
 		Provider: prov, Model: pc.Model, Effort: pc.Effort,
 		System: agent.System(mode, a.ws.Root, s.Created, ts.extra),
-		Tools:  ts.reg, Policy: policy, Env: agentEnv{a},
+		Tools:  ts.reg, Policy: policy, Guard: grd, Env: agentEnv{a},
 		Hooks: agent.Hooks{
 			Event:   func(e agent.Event) { a.onUI(func() { a.agentEvent(e) }) },
 			Approve: a.agentApprove,
-			Ask:     a.agentAsk,
+			Blocked: func(tool, why string) {
+				a.onUI(func() {
+					a.toast("Guard blocked "+tool+": "+why, ui.ToastWarning,
+						notifAction{label: "Edit guard.yaml", run: func() { a.openGuard(false) }})
+				})
+			},
+			Ask: a.agentAsk,
 			Apply: func(_ context.Context, edits []tools.FileEdit) error {
 				var err error
 				if cerr := a.callUI(func() { err = a.applyAgentEdits(edits) }); cerr != nil {

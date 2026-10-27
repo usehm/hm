@@ -152,7 +152,7 @@ func (t *shellTool) Prepare(env Env, input json.RawMessage) (Plan, error) {
 	if in.Background {
 		summary += "   (background)"
 	}
-	return Plan{Category: cat, Summary: summary, Paths: []string{dir}, GrantKey: "shell:" + firstWord(in.Command),
+	return Plan{Category: cat, Summary: summary, Paths: []string{dir}, GrantKey: "shell:" + firstWord(in.Command), Command: in.Command,
 		Run: func(ctx context.Context) Result {
 			if in.Background {
 				id, err := t.shells.Start(in.Command, dir)

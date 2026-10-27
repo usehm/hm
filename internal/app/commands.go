@@ -145,6 +145,7 @@ func (a *App) registerCommands(c *ui.Ctx) {
 		ui.Cmd("settings.projectYaml").Title("Settings: Open Project Config (YAML)").Icon(icons.FileCode).Run(func() { a.openConfigYAML(true) }),
 		ui.Cmd("settings.defaults").Title("Settings: Show Default Config").Icon(icons.FileText).Run(a.openDefaults),
 		ui.Cmd("settings.reload").Title("Settings: Reload Config").Icon(icons.RefreshCw).Run(a.reloadConfig),
+		ui.Cmd("agent.guard").Title("Agent: Edit Guard Rules (guard.yaml)").Icon(icons.ShieldCheck).Run(func() { a.openGuard(false) }),
 		ui.Cmd("app.settings").Title("Open Settings").Shortcut(a.key("app.settings")).Icon(icons.Settings).Run(a.openSettings),
 	}
 

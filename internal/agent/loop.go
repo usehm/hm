@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mirzakhany/hm/internal/agent/guard"
 	"github.com/mirzakhany/hm/internal/agent/provider"
 	"github.com/mirzakhany/hm/internal/agent/tools"
 )
@@ -67,6 +68,8 @@ type Hooks struct {
 	// Apply writes file edits (New == nil deletes) and records them for
 	// "undo agent turn".
 	Apply func(ctx context.Context, edits []tools.FileEdit) error
+	// Blocked is told when the guard refuses a call.
+	Blocked func(tool, reason string)
 }
 
 // Agent runs turns of one session.
@@ -77,8 +80,11 @@ type Agent struct {
 	System   string
 	Tools    *tools.Registry
 	Policy   *Policy
-	Env      tools.Env
-	Hooks    Hooks
+	// Guard checks each call against guard.yaml before the policy; nil
+	// checks nothing.
+	Guard *guard.Guard
+	Env   tools.Env
+	Hooks Hooks
 }
 
 func (a *Agent) emit(e Event) {
@@ -172,7 +178,21 @@ func (a *Agent) call(ctx context.Context, call provider.Block) tools.Result {
 	}
 	a.emit(Event{Kind: EvToolCall, Tool: call.ToolName, CallID: call.ToolID, Summary: plan.Summary})
 
+	verdict, why := a.Guard.Check(call.ToolName, plan)
+	if verdict == guard.Deny {
+		if a.Hooks.Blocked != nil {
+			a.Hooks.Blocked(call.ToolName, why)
+		}
+		return tools.Result{Text: "Blocked by the user's guard rules (guard.yaml): " + why +
+			". Do not try to get around this; tell the user what you needed instead.", IsError: true}
+	}
 	decision, reason := a.Policy.Decide(call.ToolName, plan)
+	switch {
+	case verdict == guard.Ask && decision != Deny:
+		decision, reason = Ask, why // guard rules ask every time, grants or not
+	case verdict == guard.Allow && decision == Ask:
+		decision = Allow
+	}
 	ans := Answer{Allow: decision == Allow}
 	switch decision {
 	case Deny:

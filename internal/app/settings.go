@@ -32,6 +32,7 @@ var settingsCategories = []struct {
 	{"terminal", "Terminal", icons.SquareTerminal},
 	{"agent", "Agent", icons.Bot},
 	{"completion", "Completion", icons.Sparkles},
+	{"security", "Agent Security", icons.ShieldCheck},
 	{"updates", "Updates", icons.Download},
 	{"keys", "Keyboard Shortcuts", icons.Keyboard},
 }
@@ -118,6 +119,8 @@ func (a *App) settingsSection(c *ui.Ctx, cat string) ui.View {
 	switch cat {
 	case "keys":
 		return a.keysSection(c)
+	case "security":
+		return a.securitySection(c)
 	case "agent":
 		return a.agentSettings(c)
 	case "completion":

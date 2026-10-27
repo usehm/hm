@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mirzakhany/hm/internal/agent/guard"
 	"github.com/mirzakhany/hm/internal/agent/provider"
 	"github.com/mirzakhany/hm/internal/agent/tools"
 	"github.com/mirzakhany/hm/internal/config"
@@ -312,5 +313,37 @@ func TestGrantsOutliveOnePolicy(t *testing.T) {
 	next.Grants = first.Grants
 	if d, _ := next.Decide("shell", plan); d != Allow {
 		t.Fatalf("shared grants decided %v, want Allow", d)
+	}
+}
+
+func TestGuardBlocksBeforeAskingAndAsksEveryTime(t *testing.T) {
+	h := newAgent(t, "auto",
+		[]provider.Block{call("c1", "write", `{"path":".env","content":"KEY=1"}`)},
+		[]provider.Block{call("c2", "shell", `{"command":"go version && rm -rf /"}`)},
+		[]provider.Block{call("c3", "edit", `{"path":"a.go","old_string":"return 1","new_string":"return 2"}`)},
+		[]provider.Block{say("done")},
+	)
+	var r guard.Rules
+	r.Paths.Deny = []string{".env"}
+	r.Commands.Deny = []string{"rm -rf /*"}
+	r.Tools.Ask = []string{"edit"}
+	g, err := guard.New(h.root, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.agent.Guard = g
+	var blocked []string
+	h.agent.Hooks.Blocked = func(tool, why string) { blocked = append(blocked, tool) }
+	h.answer = func(Approval) Answer { return Answer{Allow: true, ForSession: true} }
+	h.run(t, "go")
+	if _, err := os.Stat(filepath.Join(h.root, ".env")); err == nil {
+		t.Fatal("the guard should have kept .env from being written")
+	}
+	if strings.Join(blocked, ",") != "write,shell" {
+		t.Fatalf("blocked %v", blocked)
+	}
+	// Edits are auto in this mode; the guard's ask rule makes it ask.
+	if len(h.asked) != 1 || h.asked[0].Tool != "edit" {
+		t.Fatalf("asked %+v", h.asked)
 	}
 }
