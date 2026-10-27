@@ -92,6 +92,8 @@ github.com/clipperhouse/displaywidth v0.11.0 h1:lBc6kY44VFw+TDx4I8opi/EtL9m20WSE
 github.com/clipperhouse/displaywidth v0.11.0/go.mod h1:bkrFNkf81G8HyVqmKGxsPufD3JhNl3dSqnGhOoSD/o0=
 github.com/clipperhouse/uax29/v2 v2.7.0 h1:+gs4oBZ2gPfVrKPthwbMzWZDaAFPGYK72F0NJv2v7Vk=
 github.com/clipperhouse/uax29/v2 v2.7.0/go.mod h1:EFJ2TJMRUaplDxHKj1qAEhCtQPW2tJSwu5BF98AuoVM=
+github.com/coder3101/tree-sitter-proto v0.0.0-20261015124545-18366491f37d h1:1LmfMKbuRmHfftCiO31XJzt3PfljzuHxPFQtQGjy+Xs=
+github.com/coder3101/tree-sitter-proto v0.0.0-20261015124545-18366491f37d/go.mod h1:D7mf3v+VB32oBPRQwkqsV3iVFYbicrCEUy9RAWcwcpI=
 github.com/cogentcore/webgpu v0.23.0 h1:hrjnnuDZAPSRsqBjQAsJOyg2COGztIkBbxL87r0Q9KE=
 github.com/cogentcore/webgpu v0.23.0/go.mod h1:ciqaxChrmRRMU1SnI5OE12Cn3QWvOKO+e5nSy+N9S1o=
 github.com/creack/pty v1.1.24 h1:bJrF4RRfyJnbTJqzRLHzcGaZK1NeM5kTC9jGgovnR1s=
@@ -149,8 +151,8 @@ github.com/mattn/go-pointer v0.0.1 h1:n+XhsuGeVO6MEAp7xyEukFINEa+Quek5psIR/ylA6o
 github.com/mattn/go-pointer v0.0.1/go.mod h1:2zXcozF6qYGgmsG+SeTZz3oAbFLdD3OWqnUbNvJZAlc=
 github.com/mattn/go-runewidth v0.0.28 h1:rPyg2ybwEKPebvpzVWe1gKBkH8EQFkxO4Y0hjBeLaBU=
 github.com/mattn/go-runewidth v0.0.28/go.mod h1:3qAiGCV4Koz/yuveO58qUefmUTRm8r0IGEXZ9jeHp/8=
-github.com/mirzakhany/yoga v0.31.0 h1:LaIp/QLiDg0v/alnSRYQSWfMXWnnoCZFaZsKqbP6wJw=
-github.com/mirzakhany/yoga v0.31.0/go.mod h1:s8CbuzEt+LIypXaVRdu4SPQRvxJkLtkUKKo8QlW4YVI=
+github.com/mirzakhany/yoga v0.32.0 h1:2HRBmywHdbHmYzSv6ofw7QlTMatllnLycsb6Bntjo8M=
+github.com/mirzakhany/yoga v0.32.0/go.mod h1:on8wk1Ji8ef0edKYMAPmfDZNofAOY9UUvwWhgkJ+Pbs=
 github.com/modelcontextprotocol/go-sdk v1.8.0 h1:KIvahhYqwtbeniWVPs3TcXEA7b8jEtwfBpOTAI+Urx4=
 github.com/modelcontextprotocol/go-sdk v1.8.0/go.mod h1:dL7u98E/zjJTGzEq+j30jQ8K2k1mb6LeAH4inEcSGts=
 github.com/muesli/cancelreader v0.2.2 h1:3I4Kt4BQjOR54NavqnDogx/MIoWBFa0StPA8ELUXHmA=

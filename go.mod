@@ -10,7 +10,7 @@ require (
 	github.com/charmbracelet/x/vt v0.1.0
 	github.com/creack/pty v1.1.24
 	github.com/fsnotify/fsnotify v1.10.1
-	github.com/mirzakhany/yoga v0.31.0
+	github.com/mirzakhany/yoga v0.32.0
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/net v0.58.0
@@ -37,6 +37,7 @@ require (
 	github.com/charmbracelet/x/windows v0.2.2 // indirect
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
+	github.com/coder3101/tree-sitter-proto v0.0.0-20261015124545-18366491f37d // indirect
 	github.com/cogentcore/webgpu v0.23.0 // indirect
 	github.com/danieljoos/wincred v1.2.3 // indirect
 	github.com/go-fonts/latin-modern v0.3.3 // indirect
@@ -76,6 +77,7 @@ require (
 	github.com/tree-sitter/tree-sitter-css v0.25.0 // indirect
 	github.com/tree-sitter/tree-sitter-go v0.25.0 // indirect
 	github.com/tree-sitter/tree-sitter-html v0.23.2 // indirect
+	github.com/tree-sitter/tree-sitter-java v0.23.5 // indirect
 	github.com/tree-sitter/tree-sitter-javascript v0.25.0 // indirect
 	github.com/tree-sitter/tree-sitter-json v0.24.8 // indirect
 	github.com/tree-sitter/tree-sitter-python v0.23.6 // indirect
