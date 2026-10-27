@@ -13,16 +13,26 @@ import (
 
 // Config is the merged configuration.
 type Config struct {
-	Editor     Editor              `yaml:"editor"`
-	Keys       map[string]string   `yaml:"keys"`
-	Search     Search              `yaml:"search"`
-	Languages  map[string]Language `yaml:"languages"`
-	Terminal   Terminal            `yaml:"terminal"`
-	Updates    Updates             `yaml:"updates"`
-	Agent      Agent               `yaml:"agent"`
-	Completion Completion          `yaml:"completion"`
-	Modes      map[string]Mode     `yaml:"modes"`
-	Tools      Tools               `yaml:"tools"`
+	Editor Editor            `yaml:"editor"`
+	Keys   map[string]string `yaml:"keys"`
+	// Keybindings add shortcuts that apply in a context, VS Code style.
+	Keybindings []Keybinding        `yaml:"keybindings"`
+	Search      Search              `yaml:"search"`
+	Languages   map[string]Language `yaml:"languages"`
+	Terminal    Terminal            `yaml:"terminal"`
+	Updates     Updates             `yaml:"updates"`
+	Agent       Agent               `yaml:"agent"`
+	Completion  Completion          `yaml:"completion"`
+	Modes       map[string]Mode     `yaml:"modes"`
+	Tools       Tools               `yaml:"tools"`
+}
+
+// Keybinding runs Command when Key is pressed while When holds. A Command
+// of "-id" removes id's shortcut from keys.
+type Keybinding struct {
+	Key     string `yaml:"key"`
+	Command string `yaml:"command"`
+	When    string `yaml:"when"`
 }
 
 type Editor struct {

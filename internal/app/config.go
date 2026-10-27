@@ -136,7 +136,6 @@ func (a *App) showConfigDiagnostics() {
 }
 
 // key returns the chord bound to a command id.
-func (a *App) key(id string) string { return a.cfg.Current().Keys[id] }
 
 // configFile returns the config file for a scope, creating it from the
 // template so it can be opened.

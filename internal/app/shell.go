@@ -272,6 +272,9 @@ func (a *App) footer(c *ui.Ctx) ui.View {
 	if len(a.formatting) > 0 {
 		items = append(items, ui.Spinner("ft-formatting", 12), ui.Caption("Formatting…"))
 	}
+	if p := c.Commands().Pending(); p != "" {
+		items = append(items, ui.Caption("("+p+") was pressed. Waiting for the second key…"))
+	}
 	if a.agentFullscreen() && a.agentOpen {
 		items = append(items, a.agentStatus(c)...)
 	} else if ed := a.ws.ActiveEditor(); ed != nil {

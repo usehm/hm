@@ -49,6 +49,16 @@ keys:                         # command id -> chord; overrides built-ins
   agent.askSelection: cmd+shift+l
   app.settings: cmd+,
 
+# Shortcuts that apply in a context, VS Code style. A key is one chord or
+# two in a row ("cmd+k cmd+s"); mouse3/4/5 are the middle and back/forward
+# buttons. when tests: editorFocus, hasSelection, multiCursor, terminalFocus,
+# agentFocus, agentView, panelOpen, searchOpen, gitTab, settingsTab, and
+# vimNormal/vimInsert/vimVisual, with !, &&, || and parentheses. A command
+# of "-id" removes id's shortcut from keys.
+keybindings: []
+#  - { key: "cmd+k cmd+s", command: file.saveAll }
+#  - { key: "ctrl+r", command: agent.toggle, when: "!terminalFocus" }
+
 search:
   engine: auto                # auto | ripgrep | builtin
   exclude: [node_modules, vendor, .git, dist]

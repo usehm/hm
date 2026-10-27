@@ -95,6 +95,9 @@ type Options struct {
 // Build creates the app. It runs inside yoga.Run's build function, after the
 // text engine exists, because opening files builds editors.
 func Build(opts Options) *App {
+	// "ctrl+`" means Control on macOS, as in other editors, and "cmd+s"
+	// means Command.
+	ui.LiteralCtrl = true
 	a := &App{
 		sideOpen: true, noSession: opts.NoSession, lastEdit: map[string]editSeen{},
 		uiq: make(chan func(), 256), formatting: map[string]int{}, installing: map[string]bool{},

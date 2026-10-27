@@ -242,7 +242,7 @@ func TestResolve(t *testing.T) {
 
 func TestChordsParse(t *testing.T) {
 	for _, k := range []string{"cmd+shift+p", "ctrl+`", "cmd+,", "cmd+alt+f", "cmd+f"} {
-		if _, err := ParseChord(k); err != nil {
+		if _, err := ParseShortcut(k); err != nil {
 			t.Errorf("%s: %v", k, err)
 		}
 	}

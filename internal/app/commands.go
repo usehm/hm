@@ -153,7 +153,8 @@ func (a *App) registerCommands(c *ui.Ctx) {
 		cmds = append(cmds, x.cmds...)
 	}
 	cmds = append(cmds, a.locations...)
-	c.Commands().Register(cmds...)
+	// Keybindings go first: the first enabled command a key matches runs.
+	c.Commands().Register(append(a.keybindingCmds(c), cmds...)...)
 }
 
 // searchProject opens the project search dialog.

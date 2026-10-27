@@ -49,15 +49,23 @@ func (a *App) newTerminal() {
 	a.term.focus = true
 }
 
-// terminalPasses keeps app chords written with Ctrl (Toggle Terminal is
-// Ctrl+` by default) working while a terminal has focus. Chords written
+// terminalPasses keeps app shortcuts written with Ctrl (Toggle Terminal is
+// Ctrl+` by default) working while a terminal has focus. Shortcuts written
 // with Cmd never reach the terminal on macOS anyway.
 func (a *App) terminalPasses(ev input.KeyEvent) bool {
-	for _, chord := range a.cfg.Current().Keys {
-		if !strings.Contains(strings.ToLower(chord), "ctrl") {
+	cfg := a.cfg.Current()
+	keys := make([]string, 0, len(cfg.Keys)+len(cfg.Keybindings))
+	for _, k := range cfg.Keys {
+		keys = append(keys, k)
+	}
+	for _, kb := range cfg.Keybindings {
+		keys = append(keys, kb.Key)
+	}
+	for _, k := range keys {
+		if !strings.Contains(strings.ToLower(k), "ctrl") {
 			continue
 		}
-		if ch, err := ui.ParseChord(chord); err == nil && ch.Matches(ev) {
+		if seq, err := ui.ParseKeySeq(k); err == nil && seq.First.Matches(ev) {
 			return true
 		}
 	}

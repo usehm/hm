@@ -214,9 +214,12 @@ var rules = func() []rule {
 		{"editor.tab_width", intRange(1, 16)},
 		{"terminal.font_size", intRange(6, 72)},
 		{"search.max_results", intRange(1, 1000000)},
-		{"keys.*", func(n *yaml.Node) string {
-			if _, err := ParseChord(n.Value); err != nil {
-				return err.Error()
+		{"keys.*", shortcutRule},
+		{"keybindings.*.key", shortcutRule},
+		{"keybindings.*.command", nonEmpty},
+		{"keybindings.*.when", func(n *yaml.Node) string {
+			if _, err := ParseWhen(n.Value); err != nil {
+				return "bad condition: " + err.Error()
 			}
 			return ""
 		}},
@@ -300,11 +303,19 @@ func match(n *yaml.Node, pattern, path []string, fn func(*yaml.Node, []string)) 
 	}
 }
 
-// ParseChord parses a config chord such as "cmd+shift+p" or "ctrl+`".
-func ParseChord(s string) (ui.Chord, error) {
-	c, err := ui.ParseChord(s)
-	if err != nil {
-		return c, fmt.Errorf("bad shortcut %s: %v", quote(s), err)
+func shortcutRule(n *yaml.Node) string {
+	if _, err := ParseShortcut(n.Value); err != nil {
+		return err.Error()
 	}
-	return c, nil
+	return ""
+}
+
+// ParseShortcut parses a config shortcut: a chord such as "cmd+shift+p",
+// "ctrl+`" or "alt+mouse4", or two in a row such as "cmd+k cmd+s".
+func ParseShortcut(s string) (ui.KeySeq, error) {
+	seq, err := ui.ParseKeySeq(s)
+	if err != nil {
+		return seq, fmt.Errorf("bad shortcut %s: %v", quote(s), err)
+	}
+	return seq, nil
 }
