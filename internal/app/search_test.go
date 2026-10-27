@@ -134,3 +134,23 @@ func TestSearchErrorsAndLiveBuffers(t *testing.T) {
 		t.Fatal("a bad regex should show an error")
 	}
 }
+
+func TestManySearchResultsKeepFramesFast(t *testing.T) {
+	root := project(t)
+	for f := range 40 {
+		writeFile(t, filepath.Join(root, "gen", "f"+itoa(f)+".go"), strings.Repeat("var hit = 1\n", 100))
+	}
+	h := newHarness(t, root, false)
+	h.app.openSearch()
+	s := &h.app.search
+	s.q.Pattern = "hit"
+	h.app.runSearch()
+	waitSearch(t, h, 4000)
+	h.frame()
+	t0 := time.Now()
+	h.frame()
+	d := time.Since(t0)
+	if d > 30*time.Millisecond { // building every row took ~90ms
+		t.Fatalf("a frame with 4000 results took %v", d)
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"time"
 
 	"github.com/mirzakhany/yoga/icons"
@@ -16,7 +17,11 @@ import (
 )
 
 // searchDebounce waits for typing to pause before searching.
-const searchDebounce = 150 * time.Millisecond
+const searchDebounce = 200 * time.Millisecond
+
+// searchBatch caps the results taken in per frame, so a flood of matches
+// streams in over a few frames instead of stalling one.
+const searchBatch = 400
 
 // projectSearch is the search dialog's state.
 type projectSearch struct {
@@ -137,14 +142,14 @@ func (a *App) runSearch() {
 		s.running, s.err = false, err.Error()
 		return
 	}
+	// Only edited buffers differ from disk; copying every open file on each
+	// keystroke stalls typing in a big workspace.
 	overlay := map[string][]byte{}
 	var dirty []string
 	for _, p := range a.openBuffers() {
-		if ed := a.bufs.Get(p); ed != nil {
+		if ed := a.bufs.Get(p); ed != nil && ed.Modified() {
 			overlay[p] = append([]byte(nil), ed.Bytes()...)
-			if ed.Modified() {
-				dirty = append(dirty, p)
-			}
+			dirty = append(dirty, p)
 		}
 	}
 	cfg := a.cfg.Current().Search
@@ -197,7 +202,12 @@ func (a *App) pumpSearch(c *ui.Ctx) {
 	if !s.open {
 		return
 	}
-	for {
+	added := false
+	for n := 0; ; n++ {
+		if n == searchBatch {
+			c.Animate(0) // more are waiting: take them next frame
+			break
+		}
 		select {
 		case m := <-s.msgs:
 			if m.gen != s.gen {
@@ -216,17 +226,29 @@ func (a *App) pumpSearch(c *ui.Ctx) {
 				}
 				continue
 			}
-			var at int
-			s.results, at = insertSorted(s.results, *m.fr)
+			s.results = append(s.results, *m.fr)
 			s.total += len(m.fr.Matches)
-			if s.selFile >= 0 && at <= s.selFile {
-				s.selFile++ // keep the selected row selected
-			}
+			added = true
 		default:
 			goto drained
 		}
 	}
 drained:
+	if added {
+		// Appends keep indexes, so the selection still names its file here.
+		selPath := ""
+		if s.selFile >= 0 && s.selFile < len(s.results) {
+			selPath = s.results[s.selFile].Path
+		}
+		sort.SliceStable(s.results, func(i, j int) bool { return s.results[i].Path < s.results[j].Path })
+		if selPath != "" {
+			for i := range s.results {
+				if s.results[i].Path == selPath {
+					s.selFile = i // keep the selected row selected
+				}
+			}
+		}
+	}
 	// Edits in the preview move matches: search again once they pause.
 	if ed := a.bufs.Get(s.preview); ed != nil && ed.Revision() != s.previewRev {
 		s.previewRev = ed.Revision()
@@ -242,18 +264,6 @@ drained:
 	if s.running {
 		c.Animate(100 * time.Millisecond)
 	}
-}
-
-// insertSorted adds fr in path order and returns where it went.
-func insertSorted(rs []search.FileResult, fr search.FileResult) ([]search.FileResult, int) {
-	i := len(rs)
-	for i > 0 && rs[i-1].Path > fr.Path {
-		i--
-	}
-	rs = append(rs, search.FileResult{})
-	copy(rs[i+1:], rs[i:])
-	rs[i] = fr
-	return rs, i
 }
 
 // selectMatch shows match m of file f in the preview, selected.
@@ -465,52 +475,19 @@ func (a *App) searchStatus(c *ui.Ctx) ui.View {
 	return ui.Row(parts...).Gap(c.Theme().Spacing.XS)
 }
 
+// srRow is one row of the result list: a file header (match -1) or a match.
+type srRow struct{ file, match int }
+
 func (a *App) searchResults(c *ui.Ctx) ui.View {
 	th := c.Theme()
 	s := &a.search
-	rows := []ui.View{}
+	rows := make([]srRow, 0, len(s.results)+s.total)
 	for fi, fr := range s.results {
-		fi, fr := fi, fr
-		chev := icons.ChevronDown
-		if s.collapsed[fr.Path] {
-			chev = icons.ChevronRight
-		}
-		fileRow := ui.Row(
-			ui.Button(fmt.Sprintf("sr-file-%d", fi), ui.Row(
-				ui.Icon(chev, 14, th.ForegroundMuted),
-				ui.Strong(filepath.Base(fr.Path)),
-				ui.Caption(a.ws.Rel(filepath.Dir(fr.Path))).Ellipsis(ui.EllipsisMiddle).Grow(1),
-				ui.Badge(fmt.Sprint(len(fr.Matches))).Tone(ui.BadgeMuted),
-			).Gap(th.Spacing.XS).Grow(1)).Ghost().HoverFill().Grow(1).
-				OnClick(func() { s.collapsed[fr.Path] = !s.collapsed[fr.Path] }),
-		)
-		if s.showReplace {
-			fileRow = ui.Row(fileRow.Grow(1),
-				ui.IconButton(fmt.Sprintf("sr-file-replace-%d", fi), icons.ReplaceAll).Tooltip("Replace all in file").
-					OnClick(func() { a.replaceFile(fi); a.runSearch() }))
-		}
-		rows = append(rows, fileRow)
-		if s.collapsed[fr.Path] {
-			continue
-		}
-		for mi, m := range fr.Matches {
-			mi, m := mi, m
-			before, hit, after := splitLine(m)
-			row := ui.Button(fmt.Sprintf("sr-%d-%d", fi, mi), ui.Row(
-				ui.Caption(fmt.Sprint(m.Line+1)).Width(36),
-				ui.Text(before).Shrink(0),
-				ui.Text(hit).Background(ui.TokenSelection).Shrink(0),
-				ui.Text(after).Ellipsis(ui.EllipsisEnd).Grow(1),
-			).Grow(1)).Ghost().HoverFill().Grow(1).OnClick(func() { a.selectMatch(fi, mi) })
-			if fi == s.selFile && mi == s.selMatch {
-				row = row.Background(ui.TokenListActive)
+		rows = append(rows, srRow{fi, -1})
+		if !s.collapsed[fr.Path] {
+			for mi := range fr.Matches {
+				rows = append(rows, srRow{fi, mi})
 			}
-			line := ui.Row(row).PaddingLeft(th.Spacing.L)
-			if s.showReplace {
-				line = ui.Row(row.Grow(1), ui.IconButton(fmt.Sprintf("sr-replace-%d-%d", fi, mi), icons.Replace).
-					Tooltip("Replace").OnClick(func() { a.replaceOne(fi, mi) })).PaddingLeft(th.Spacing.L)
-			}
-			rows = append(rows, line)
 		}
 	}
 	if len(rows) == 0 {
@@ -519,7 +496,61 @@ func (a *App) searchResults(c *ui.Ctx) ui.View {
 		}
 		return ui.Spacer()
 	}
-	return ui.Scroll("search-results", ui.Column(rows...).Gap(th.Spacing.XXS)).Grow(1)
+	// Only the rows in view are built: a search can return thousands.
+	rowH := th.Metrics.ControlHeight + th.Spacing.XXS
+	return ui.VirtualList("search-results", len(rows), rowH, func(i int) ui.View {
+		r := rows[i]
+		if r.match < 0 {
+			return a.searchFileRow(c, r.file)
+		}
+		return a.searchMatchRow(c, r.file, r.match)
+	}).Grow(1)
+}
+
+func (a *App) searchFileRow(c *ui.Ctx, fi int) ui.View {
+	th := c.Theme()
+	s := &a.search
+	fr := s.results[fi]
+	chev := icons.ChevronDown
+	if s.collapsed[fr.Path] {
+		chev = icons.ChevronRight
+	}
+	fileRow := ui.Row(
+		ui.Button(fmt.Sprintf("sr-file-%d", fi), ui.Row(
+			ui.Icon(chev, 14, th.ForegroundMuted),
+			ui.Strong(filepath.Base(fr.Path)),
+			ui.Caption(a.ws.Rel(filepath.Dir(fr.Path))).Ellipsis(ui.EllipsisMiddle).Grow(1),
+			ui.Badge(fmt.Sprint(len(fr.Matches))).Tone(ui.BadgeMuted),
+		).Gap(th.Spacing.XS).Grow(1)).Ghost().HoverFill().Grow(1).
+			OnClick(func() { s.collapsed[fr.Path] = !s.collapsed[fr.Path] }),
+	)
+	if s.showReplace {
+		fileRow = ui.Row(fileRow.Grow(1),
+			ui.IconButton(fmt.Sprintf("sr-file-replace-%d", fi), icons.ReplaceAll).Tooltip("Replace all in file").
+				OnClick(func() { a.replaceFile(fi); a.runSearch() }))
+	}
+	return fileRow
+}
+
+func (a *App) searchMatchRow(c *ui.Ctx, fi, mi int) ui.View {
+	th := c.Theme()
+	s := &a.search
+	m := s.results[fi].Matches[mi]
+	before, hit, after := splitLine(m)
+	row := ui.Button(fmt.Sprintf("sr-%d-%d", fi, mi), ui.Row(
+		ui.Caption(fmt.Sprint(m.Line+1)).Width(36),
+		ui.Text(before).Shrink(0),
+		ui.Text(hit).Background(ui.TokenSelection).Shrink(0),
+		ui.Text(after).Ellipsis(ui.EllipsisEnd).Grow(1),
+	).Grow(1)).Ghost().HoverFill().Grow(1).OnClick(func() { a.selectMatch(fi, mi) })
+	if fi == s.selFile && mi == s.selMatch {
+		row = row.Background(ui.TokenListActive)
+	}
+	if s.showReplace {
+		return ui.Row(row.Grow(1), ui.IconButton(fmt.Sprintf("sr-replace-%d-%d", fi, mi), icons.Replace).
+			Tooltip("Replace").OnClick(func() { a.replaceOne(fi, mi) })).PaddingLeft(th.Spacing.L)
+	}
+	return ui.Row(row).PaddingLeft(th.Spacing.L)
 }
 
 // maxBefore is how much of a line before a match a result row shows.
