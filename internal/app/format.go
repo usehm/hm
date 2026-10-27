@@ -99,7 +99,8 @@ func (a *App) finishFormat(ed *ui.Editor, rev uint64, out []byte, err error) {
 		})
 	case err != nil:
 		a.appendOutput(err.Error())
-		a.notifs.Add("Format failed: "+err.Error(), ui.ToastError)
+		a.notifs.Add("Format failed: "+err.Error(), ui.ToastError, a.openFileAction(ed.Path),
+			notifAction{label: "Show Output", run: func() { a.showPanel(panelOutput) }})
 		if a.ctx != nil {
 			a.ctx.Toasts().Notify(ui.ToastOpts{
 				ID: "format-failed", Title: "Format failed", Message: firstLine(err.Error()),

@@ -242,7 +242,8 @@ func (a *App) reportUpdate() {
 			return
 		}
 		a.appendOutput("Updating hm failed: " + s.err.Error())
-		a.notifs.Add("Updating hm failed; see the Output panel", ui.ToastError)
+		a.notifs.Add("Updating hm failed; see the Output panel", ui.ToastError,
+			notifAction{label: "Show Output", run: func() { a.showPanel(panelOutput) }})
 		host.Notify(ui.ToastOpts{
 			ID:      updateToastID,
 			Title:   "Couldn't update hm",

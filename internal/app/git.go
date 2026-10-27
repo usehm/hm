@@ -227,7 +227,7 @@ func (a *App) reloadIfClean(path string) {
 		return
 	}
 	if ed.Modified() {
-		a.notifs.Add(a.ws.Rel(path)+" changed on disk; your unsaved version is kept", ui.ToastWarning)
+		a.notifs.Add(a.ws.Rel(path)+" changed on disk; your unsaved version is kept", ui.ToastWarning, a.openFileAction(path))
 		return
 	}
 	ed.ApplyText(string(data))

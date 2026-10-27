@@ -76,7 +76,7 @@ func (a *App) reloadConfig() {
 			if len(problems) > 1 {
 				msg += fmt.Sprintf(" (and %d more)", len(problems)-1)
 			}
-			a.toast(msg, ui.ToastError)
+			a.toast(msg, ui.ToastError, a.openFileAction(problems[0].File))
 		}
 		return
 	}

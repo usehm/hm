@@ -240,7 +240,8 @@ func (a *App) sendAgent() {
 				a.notifs.Add("Could not save the agent session: "+serr.Error(), ui.ToastWarning)
 			}
 			if err == nil {
-				a.notifs.Add("Agent finished: "+s.Title, ui.ToastSuccess)
+				a.notifs.Add("Agent finished: "+s.Title, ui.ToastSuccess,
+					notifAction{label: "Open Agent", run: func() { a.setAgentOpen(true) }})
 			}
 		})
 	}()

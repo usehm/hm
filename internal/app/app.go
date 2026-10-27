@@ -135,8 +135,9 @@ func Build(opts Options) *App {
 	if err := config.WriteSchema(); err != nil {
 		a.notifs.Add("Could not write the config schema: "+err.Error(), ui.ToastWarning)
 	}
+	a.notifs.Close = func() { a.notifsOpen = false }
 	for _, p := range a.cfg.Problems() {
-		a.notifs.Add("Config: "+p.Error(), ui.ToastError)
+		a.notifs.Add("Config: "+p.Error(), ui.ToastError, a.openFileAction(p.File))
 	}
 	a.problemsKey = fmt.Sprint(a.cfg.Problems())
 	a.openFolder(root)
@@ -266,11 +267,20 @@ func (a *App) saveSession() {
 }
 
 // toast shows a transient message and keeps it in the notification center.
-func (a *App) toast(msg string, kind ui.ToastVariant) {
-	a.notifs.Add(msg, kind)
+func (a *App) toast(msg string, kind ui.ToastVariant, actions ...notifAction) {
+	a.notifs.Add(msg, kind, actions...)
 	if a.ctx != nil {
 		a.ctx.Toasts().Show(msg, kind, 3*time.Second)
 	}
+}
+
+// openFileAction is a notification action that opens path; none for
+// paths that are not files, like "defaults".
+func (a *App) openFileAction(path string) notifAction {
+	if !filepath.IsAbs(path) {
+		return notifAction{}
+	}
+	return notifAction{label: "Open File", run: func() { a.openFile(path) }}
 }
 
 // fail reports err as an error notification.
