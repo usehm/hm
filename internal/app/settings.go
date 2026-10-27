@@ -21,96 +21,155 @@ var settingsScopes = []ui.SegmentItem{
 	{Label: "Project", Value: "project"},
 }
 
-// settingsPage is the Settings tab: a form over the merged config. Changes
-// are written to the user or project YAML file, keeping its comments.
+// settingsCategories are the Settings tab's sections, in sidebar order.
+var settingsCategories = []struct {
+	id, label string
+	icon      icons.Icon
+}{
+	{"appearance", "Appearance", icons.Palette},
+	{"editor", "Editor", icons.FileCode},
+	{"search", "Search", icons.Search},
+	{"terminal", "Terminal", icons.SquareTerminal},
+	{"agent", "Agent", icons.Bot},
+	{"completion", "Completion", icons.Sparkles},
+	{"updates", "Updates", icons.Download},
+}
+
+// settingsPage is the Settings tab: the selected category's form on the
+// left, the categories and the YAML actions in a sidebar on the right.
+// Changes are written to the user or project YAML file, keeping its comments.
 func (a *App) settingsPage(c *ui.Ctx) ui.View {
 	th := c.Theme()
-	cfg := a.cfg.Current()
-	ed := cfg.Editor
 	user, project := a.cfg.Paths()
 	target := user
 	if a.settingsProject {
 		target = project
 	}
-	scope := 0
-	if a.settingsProject {
-		scope = 1
+	cat := a.settingsCat
+	if cat == "" {
+		cat = settingsCategories[0].id
 	}
 
-	header := ui.Row(
-		ui.Title("Settings"),
+	title := ""
+	for _, sc := range settingsCategories {
+		if sc.id == cat {
+			title = sc.label
+		}
+	}
+	body := []ui.View{ui.Row(
+		ui.Title(title),
 		ui.Spacer(),
-		ui.Segmented("settings-scope", settingsScopes...).Selected(scope).
-			OnSelectItem(func(i int, _ string) { a.settingsProject = i == 1 }),
-		ui.Button("settings-yaml", ui.Text("Edit as YAML")).IconStart(icons.FileCode).
-			Tooltip(target).OnClick(func() { a.openConfigYAML(a.settingsProject) }),
-		ui.Button("settings-defaults", ui.Text("Defaults")).Subtle().IconStart(icons.FileText).OnClick(a.openDefaults),
-	).Gap(th.Spacing.S)
-
-	var alerts []ui.View
+		ui.Caption("Writes to "+a.ws.Rel(target)).Ellipsis(ui.EllipsisMiddle),
+	).Gap(th.Spacing.S)}
 	if ps := a.cfg.Problems(); len(ps) > 0 {
 		msg := ps[0].Error()
 		if len(ps) > 1 {
 			msg += " (+" + strconv.Itoa(len(ps)-1) + " more)"
 		}
-		alerts = append(alerts, ui.Alert("Settings were not applied: "+msg, ui.AlertError))
+		body = append(body, ui.Alert("Settings were not applied: "+msg, ui.AlertError))
 	}
+	body = append(body, a.settingsSection(c, cat))
+	content := ui.Scroll("settings-scroll",
+		ui.Row(ui.Column(body...).Gap(th.Spacing.M).Padding(th.Spacing.XL).Grow(1).MaxWidth(760)).
+			Justify(ui.JustifyCenter).Align(ui.AlignStart),
+	).Grow(1)
+	return ui.Row(content, a.settingsSidebar(c, cat, target)).Align(ui.AlignStretch).Grow(1)
+}
 
+// settingsSidebar lists the categories, then where settings are written and
+// the YAML files behind them.
+func (a *App) settingsSidebar(c *ui.Ctx, cat, target string) ui.View {
+	th := c.Theme()
+	scope := 0
+	if a.settingsProject {
+		scope = 1
+	}
+	rows := []ui.View{ui.Caption("CATEGORIES").MarginXY(th.Spacing.S, th.Spacing.XS)}
+	for _, sc := range settingsCategories {
+		id := sc.id
+		b := ui.Button("settings-cat-"+id, ui.Text(sc.label)).Ghost().HoverFill().IconStart(sc.icon).
+			Justify(ui.JustifyStart).OnClick(func() { a.settingsCat = id })
+		if id == cat {
+			b = b.Background(ui.TokenListActive)
+		}
+		rows = append(rows, b)
+	}
+	rows = append(rows,
+		ui.Spacer(),
+		ui.Caption("SAVE TO").MarginXY(th.Spacing.S, th.Spacing.XS),
+		ui.Segmented("settings-scope", settingsScopes...).Selected(scope).
+			OnSelectItem(func(i int, _ string) { a.settingsProject = i == 1 }),
+		ui.Button("settings-yaml", ui.Text("Edit as YAML")).IconStart(icons.FileCode).
+			Tooltip(target).OnClick(func() { a.openConfigYAML(a.settingsProject) }),
+		ui.Button("settings-defaults", ui.Text("Defaults")).Subtle().IconStart(icons.FileText).OnClick(a.openDefaults),
+		ui.Paragraph("Shortcuts, languages, provider details, modes and tools are edited in YAML.").
+			Style(ui.Spec{}.TextColor(ui.TokenForegroundMuted)).MarginXY(th.Spacing.XS, th.Spacing.XS),
+	)
+	return ui.Column(rows...).Gap(th.Spacing.XXS).Width(240).Padding(th.Spacing.M).
+		Background(ui.TokenChrome).BorderLeft(ui.TokenBorder, th.Stroke.Thin)
+}
+
+// settingsSection is one category's form.
+func (a *App) settingsSection(c *ui.Ctx, cat string) ui.View {
+	cfg := a.cfg.Current()
+	ed := cfg.Editor
 	key := func(k ...string) []string { return k }
-	form := ui.Form("settings-form",
-		ui.FormHeading("Appearance", "Writes to "+a.ws.Rel(target)),
+	switch cat {
+	case "agent":
+		return a.agentSettings(c)
+	case "completion":
+		return a.completionSettings()
+	case "editor":
+		return ui.Form("settings-editor",
+			ui.FormNumber("set-tab-width", "Tab width", "Columns per tab stop",
+				float64(ed.TabWidth), 1, 16, 1, func(v float64) { a.setSetting(key("editor", "tab_width"), int(v)) }),
+			ui.FormSwitch("set-spaces", "Insert spaces", "Tab inserts spaces instead of a tab",
+				ed.InsertSpaces, func(v bool) { a.setSetting(key("editor", "insert_spaces"), v) }),
+			ui.FormSwitch("set-wrap", "Soft wrap", "Wrap long lines at the window edge",
+				ed.SoftWrap, func(v bool) { a.setSetting(key("editor", "soft_wrap"), v) }),
+			ui.FormSwitch("set-lines", "Line numbers", "Show the line-number gutter",
+				ed.LineNumbers, func(v bool) { a.setSetting(key("editor", "line_numbers"), v) }),
+			ui.FormSwitch("set-past-end", "Scroll past end", "Leave room below the last line",
+				ed.ScrollPastEnd, func(v bool) { a.setSetting(key("editor", "scroll_past_end"), v) }),
+			ui.FormSwitch("set-format", "Format on save", "Run the language's formatters when saving",
+				ed.FormatOnSave, func(v bool) { a.setSetting(key("editor", "format_on_save"), v) }),
+			ui.FormSelect("set-autosave", "Auto save", "Save files without asking",
+				enumOptions("editor.auto_save"), enumIndex("editor.auto_save", ed.AutoSave),
+				func(v string) { a.setSetting(key("editor", "auto_save"), v) }),
+			ui.FormSwitch("set-hidden", "Show hidden files", "List dotfiles in the explorer",
+				ed.ShowHidden, func(v bool) { a.setSetting(key("editor", "show_hidden"), v) }),
+		).Grouped()
+	case "search":
+		return ui.Form("settings-search",
+			ui.FormSelect("set-engine", "Engine", "ripgrep when installed, else the built-in search",
+				enumOptions("search.engine"), enumIndex("search.engine", cfg.Search.Engine),
+				func(v string) { a.setSetting(key("search", "engine"), v) }),
+			ui.FormText("set-exclude", "Exclude", "Folders and globs to skip, comma separated",
+				a.textValue(key("search", "exclude"), strings.Join(cfg.Search.Exclude, ", ")),
+				func(v string) { a.setListSetting(key("search", "exclude"), v) }),
+		).Grouped()
+	case "terminal":
+		return ui.Form("settings-terminal",
+			ui.FormText("set-shell", "Shell", `"auto" uses $SHELL; applies to new terminals`,
+				a.textValue(key("terminal", "shell"), cfg.Terminal.Shell), func(v string) { a.setTextSetting(key("terminal", "shell"), v) }),
+			ui.FormNumber("set-term-size", "Font size", "Terminal font size in points",
+				float64(cfg.Terminal.FontSize), 6, 72, 1, func(v float64) { a.setSetting(key("terminal", "font_size"), int(v)) }),
+		).Grouped()
+	case "updates":
+		return ui.Form("settings-updates",
+			ui.FormSelect("set-channel", "Channel", "Which releases to offer",
+				enumOptions("updates.channel"), enumIndex("updates.channel", cfg.Updates.Channel),
+				func(v string) { a.setSetting(key("updates", "channel"), v) }),
+		).Grouped()
+	}
+	return ui.Form("settings-appearance",
 		ui.FormSelect("set-theme", "Theme", "Color theme for the whole window",
 			themeOptions(), themeIndex(ed.Theme), func(v string) { a.setSetting(key("editor", "theme"), v) }),
 		ui.FormNumber("set-font-size", "Font size", "Code font size in points",
 			float64(ed.FontSize), 6, 72, 1, func(v float64) { a.setSetting(key("editor", "font_size"), int(v)) }),
 		ui.FormText("set-font-family", "Font family", "Monospace font for code; empty uses the built-in one",
 			a.textValue(key("editor", "font_family"), ed.FontFamily), func(v string) { a.setTextSetting(key("editor", "font_family"), v) }),
-
-		ui.FormHeading("Editor", ""),
-		ui.FormNumber("set-tab-width", "Tab width", "Columns per tab stop",
-			float64(ed.TabWidth), 1, 16, 1, func(v float64) { a.setSetting(key("editor", "tab_width"), int(v)) }),
-		ui.FormSwitch("set-spaces", "Insert spaces", "Tab inserts spaces instead of a tab",
-			ed.InsertSpaces, func(v bool) { a.setSetting(key("editor", "insert_spaces"), v) }),
-		ui.FormSwitch("set-wrap", "Soft wrap", "Wrap long lines at the window edge",
-			ed.SoftWrap, func(v bool) { a.setSetting(key("editor", "soft_wrap"), v) }),
-		ui.FormSwitch("set-lines", "Line numbers", "Show the line-number gutter",
-			ed.LineNumbers, func(v bool) { a.setSetting(key("editor", "line_numbers"), v) }),
-		ui.FormSwitch("set-past-end", "Scroll past end", "Leave room below the last line",
-			ed.ScrollPastEnd, func(v bool) { a.setSetting(key("editor", "scroll_past_end"), v) }),
-		ui.FormSwitch("set-format", "Format on save", "Run the language's formatters when saving",
-			ed.FormatOnSave, func(v bool) { a.setSetting(key("editor", "format_on_save"), v) }),
-		ui.FormSelect("set-autosave", "Auto save", "Save files without asking",
-			enumOptions("editor.auto_save"), enumIndex("editor.auto_save", ed.AutoSave),
-			func(v string) { a.setSetting(key("editor", "auto_save"), v) }),
-		ui.FormSwitch("set-hidden", "Show hidden files", "List dotfiles in the explorer",
-			ed.ShowHidden, func(v bool) { a.setSetting(key("editor", "show_hidden"), v) }),
-
-		ui.FormHeading("Search", ""),
-		ui.FormSelect("set-engine", "Engine", "ripgrep when installed, else the built-in search",
-			enumOptions("search.engine"), enumIndex("search.engine", cfg.Search.Engine),
-			func(v string) { a.setSetting(key("search", "engine"), v) }),
-		ui.FormText("set-exclude", "Exclude", "Folders and globs to skip, comma separated",
-			a.textValue(key("search", "exclude"), strings.Join(cfg.Search.Exclude, ", ")),
-			func(v string) { a.setListSetting(key("search", "exclude"), v) }),
-
-		ui.FormHeading("Terminal", ""),
-		ui.FormText("set-shell", "Shell", `"auto" uses $SHELL`,
-			a.textValue(key("terminal", "shell"), cfg.Terminal.Shell), func(v string) { a.setTextSetting(key("terminal", "shell"), v) }),
-		ui.FormNumber("set-term-size", "Font size", "Terminal font size in points",
-			float64(cfg.Terminal.FontSize), 6, 72, 1, func(v float64) { a.setSetting(key("terminal", "font_size"), int(v)) }),
-
-		ui.FormHeading("Updates", ""),
-		ui.FormSelect("set-channel", "Channel", "Which releases to offer",
-			enumOptions("updates.channel"), enumIndex("updates.channel", cfg.Updates.Channel),
-			func(v string) { a.setSetting(key("updates", "channel"), v) }),
 	).Grouped()
-
-	body := append([]ui.View{header}, alerts...)
-	body = append(body, form, a.agentSettings(c), a.completionSettings(),
-		ui.Caption("Keyboard shortcuts, languages, provider details, modes and tools are edited in YAML."))
-	return ui.Scroll("settings-scroll",
-		ui.Column(body...).Gap(th.Spacing.M).Padding(th.Spacing.XL).Width(760),
-	).Grow(1)
 }
 
 func themeOptions() []ui.SelectOption {

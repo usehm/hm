@@ -43,6 +43,7 @@ type App struct {
 	applied         appliedConfig
 	problemsKey     string // last reported config problems, to toast once
 	settingsProject bool   // the settings page edits the project file
+	settingsCat     string // the settings page's category; "" is the first
 	pendingText     *pendingText
 	lastEdit        map[string]editSeen
 	lastActive      string
