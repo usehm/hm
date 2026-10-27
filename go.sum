@@ -149,8 +149,8 @@ github.com/mattn/go-pointer v0.0.1 h1:n+XhsuGeVO6MEAp7xyEukFINEa+Quek5psIR/ylA6o
 github.com/mattn/go-pointer v0.0.1/go.mod h1:2zXcozF6qYGgmsG+SeTZz3oAbFLdD3OWqnUbNvJZAlc=
 github.com/mattn/go-runewidth v0.0.28 h1:rPyg2ybwEKPebvpzVWe1gKBkH8EQFkxO4Y0hjBeLaBU=
 github.com/mattn/go-runewidth v0.0.28/go.mod h1:3qAiGCV4Koz/yuveO58qUefmUTRm8r0IGEXZ9jeHp/8=
-github.com/mirzakhany/yoga v0.30.0 h1:LEhmBxmpiNycIfUfQwrigHE7xlr5mIeZVWzAkgkLhuc=
-github.com/mirzakhany/yoga v0.30.0/go.mod h1:s8CbuzEt+LIypXaVRdu4SPQRvxJkLtkUKKo8QlW4YVI=
+github.com/mirzakhany/yoga v0.31.0 h1:LaIp/QLiDg0v/alnSRYQSWfMXWnnoCZFaZsKqbP6wJw=
+github.com/mirzakhany/yoga v0.31.0/go.mod h1:s8CbuzEt+LIypXaVRdu4SPQRvxJkLtkUKKo8QlW4YVI=
 github.com/modelcontextprotocol/go-sdk v1.8.0 h1:KIvahhYqwtbeniWVPs3TcXEA7b8jEtwfBpOTAI+Urx4=
 github.com/modelcontextprotocol/go-sdk v1.8.0/go.mod h1:dL7u98E/zjJTGzEq+j30jQ8K2k1mb6LeAH4inEcSGts=
 github.com/muesli/cancelreader v0.2.2 h1:3I4Kt4BQjOR54NavqnDogx/MIoWBFa0StPA8ELUXHmA=
