@@ -109,7 +109,7 @@ func (a *App) position(ed *ui.Editor, off int) lsp.Position {
 func (a *App) goTo(loc lsp.Location, enc string) {
 	path := loc.Path()
 	a.openFile(path)
-	ed := a.bufs.Get(path)
+	ed := a.editorFor(path)
 	if ed == nil {
 		return
 	}

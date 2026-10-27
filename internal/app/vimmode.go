@@ -27,7 +27,7 @@ func (a *App) attachVim(ed *ui.Editor) {
 
 // vimState is the active editor's keymap, when Vim is on.
 func (a *App) vimState() *vim.State {
-	ed := a.ws.ActiveEditor()
+	ed := a.curEditor()
 	if ed == nil || !a.vimOn() {
 		return nil
 	}

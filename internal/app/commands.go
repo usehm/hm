@@ -21,8 +21,10 @@ const (
 // through these ids.
 func (a *App) registerCommands(c *ui.Ctx) {
 	c.Commands().ToggleChord(a.key("palette"))
-	ed := a.ws.ActiveEditor()
+	ed := a.curEditor()
 	hasEd := ed != nil
+	// Language features run on the file's buffer, also for a split's mirror.
+	lspEd := func() *ui.Editor { return a.lspTarget() }
 	edFocused := hasEd && ed.Focused() // keys that mean something else in a text field
 	cmds := []*ui.Command{
 		ui.Section("File"),
@@ -40,6 +42,14 @@ func (a *App) registerCommands(c *ui.Ctx) {
 			Enabled(len(a.ws.Tabs) > 0).Run(a.closeSaved),
 		ui.Cmd("tabs.closeAll").Title("Close All Tabs").Shortcut(a.key("tabs.closeAll")).Icon(icons.X).
 			Enabled(len(a.ws.Tabs) > 0).Run(a.closeAllTabs),
+		ui.Cmd("view.splitRight").Title("Split Editor Right").Shortcut(a.key("view.splitRight")).Icon(icons.Columns2).
+			Enabled(a.curPath() != "" && len(a.groups)+1 < maxGroups).Run(a.splitRight),
+		ui.Cmd("view.moveToOtherGroup").Title("Move Editor to Other Group").Shortcut(a.key("view.moveToOtherGroup")).Icon(icons.ArrowRightLeft).
+			Enabled(a.curPath() != "").Run(a.moveToOtherGroup),
+		ui.Cmd("view.closeGroup").Title("Close Editor Group").Icon(icons.X).
+			Enabled(a.focusedGroup() != nil).Run(func() { a.closeGroup(a.focusedGroup()) }),
+		ui.Cmd("view.focusNextGroup").Title("Focus Next Editor Group").Shortcut(a.key("view.focusNextGroup")).Icon(icons.Columns2).
+			Enabled(len(a.groups) > 0).Run(a.focusNextGroup),
 		ui.Cmd("file.revealActive").Title("Reveal Active File in Explorer").Icon(icons.Locate).Enabled(hasEd).Run(func() {
 			a.sideOpen = true
 			a.tree.Reveal(ed.Path)
@@ -71,17 +81,17 @@ func (a *App) registerCommands(c *ui.Ctx) {
 
 		ui.Section("Code"),
 		ui.Cmd("editor.definition").Title("Go to Definition").Shortcut(a.key("editor.definition")).Icon(icons.SquareArrowOutUpRight).
-			Enabled(hasEd).Run(func() { a.definition(ed, ed.Caret()) }),
+			Enabled(hasEd).Run(func() { e := lspEd(); a.definition(e, e.Caret()) }),
 		ui.Cmd("editor.implementation").Title("Go to Implementation").Shortcut(a.key("editor.implementation")).Icon(icons.SquareArrowOutUpRight).
-			Enabled(hasEd).Run(func() { a.implementation(ed, ed.Caret()) }),
+			Enabled(hasEd).Run(func() { e := lspEd(); a.implementation(e, e.Caret()) }),
 		ui.Cmd("editor.references").Title("Find References").Shortcut(a.key("editor.references")).Icon(icons.ListTree).
-			Enabled(hasEd).Run(func() { a.references(ed, ed.Caret()) }),
+			Enabled(hasEd).Run(func() { e := lspEd(); a.references(e, e.Caret()) }),
 		ui.Cmd("editor.rename").Title("Rename Symbol").Shortcut(a.key("editor.rename")).Icon(icons.PencilLine).
-			Enabled(hasEd).Run(func() { a.rename(ed) }),
+			Enabled(hasEd).Run(func() { a.rename(lspEd()) }),
 		ui.Cmd("editor.symbols").Title("Go to Symbol in File…").Shortcut(a.key("editor.symbols")).Icon(icons.Hash).
-			Enabled(hasEd).Run(func() { a.documentSymbols(ed) }),
+			Enabled(hasEd).Run(func() { a.documentSymbols(lspEd()) }),
 		ui.Cmd("editor.format").Title("Format Document").Shortcut(a.key("editor.format")).Icon(icons.WandSparkles).
-			Enabled(hasEd).Run(func() { a.format(ed, "manual", nil) }),
+			Enabled(hasEd).Run(func() { a.format(lspEd(), "manual", nil) }),
 		ui.Cmd("completion.trigger").Title("Suggest AI Completion").Shortcut(a.key("completion.trigger")).Icon(icons.Sparkles).
 			Enabled(hasEd).Run(a.triggerCompletion),
 		ui.Cmd("completion.toggle").Title("Toggle AI Completion").Icon(icons.Sparkles).Run(func() {

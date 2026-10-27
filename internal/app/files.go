@@ -64,8 +64,17 @@ func (a *App) askOpenFolder() {
 	})
 }
 
-// openFile opens path in a tab and shows it in the tree.
+// openFile opens path in a tab of the focused group and shows it in the
+// tree.
 func (a *App) openFile(path string) {
+	if g := a.focusedGroup(); g != nil {
+		if abs, err := filepath.Abs(path); err == nil {
+			path = abs
+		}
+		a.groupOpen(g, path)
+		a.tree.Reveal(path)
+		return
+	}
 	if _, err := a.ws.Open(path); err != nil {
 		a.fail("Open failed", err)
 		return
@@ -140,6 +149,13 @@ func (a *App) confirmDiscard(title string, fn func()) {
 }
 
 func (a *App) save() {
+	if g := a.focusedGroup(); g != nil {
+		a.syncMirrors()
+		if p := a.curPath(); p != "" {
+			a.fail("Save failed", a.saveFile(p))
+		}
+		return
+	}
 	t := a.ws.ActiveTab()
 	if t == nil || t.Kind != workspace.KindFile {
 		return

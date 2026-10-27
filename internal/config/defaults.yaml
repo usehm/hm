@@ -50,6 +50,8 @@ keys:                         # command id -> chord; overrides built-ins
   agent.askSelection: cmd+shift+l
   app.settings: cmd+,
   nav.back: ctrl+-
+  view.splitRight: cmd+\
+  view.focusNextGroup: cmd+alt+right
   nav.forward: ctrl+shift+-
   nav.backMouse: mouse4
   nav.forwardMouse: mouse5

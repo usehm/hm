@@ -21,12 +21,12 @@ const (
 
 // trackNav records where the caret is; call once per frame.
 func (a *App) trackNav() {
-	ed := a.ws.ActiveEditor()
-	if ed == nil {
+	ed, path := a.curEditor(), a.curPath()
+	if ed == nil || path == "" {
 		return
 	}
 	line, _ := ed.LineCol(ed.Caret())
-	cur := navLoc{path: ed.Path, off: ed.Caret(), line: line}
+	cur := navLoc{path: path, off: ed.Caret(), line: line}
 	n := &a.nav
 	if last := n.last; last.path != "" && (last.path != cur.path || abs(last.line-cur.line) >= navJump) {
 		n.back = pushNav(n.back, last)
@@ -73,7 +73,7 @@ func (a *App) navForward() {
 // navGo shows l without recording the move as a new place.
 func (a *App) navGo(l navLoc) {
 	a.openFile(l.path)
-	ed := a.bufs.Get(l.path)
+	ed := a.editorFor(l.path)
 	if ed == nil {
 		return
 	}

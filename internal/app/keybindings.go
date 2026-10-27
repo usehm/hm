@@ -46,7 +46,7 @@ func (a *App) keybindingCmds(c *ui.Ctx) []*ui.Command {
 
 // whenContext are the flags keybinding conditions test.
 func (a *App) whenContext(c *ui.Ctx) map[string]bool {
-	ed := a.ws.ActiveEditor()
+	ed := a.curEditor()
 	tab := a.ws.ActiveTab()
 	ctx := map[string]bool{
 		"editorFocus":   ed != nil && ed.Focused(),

@@ -20,6 +20,8 @@ type Session struct {
 	AgentSession string `json:"agent_session,omitempty"`
 	// Panel is the bottom panel that was open: terminal, problems or output.
 	Panel string `json:"panel,omitempty"`
+	// Groups are split view's groups after the first: each one's files.
+	Groups [][]string `json:"groups,omitempty"`
 }
 
 // SessionTab is one tab with the caret it had.

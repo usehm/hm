@@ -35,6 +35,8 @@ type App struct {
 	kbQuery     string       // the shortcuts page's filter
 	keyCommands []keyCommand
 	vims        map[*ui.Editor]*vim.State // each file editor's Vim keymap
+	groups      []*editorGroup            // split view's groups after the first
+	focusGroup  int                       // 0 is the first group, i is groups[i-1]
 	notifsOpen  bool
 	sideOpen    bool
 	panel       panelKind
@@ -192,10 +194,11 @@ func (a *App) Body(c *ui.Ctx) ui.View {
 	}
 	a.flushPending(c)
 	a.idx.drain()
+	a.syncMirrors()
 	a.registerCommands(c)
 	a.trackNav()
 	a.syncCarets()
-	if ed := a.ws.ActiveEditor(); ed != nil && !a.modalOpen(c) {
+	if ed := a.curEditor(); ed != nil && !a.modalOpen(c) {
 		c.Focus().EnsureFocus(ed)
 	}
 
@@ -288,6 +291,21 @@ func (a *App) restoreViews(s workspace.Session) {
 			a.showPanel(panelKind(i))
 		}
 	}
+	for _, paths := range s.Groups {
+		if len(a.groups)+1 >= maxGroups {
+			break
+		}
+		g := &editorGroup{mirrors: map[string]*mirror{}}
+		for _, p := range paths {
+			if fileExists(p) {
+				a.groupOpen(g, p)
+			}
+		}
+		if len(g.paths) > 0 {
+			a.groups = append(a.groups, g)
+		}
+	}
+	a.focusGroup = 0
 }
 
 func (a *App) saveSession() {
@@ -303,6 +321,9 @@ func (a *App) saveSession() {
 	}
 	if a.panelOpen {
 		s.Panel = panelTabs[a.panel].Value
+	}
+	for _, g := range a.groups {
+		s.Groups = append(s.Groups, append([]string(nil), g.paths...))
 	}
 	_ = workspace.SaveSession(s)
 }

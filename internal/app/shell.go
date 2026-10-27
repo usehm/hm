@@ -118,6 +118,11 @@ func (a *App) explorer(c *ui.Ctx) ui.View {
 }
 
 func (a *App) editorArea(c *ui.Ctx) ui.View {
+	return a.withGroups(c, a.firstGroup(c))
+}
+
+// firstGroup is the workspace's tabs and the active one's view.
+func (a *App) firstGroup(c *ui.Ctx) ui.View {
 	if len(a.ws.Tabs) == 0 {
 		return a.welcome(c)
 	}
@@ -164,6 +169,13 @@ func (a *App) tabMenu(i int) []ui.MenuItem {
 		{Label: "Close to the Right", Disabled: i == len(a.ws.Tabs)-1, OnSelect: func() { a.closeRight(i) }},
 		{Label: "Close Saved", OnSelect: a.closeSaved},
 		{Label: "Close All", OnSelect: a.closeAllTabs},
+	}
+	if t.Kind == workspace.KindFile {
+		items = append(items,
+			ui.MenuItem{Separator: true},
+			ui.MenuItem{Label: "Split Right", OnSelect: func() { a.focusGroup = 0; a.ws.Active = i; a.splitRight() }},
+			ui.MenuItem{Label: "Move to Other Group", OnSelect: func() { a.focusGroup = 0; a.ws.Active = i; a.moveToOtherGroup() }},
+		)
 	}
 	if t.Kind == workspace.KindFile {
 		items = append(items,
@@ -277,14 +289,14 @@ func (a *App) footer(c *ui.Ctx) ui.View {
 	}
 	if a.agentFullscreen() && a.agentOpen {
 		items = append(items, a.agentStatus(c)...)
-	} else if ed := a.ws.ActiveEditor(); ed != nil {
+	} else if ed := a.curEditor(); ed != nil {
 		if st := a.vimState(); st != nil {
 			items = append(items, ui.Caption(st.Status()).Style(ui.Spec{}.TextColor(ui.TokenAccent)))
 		}
 		line, col := ed.LineCol(ed.Caret())
 		items = append(items,
-			ui.Caption(languageName(ed.Path)),
-			a.serverStatus(c, ed.Path),
+			ui.Caption(languageName(a.curPath())),
+			a.serverStatus(c, a.curPath()),
 			ui.Caption(fmt.Sprintf("Ln %d, Col %d", line+1, col+1)).MarginXY(th.Spacing.S, 0),
 		)
 	}
