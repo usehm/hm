@@ -138,10 +138,15 @@ func (a *App) tabMenu(i int) []ui.MenuItem {
 	items := []ui.MenuItem{
 		{Label: "Close", OnSelect: func() { a.closeTab(i) }},
 		{Label: "Close Others", OnSelect: func() { a.closeOthers(i) }},
+		{Label: "Close to the Right", Disabled: i == len(a.ws.Tabs)-1, OnSelect: func() { a.closeRight(i) }},
+		{Label: "Close Saved", OnSelect: a.closeSaved},
+		{Label: "Close All", OnSelect: a.closeAllTabs},
 	}
 	if t.Kind == workspace.KindFile {
 		items = append(items,
+			ui.MenuItem{Separator: true},
 			ui.MenuItem{Label: "Copy Path", OnSelect: func() { a.copyText(t.Path) }},
+			ui.MenuItem{Label: "Copy Relative Path", OnSelect: func() { a.copyText(a.ws.Rel(t.Path)) }},
 			ui.MenuItem{Label: "Reveal in Explorer", OnSelect: func() {
 				a.sideOpen = true
 				a.tree.Reveal(t.Path)
@@ -149,21 +154,6 @@ func (a *App) tabMenu(i int) []ui.MenuItem {
 		)
 	}
 	return items
-}
-
-// closeOthers closes every tab but i, keeping tabs with unsaved changes.
-func (a *App) closeOthers(i int) {
-	keep := a.ws.Tabs[i]
-	for j := len(a.ws.Tabs) - 1; j >= 0; j-- {
-		if a.ws.Tabs[j] != keep && !a.ws.Modified(j) {
-			a.ws.Close(j)
-		}
-	}
-	for j, t := range a.ws.Tabs {
-		if t == keep {
-			a.ws.Active = j
-		}
-	}
 }
 
 func (a *App) activeView(c *ui.Ctx) ui.View {

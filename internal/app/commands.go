@@ -31,6 +31,14 @@ func (a *App) registerCommands(c *ui.Ctx) {
 		ui.Cmd("file.save").Title("Save").Shortcut(a.key("file.save")).Icon(icons.Save).Enabled(hasEd).Run(a.save),
 		ui.Cmd("file.saveAll").Title("Save All").Shortcut(a.key("file.saveAll")).Icon(icons.Save).Run(func() { a.saveAll(false) }),
 		ui.Cmd("file.close").Title("Close Tab").Shortcut(a.key("file.close")).Icon(icons.X).Enabled(a.ws.ActiveTab() != nil).Run(func() { a.closeTab(a.ws.Active) }),
+		ui.Cmd("tabs.closeOthers").Title("Close Other Tabs").Shortcut(a.key("tabs.closeOthers")).Icon(icons.X).
+			Enabled(len(a.ws.Tabs) > 1).Run(func() { a.closeOthers(a.ws.Active) }),
+		ui.Cmd("tabs.closeRight").Title("Close Tabs to the Right").Shortcut(a.key("tabs.closeRight")).Icon(icons.X).
+			Enabled(a.ws.Active >= 0 && a.ws.Active < len(a.ws.Tabs)-1).Run(func() { a.closeRight(a.ws.Active) }),
+		ui.Cmd("tabs.closeSaved").Title("Close Saved Tabs").Shortcut(a.key("tabs.closeSaved")).Icon(icons.X).
+			Enabled(len(a.ws.Tabs) > 0).Run(a.closeSaved),
+		ui.Cmd("tabs.closeAll").Title("Close All Tabs").Shortcut(a.key("tabs.closeAll")).Icon(icons.X).
+			Enabled(len(a.ws.Tabs) > 0).Run(a.closeAllTabs),
 		ui.Cmd("file.revealActive").Title("Reveal Active File in Explorer").Icon(icons.Locate).Enabled(hasEd).Run(func() {
 			a.sideOpen = true
 			a.tree.Reveal(ed.Path)
