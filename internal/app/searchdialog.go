@@ -202,7 +202,7 @@ func (a *App) pumpSearch(c *ui.Ctx) {
 	if !s.open {
 		return
 	}
-	added := false
+	added, selectFirst := false, false
 	for n := 0; ; n++ {
 		if n == searchBatch {
 			c.Animate(0) // more are waiting: take them next frame
@@ -215,9 +215,7 @@ func (a *App) pumpSearch(c *ui.Ctx) {
 			}
 			if m.done {
 				s.running = false
-				if s.selFile < 0 && len(s.results) > 0 {
-					a.selectMatch(0, 0)
-				}
+				selectFirst = true // once this frame's results are sorted
 				switch {
 				case errors.Is(m.err, search.ErrTruncated):
 					s.truncated = true
@@ -248,6 +246,9 @@ drained:
 				}
 			}
 		}
+	}
+	if selectFirst && s.selFile < 0 && len(s.results) > 0 {
+		a.selectMatch(0, 0)
 	}
 	// Edits in the preview move matches: search again once they pause.
 	if ed := a.bufs.Get(s.preview); ed != nil && ed.Revision() != s.previewRev {
