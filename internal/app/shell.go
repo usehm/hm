@@ -26,13 +26,13 @@ func (a *App) titleBar(c *ui.Ctx) ui.View {
 		ui.Button("tb-folder", ui.Text(filepath.Base(a.ws.Root))).Ghost().HoverFill().
 			IconStart(icons.FolderOpen).Tooltip(a.ws.Root).OnClick(a.askOpenFolder),
 		ui.Spacer(),
+		ui.IconButton("tb-settings", icons.Settings).Tooltip("Settings").OnClick(a.openSettings),
+		ui.IconButton("tb-agent", agentIcon).Tooltip("Agent").OnClick(a.toggleAgent),
+	).Center(
 		ui.Button("tb-palette", ui.Text("Search commands…")).Width(320).
 			IconStart(icons.Search).
 			Hint(c.Commands().ToggleLabel()).
 			OnClick(func() { c.Commands().Show() }),
-		ui.Spacer(),
-		ui.IconButton("tb-settings", icons.Settings).Tooltip("Settings").OnClick(a.openSettings),
-		ui.IconButton("tb-agent", agentIcon).Tooltip("Agent").OnClick(a.toggleAgent),
 	)
 }
 
