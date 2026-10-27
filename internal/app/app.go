@@ -29,6 +29,7 @@ type App struct {
 	idx  *fileIndex
 
 	notifs     Notifications
+	nav        navHistory
 	notifsOpen bool
 	sideOpen   bool
 	panel      panelKind
@@ -187,6 +188,7 @@ func (a *App) Body(c *ui.Ctx) ui.View {
 	a.flushPending(c)
 	a.idx.drain()
 	a.registerCommands(c)
+	a.trackNav()
 	if ed := a.ws.ActiveEditor(); ed != nil && !a.modalOpen(c) {
 		c.Focus().EnsureFocus(ed)
 	}

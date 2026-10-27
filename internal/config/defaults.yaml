@@ -48,6 +48,10 @@ keys:                         # command id -> chord; overrides built-ins
   editor.addCursorBelow: cmd+alt+down
   agent.askSelection: cmd+shift+l
   app.settings: cmd+,
+  nav.back: ctrl+-
+  nav.forward: ctrl+shift+-
+  nav.backMouse: mouse4
+  nav.forwardMouse: mouse5
 
 # Shortcuts that apply in a context, VS Code style. A key is one chord or
 # two in a row ("cmd+k cmd+s"); mouse3/4/5 are the middle and back/forward

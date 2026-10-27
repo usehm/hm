@@ -61,6 +61,14 @@ func (a *App) registerCommands(c *ui.Ctx) {
 		ui.Cmd("editor.addCursorBelow").Title("Add Cursor Below").Shortcut(a.key("editor.addCursorBelow")).
 			Icon(icons.TextCursorInput).Enabled(edFocused).Run(func() { ed.AddCursorLine(1) }),
 
+		ui.Cmd("nav.back").Title("Go Back").Shortcut(a.key("nav.back")).Icon(icons.ArrowLeft).
+			Enabled(len(a.nav.back) > 0).Run(a.navBack),
+		ui.Cmd("nav.forward").Title("Go Forward").Shortcut(a.key("nav.forward")).Icon(icons.ArrowRight).
+			Enabled(len(a.nav.fwd) > 0).Run(a.navForward),
+		// The mouse's back and forward buttons, as a second shortcut.
+		ui.Cmd("nav.backMouse").Shortcut(a.key("nav.backMouse")).Hidden(true).Enabled(len(a.nav.back) > 0).Run(a.navBack),
+		ui.Cmd("nav.forwardMouse").Shortcut(a.key("nav.forwardMouse")).Hidden(true).Enabled(len(a.nav.fwd) > 0).Run(a.navForward),
+
 		ui.Section("Code"),
 		ui.Cmd("editor.definition").Title("Go to Definition").Shortcut(a.key("editor.definition")).Icon(icons.SquareArrowOutUpRight).
 			Enabled(hasEd).Run(func() { a.definition(ed, ed.Caret()) }),
