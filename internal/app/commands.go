@@ -138,6 +138,7 @@ func (a *App) registerCommands(c *ui.Ctx) {
 		ui.Cmd("app.settings").Title("Open Settings").Shortcut(a.key("app.settings")).Icon(icons.Settings).Run(a.openSettings),
 	}
 
+	a.rememberKeyCommands(cmds)
 	for _, name := range theme.Names() {
 		n := name
 		cmds = append(cmds, ui.Item("theme."+n).Title(n).Icon(icons.Palette).Scope(scopeThemes).Run(func() { a.setUserSetting([]string{"editor", "theme"}, n) }))

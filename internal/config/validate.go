@@ -304,6 +304,9 @@ func match(n *yaml.Node, pattern, path []string, fn func(*yaml.Node, []string)) 
 }
 
 func shortcutRule(n *yaml.Node) string {
+	if n.Value == "" {
+		return "" // no shortcut
+	}
 	if _, err := ParseShortcut(n.Value); err != nil {
 		return err.Error()
 	}

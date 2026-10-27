@@ -49,3 +49,29 @@ func TestKeybindingsWithConditionsAndSequences(t *testing.T) {
 		t.Fatal("cmd+k cmd+o should open settings")
 	}
 }
+
+func TestRecordShortcutInSettings(t *testing.T) {
+	root := project(t)
+	h := newHarness(t, root, false)
+	h.app.openSettings()
+	h.app.settingsCat = "keys"
+	h.frame()
+	if len(h.app.keyCommands) == 0 {
+		t.Fatal("no commands listed")
+	}
+	h.app.recordKey("app.settings")
+	h.frame()
+	h.press(input.KeyK, input.ModSuper)
+	h.press(input.KeyJ, input.ModSuper|input.ModShift)
+	if got := h.app.rec.chords; len(got) != 2 || got[0] != "cmd+k" || got[1] != "cmd+shift+j" {
+		t.Fatalf("recorded %v", got)
+	}
+	h.app.saveKey("app.settings", "cmd+k cmd+shift+j")
+	if k := h.app.key("app.settings"); k != "cmd+k cmd+shift+j" {
+		t.Fatalf("saved key %q", k)
+	}
+	h.app.saveKey("app.settings", "")
+	if k := h.app.key("app.settings"); k != "" || len(h.app.cfg.Problems()) > 0 {
+		t.Fatalf("removed key %q, problems %v", k, h.app.cfg.Problems())
+	}
+}

@@ -28,17 +28,20 @@ type App struct {
 	tree *ui.FileTree
 	idx  *fileIndex
 
-	notifs     Notifications
-	nav        navHistory
-	notifsOpen bool
-	sideOpen   bool
-	panel      panelKind
-	panelOpen  bool
-	agentOpen  bool
-	treeQuery  string
-	mdDocs     map[string]*mdDoc // preview state per Markdown file
-	noSession  bool
-	noUpdates  bool
+	notifs      Notifications
+	nav         navHistory
+	rec         *keyRecorder // a shortcut being recorded in Settings
+	kbQuery     string       // the shortcuts page's filter
+	keyCommands []keyCommand
+	notifsOpen  bool
+	sideOpen    bool
+	panel       panelKind
+	panelOpen   bool
+	agentOpen   bool
+	treeQuery   string
+	mdDocs      map[string]*mdDoc // preview state per Markdown file
+	noSession   bool
+	noUpdates   bool
 
 	cfg             *config.Manager
 	applied         appliedConfig
@@ -209,6 +212,9 @@ func (a *App) modalOpen(c *ui.Ctx) bool {
 // OnKey handles global chords a focused editor would otherwise eat. Command
 // shortcuts already ran by the time it is called.
 func (a *App) OnKey(_ *ui.Ctx, k input.KeyEvent) bool {
+	if a.recordKeyEvent(k) {
+		return true
+	}
 	if k.Key == input.KeyV && k.Mods.Primary() {
 		// Let the paste happen, then run "on: paste" formatters.
 		if ed := a.ws.ActiveEditor(); ed != nil && ed.Focused() {

@@ -33,6 +33,7 @@ var settingsCategories = []struct {
 	{"agent", "Agent", icons.Bot},
 	{"completion", "Completion", icons.Sparkles},
 	{"updates", "Updates", icons.Download},
+	{"keys", "Keyboard Shortcuts", icons.Keyboard},
 }
 
 // settingsPage is the Settings tab: the selected category's form on the
@@ -115,6 +116,8 @@ func (a *App) settingsSection(c *ui.Ctx, cat string) ui.View {
 	ed := cfg.Editor
 	key := func(k ...string) []string { return k }
 	switch cat {
+	case "keys":
+		return a.keysSection(c)
 	case "agent":
 		return a.agentSettings(c)
 	case "completion":
