@@ -188,6 +188,21 @@ languages:
       command: bash-language-server
       args: [start]
       install: [{ tool: npm, args: [install, -g, bash-language-server] }]
+  make:
+    extensions: [.mk, .mak]
+    filenames: [Makefile, makefile, GNUmakefile]
+    language_id: makefile
+    lsp:
+      command: make-ls
+      install: [{ tool: go, args: [install, github.com/owenrumney/make-ls/cmd/make-ls@latest] }]
+    formatters:
+      - command: mbake
+        args: [format, --stdin]
+        stdin: true
+        on: [manual]
+        install:
+          - { tool: uv, args: [tool, install, mbake] }
+          - { tool: pip3, args: [install, --user, mbake] }
   css:
     extensions: [.css]
     lsp:

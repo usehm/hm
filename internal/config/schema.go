@@ -69,6 +69,9 @@ type Search struct {
 
 type Language struct {
 	Extensions []string `yaml:"extensions"`
+	// Filenames are whole file names, for files without an extension such
+	// as Makefile; matched case-insensitively, before the extension.
+	Filenames []string `yaml:"filenames"`
 	// LanguageID is the LSP language id; it defaults to the language's key.
 	LanguageID string `yaml:"language_id"`
 	// LanguageIDs overrides it per extension (.tsx: typescriptreact).

@@ -122,6 +122,15 @@ languages:
 	if l, ok := s.For("/x/y.ZIG"); !ok || l.Name != "zig" {
 		t.Fatalf("For: %+v", l)
 	}
+	if sc, ok := lsp.ForPath("/x/Makefile"); !ok || sc.Command != "make-ls" || sc.LanguageID != "makefile" {
+		t.Fatalf("Makefile server %+v %v", sc, ok)
+	}
+	if l, ok := s.For("/x/GNUmakefile"); !ok || l.Name != "make" || len(l.Formatters) == 0 {
+		t.Fatalf("For(GNUmakefile): %+v", l)
+	}
+	if _, ok := s.For("/x/LICENSE"); ok {
+		t.Fatal("a file without an extension matched a language")
+	}
 	s.Apply(nil)
 	if _, ok := lsp.ForPath("a.zig"); ok {
 		t.Fatal("Apply(nil) should unregister")

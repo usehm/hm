@@ -33,9 +33,9 @@ type Service struct {
 
 	mu       sync.Mutex
 	langs    map[string]config.Language
-	byExt    map[string]string // extension -> language name
-	lspExts  map[string]bool   // extensions registered with lsp
-	hlExts   map[string]bool   // extensions registered with highlight
+	byExt    map[string]string // extension or file name -> language name
+	lspExts  map[string]bool   // extensions and file names registered with lsp
+	hlExts   map[string]bool   // extensions and file names registered with highlight
 	pending  []*lsp.ServerError
 	notices  []Notice
 	last     map[string]time.Time
@@ -146,8 +146,8 @@ func (s *Service) Apply(langs map[string]config.Language) []error {
 	s.langs = langs
 	s.byExt = map[string]string{}
 	for name, l := range langs {
-		for _, ext := range l.Extensions {
-			s.byExt[strings.ToLower(ext)] = name
+		for _, ext := range keys(l) {
+			s.byExt[ext] = name
 		}
 	}
 	for ext := range s.lspExts {
@@ -163,8 +163,7 @@ func (s *Service) Apply(langs map[string]config.Language) []error {
 			hl = name
 		}
 		queried := map[string]highlight.Factory{} // grammar -> factory with the language's queries
-		for _, ext := range l.Extensions {
-			ext = strings.ToLower(ext)
+		for _, ext := range keys(l) {
 			grammar := grammarFor(hl, ext)
 			factory, ok := highlight.ByName(grammar)
 			if len(l.HighlightQueries) > 0 {
@@ -211,6 +210,18 @@ func (s *Service) Apply(langs map[string]config.Language) []error {
 		}
 	}
 	return errs
+}
+
+// keys returns the lowercase extensions and file names l is registered by.
+func keys(l config.Language) []string {
+	var out []string
+	for _, k := range l.Extensions {
+		out = append(out, strings.ToLower(k))
+	}
+	for _, k := range l.Filenames {
+		out = append(out, strings.ToLower(k))
+	}
+	return out
 }
 
 // queryFactory colors grammar with its built-in query followed by the
@@ -269,8 +280,8 @@ func languageID(name, ext string, l config.Language) string {
 func languageIDs(name string, l config.Language) []string {
 	seen := map[string]bool{}
 	var out []string
-	for _, ext := range l.Extensions {
-		if id := languageID(name, strings.ToLower(ext), l); !seen[id] {
+	for _, ext := range keys(l) {
+		if id := languageID(name, ext, l); !seen[id] {
 			seen[id] = true
 			out = append(out, id)
 		}
@@ -282,7 +293,10 @@ func languageIDs(name string, l config.Language) []string {
 func (s *Service) For(path string) (Language, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	name, ok := s.byExt[strings.ToLower(filepath.Ext(path))]
+	name, ok := s.byExt[strings.ToLower(filepath.Base(path))]
+	if !ok {
+		name, ok = s.byExt[strings.ToLower(filepath.Ext(path))]
+	}
 	if !ok {
 		return Language{}, false
 	}
