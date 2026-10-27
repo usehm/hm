@@ -254,7 +254,7 @@ func (a *App) transcript(c *ui.Ctx) ui.View {
 		return ui.ViewOf(ui.EmptyState("Ask the agent", "Mention @file, @folder, @selection, @diagnostics or @git-diff "+
 			"to add context. /mode switches mode.").EmptyIcon(icons.Bot)).Grow(1)
 	}
-	return ui.Scroll("agent-transcript", ui.Column(rows...).Gap(th.Spacing.S).Padding(th.Spacing.M)).Grow(1)
+	return ui.Scroll("agent-transcript", ui.Column(rows...).Gap(th.Spacing.S).Padding(th.Spacing.M)).Follow(true).Grow(1)
 }
 
 // agentMarkdown renders assistant text; links resolve against the workspace.
