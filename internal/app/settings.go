@@ -21,25 +21,28 @@ var settingsScopes = []ui.SegmentItem{
 	{Label: "Project", Value: "project"},
 }
 
-// settingsCategories are the Settings tab's sections, in sidebar order.
+// settingsCategories are the Settings tab's sections, in list order; a
+// change of group draws a divider.
 var settingsCategories = []struct {
 	id, label string
 	icon      icons.Icon
+	group     int
 }{
-	{"appearance", "Appearance", icons.Palette},
-	{"editor", "Editor", icons.FileCode},
-	{"search", "Search", icons.Search},
-	{"terminal", "Terminal", icons.SquareTerminal},
-	{"agent", "Agent", icons.Bot},
-	{"completion", "Completion", icons.Sparkles},
-	{"security", "Agent Security", icons.ShieldCheck},
-	{"updates", "Updates", icons.Download},
-	{"keys", "Keyboard Shortcuts", icons.Keyboard},
+	{"appearance", "Appearance", icons.Palette, 0},
+	{"editor", "Editor", icons.FileCode, 0},
+	{"files", "Files & Explorer", icons.FolderTree, 0},
+	{"search", "Search", icons.Search, 0},
+	{"terminal", "Terminal", icons.SquareTerminal, 0},
+	{"agent", "Agent", icons.Bot, 1},
+	{"completion", "Completion", icons.Sparkles, 1},
+	{"security", "Agent Security", icons.ShieldCheck, 1},
+	{"keys", "Keyboard Shortcuts", icons.Keyboard, 2},
+	{"updates", "Updates", icons.Download, 2},
 }
 
-// settingsPage is the Settings tab: the selected category's form on the
-// left, the categories and the YAML actions in a sidebar on the right.
-// Changes are written to the user or project YAML file, keeping its comments.
+// settingsPage is the Settings tab: the categories listed on the left, the
+// selected category's form scrolling on the right. Changes are written to
+// the user or project YAML file, keeping its comments.
 func (a *App) settingsPage(c *ui.Ctx) ui.View {
 	th := c.Theme()
 	user, project := a.cfg.Paths()
@@ -51,6 +54,10 @@ func (a *App) settingsPage(c *ui.Ctx) ui.View {
 	if cat == "" {
 		cat = settingsCategories[0].id
 	}
+	scope := 0
+	if a.settingsProject {
+		scope = 1
+	}
 
 	title := ""
 	for _, sc := range settingsCategories {
@@ -59,10 +66,14 @@ func (a *App) settingsPage(c *ui.Ctx) ui.View {
 		}
 	}
 	body := []ui.View{ui.Row(
-		ui.Title(title),
-		ui.Spacer(),
-		ui.Caption("Writes to "+a.ws.Rel(target)).Ellipsis(ui.EllipsisMiddle),
-	).Gap(th.Spacing.S)}
+		ui.Column(
+			ui.Title(title),
+			ui.Caption("Writes to "+a.ws.Rel(target)).Ellipsis(ui.EllipsisMiddle),
+		).Gap(th.Spacing.XXS).Grow(1).Shrink(1),
+		ui.Segmented("settings-scope", settingsScopes...).Selected(scope).
+			Tooltip("Which config file changes are saved to").
+			OnSelectItem(func(i int, _ string) { a.settingsProject = i == 1 }),
+	).Gap(th.Spacing.M).Align(ui.AlignCenter)}
 	if ps := a.cfg.Problems(); len(ps) > 0 {
 		msg := ps[0].Error()
 		if len(ps) > 1 {
@@ -72,43 +83,47 @@ func (a *App) settingsPage(c *ui.Ctx) ui.View {
 	}
 	body = append(body, a.settingsSection(c, cat))
 	content := ui.Scroll("settings-scroll",
-		ui.Row(ui.Column(body...).Gap(th.Spacing.M).Padding(th.Spacing.XL).Grow(1).MaxWidth(760)).
-			Justify(ui.JustifyCenter).Align(ui.AlignStart),
+		ui.Column(body...).Gap(th.Spacing.L).PaddingXY(th.Spacing.XL, th.Spacing.XL).MaxWidth(800),
 	).Grow(1)
-	return ui.Row(content, a.settingsSidebar(c, cat, target)).Align(ui.AlignStretch).Grow(1)
+	return ui.Row(a.settingsNav(c, cat, target), content).Align(ui.AlignStretch).Grow(1)
 }
 
-// settingsSidebar lists the categories, then where settings are written and
-// the YAML files behind them.
-func (a *App) settingsSidebar(c *ui.Ctx, cat, target string) ui.View {
+// settingsNav lists the categories in groups, then links to the YAML files
+// behind them.
+func (a *App) settingsNav(c *ui.Ctx, cat, target string) ui.View {
 	th := c.Theme()
-	scope := 0
-	if a.settingsProject {
-		scope = 1
+	divider := func() ui.View {
+		return ui.Row().BorderTop(ui.TokenBorder, th.Stroke.Thin).MarginXY(th.Spacing.S, th.Spacing.S)
 	}
-	rows := []ui.View{ui.Caption("CATEGORIES").MarginXY(th.Spacing.S, th.Spacing.XS)}
-	for _, sc := range settingsCategories {
+	item := func(id, label string, icon icons.Icon) *ui.Node {
+		return ui.Button(id, ui.Text(label)).Ghost().HoverFill().IconStart(icon).Justify(ui.JustifyStart)
+	}
+	// link opens a file in a new tab, marked like a link out of the page.
+	link := func(id, label string, icon icons.Icon) *ui.Node {
+		return ui.Button(id, ui.Row(ui.Text(label), ui.Icon(icons.ArrowUpRight, th.Metrics.IconSizeSM, th.ForegroundMuted)).
+			Gap(th.Spacing.XS).Align(ui.AlignCenter)).Ghost().HoverFill().IconStart(icon).Justify(ui.JustifyStart)
+	}
+	var rows []ui.View
+	for i, sc := range settingsCategories {
+		if i > 0 && sc.group != settingsCategories[i-1].group {
+			rows = append(rows, divider())
+		}
 		id := sc.id
-		b := ui.Button("settings-cat-"+id, ui.Text(sc.label)).Ghost().HoverFill().IconStart(sc.icon).
-			Justify(ui.JustifyStart).OnClick(func() { a.settingsCat = id })
+		b := item("settings-cat-"+id, sc.label, sc.icon).OnClick(func() { a.settingsCat = id })
 		if id == cat {
 			b = b.Background(ui.TokenListActive)
 		}
 		rows = append(rows, b)
 	}
 	rows = append(rows,
-		ui.Spacer(),
-		ui.Caption("SAVE TO").MarginXY(th.Spacing.S, th.Spacing.XS),
-		ui.Segmented("settings-scope", settingsScopes...).Selected(scope).
-			OnSelectItem(func(i int, _ string) { a.settingsProject = i == 1 }),
-		ui.Button("settings-yaml", ui.Text("Edit as YAML")).IconStart(icons.FileCode).
-			Tooltip(target).OnClick(func() { a.openConfigYAML(a.settingsProject) }),
-		ui.Button("settings-defaults", ui.Text("Defaults")).Subtle().IconStart(icons.FileText).OnClick(a.openDefaults),
-		ui.Paragraph("Shortcuts, languages, provider details, modes and tools are edited in YAML.").
-			Style(ui.Spec{}.TextColor(ui.TokenForegroundMuted)).MarginXY(th.Spacing.XS, th.Spacing.XS),
+		divider(),
+		link("settings-yaml", "Edit as YAML", icons.FileCode).
+			Tooltip("Open "+a.ws.Rel(target)+": languages, providers, modes and tools are edited there").
+			OnClick(func() { a.openConfigYAML(a.settingsProject) }),
+		link("settings-defaults", "View defaults", icons.FileText).
+			Tooltip("The built-in config, read only").OnClick(a.openDefaults),
 	)
-	return ui.Column(rows...).Gap(th.Spacing.XXS).Width(240).Padding(th.Spacing.M).
-		Background(ui.TokenChrome).BorderLeft(ui.TokenBorder, th.Stroke.Thin)
+	return ui.Column(rows...).Gap(th.Spacing.XXS).PaddingXY(th.Spacing.M, th.Spacing.XL).Width(240)
 }
 
 // settingsSection is one category's form.
@@ -127,25 +142,33 @@ func (a *App) settingsSection(c *ui.Ctx, cat string) ui.View {
 		return a.completionSettings()
 	case "editor":
 		return ui.Form("settings-editor",
+			ui.FormHeading("Indentation", ""),
 			ui.FormNumber("set-tab-width", "Tab width", "Columns per tab stop",
 				float64(ed.TabWidth), 1, 16, 1, func(v float64) { a.setSetting(key("editor", "tab_width"), int(v)) }),
 			ui.FormSwitch("set-spaces", "Insert spaces", "Tab inserts spaces instead of a tab",
 				ed.InsertSpaces, func(v bool) { a.setSetting(key("editor", "insert_spaces"), v) }),
+			ui.FormHeading("Display", ""),
 			ui.FormSwitch("set-wrap", "Soft wrap", "Wrap long lines at the window edge",
 				ed.SoftWrap, func(v bool) { a.setSetting(key("editor", "soft_wrap"), v) }),
 			ui.FormSwitch("set-lines", "Line numbers", "Show the line-number gutter",
 				ed.LineNumbers, func(v bool) { a.setSetting(key("editor", "line_numbers"), v) }),
+			ui.FormSwitch("set-past-end", "Scroll past end", "Leave room below the last line",
+				ed.ScrollPastEnd, func(v bool) { a.setSetting(key("editor", "scroll_past_end"), v) }),
+			ui.FormHeading("Input", ""),
 			ui.FormSelect("set-keymap", "Keymap", "vim for Vim's modal editing",
 				enumOptions("editor.keymap"), enumIndex("editor.keymap", ed.Keymap),
 				func(v string) { a.setSetting(key("editor", "keymap"), v) }),
-			ui.FormSwitch("set-past-end", "Scroll past end", "Leave room below the last line",
-				ed.ScrollPastEnd, func(v bool) { a.setSetting(key("editor", "scroll_past_end"), v) }),
-			ui.FormSwitch("set-format", "Format on save", "Run the language's formatters when saving",
-				ed.FormatOnSave, func(v bool) { a.setSetting(key("editor", "format_on_save"), v) }),
+		).Grouped()
+	case "files":
+		return ui.Form("settings-files",
+			ui.FormHeading("Saving", ""),
 			ui.FormSelect("set-autosave", "Auto save", "Save files without asking",
 				enumOptions("editor.auto_save"), enumIndex("editor.auto_save", ed.AutoSave),
 				func(v string) { a.setSetting(key("editor", "auto_save"), v) }),
-			ui.FormSwitch("set-hidden", "Show hidden files", "List dotfiles in the explorer",
+			ui.FormSwitch("set-format", "Format on save", "Run the language's formatters when saving",
+				ed.FormatOnSave, func(v bool) { a.setSetting(key("editor", "format_on_save"), v) }),
+			ui.FormHeading("Explorer", ""),
+			ui.FormSwitch("set-hidden", "Show hidden files", "List dotfiles in the file tree",
 				ed.ShowHidden, func(v bool) { a.setSetting(key("editor", "show_hidden"), v) }),
 		).Grouped()
 	case "search":
