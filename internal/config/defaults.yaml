@@ -158,6 +158,73 @@ languages:
         args: [--replace, "{file}"]
         on: [manual]
         install: [{ tool: brew, args: [install, google-java-format] }]
+  c:
+    extensions: [.c, .h]
+    lsp:
+      command: clangd
+      root_markers: [compile_commands.json, compile_flags.txt, .clangd, CMakeLists.txt]
+      install: [{ tool: brew, args: [install, llvm] }]
+    formatters:
+      - command: clang-format
+        args: [-i, "{file}"]
+        on: [manual]
+        install: [{ tool: brew, args: [install, clang-format] }]
+  cpp:
+    extensions: [.cc, .cpp, .cxx, .c++, .hh, .hpp, .hxx, .h++, .ipp]
+    lsp:
+      command: clangd
+      root_markers: [compile_commands.json, compile_flags.txt, .clangd, CMakeLists.txt]
+      install: [{ tool: brew, args: [install, llvm] }]
+    formatters:
+      - command: clang-format
+        args: [-i, "{file}"]
+        on: [manual]
+        install: [{ tool: brew, args: [install, clang-format] }]
+  csharp:
+    extensions: [.cs]
+    lsp:
+      command: csharp-ls
+      root_markers: [global.json, Directory.Build.props, .git]
+      install: [{ tool: dotnet, args: [tool, install, --global, csharp-ls] }]
+  zig:
+    extensions: [.zig, .zon]
+    lsp:
+      command: zls
+      root_markers: [build.zig]
+      install: [{ tool: brew, args: [install, zls] }]
+    formatters:
+      - command: zig
+        args: [fmt, --stdin]
+        stdin: true
+        on: [save, manual]
+        install: [{ tool: brew, args: [install, zig] }]
+  lua:
+    extensions: [.lua]
+    lsp:
+      command: lua-language-server
+      root_markers: [.luarc.json, .stylua.toml, stylua.toml]
+      install: [{ tool: brew, args: [install, lua-language-server] }]
+    formatters:
+      - command: stylua
+        args: ["{file}"]
+        on: [manual]
+        install:
+          - { tool: brew, args: [install, stylua] }
+          - { tool: cargo, args: [install, stylua] }
+  ruby:
+    extensions: [.rb, .rake, .gemspec, .ru]
+    filenames: [Gemfile, Rakefile, Podfile, Vagrantfile]
+    lsp:
+      command: ruby-lsp
+      root_markers: [Gemfile]
+      install: [{ tool: gem, args: [install, ruby-lsp] }]
+  php:
+    extensions: [.php]
+    lsp:
+      command: intelephense
+      args: [--stdio]
+      root_markers: [composer.json]
+      install: [{ tool: npm, args: [install, -g, intelephense] }]
   proto:
     extensions: [.proto]
     lsp:
@@ -175,6 +242,20 @@ languages:
       command: yaml-language-server
       args: [--stdio]
       install: [{ tool: npm, args: [install, -g, yaml-language-server] }]
+  toml:
+    extensions: [.toml]
+    filenames: [Cargo.lock, Pipfile, poetry.lock, uv.lock]
+    lsp:
+      command: taplo
+      args: [lsp, stdio]
+      install:
+        - { tool: brew, args: [install, taplo] }
+        - { tool: cargo, args: [install, taplo-cli, --locked, --features, lsp] }
+    formatters:
+      - command: taplo
+        args: [fmt, "{file}"]
+        on: [manual]
+        install: [{ tool: brew, args: [install, taplo] }]
   json:
     extensions: [.json, .jsonc]
     lsp:
@@ -203,6 +284,26 @@ languages:
         install:
           - { tool: uv, args: [tool, install, mbake] }
           - { tool: pip3, args: [install, --user, mbake] }
+  dockerfile:
+    extensions: [.dockerfile]
+    filenames: [Dockerfile, Containerfile]
+    lsp:
+      command: docker-langserver
+      args: [--stdio]
+      install: [{ tool: npm, args: [install, -g, dockerfile-language-server-nodejs] }]
+  gomod:
+    filenames: [go.mod, go.work]
+  gitignore:
+    filenames: [.gitignore, .dockerignore, .npmignore, .prettierignore, .eslintignore,
+      .ignore, .rgignore, .fdignore, .helmignore]
+  dotenv:
+    extensions: [.env]
+    filenames: [.env.local, .env.example, .env.development, .env.production, .env.test]
+  ini:
+    extensions: [.ini, .cfg]
+    filenames: [.editorconfig, .gitconfig, .gitmodules, .npmrc]
+  diff:
+    extensions: [.diff, .patch]
   css:
     extensions: [.css]
     lsp:

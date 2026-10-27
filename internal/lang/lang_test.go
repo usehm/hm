@@ -133,6 +133,12 @@ languages:
 		t.Fatal("Makefile should be highlighted")
 	}
 	mk.Close()
+	if sc, ok := lsp.ForPath("/x/Cargo.toml"); !ok || sc.Command != "taplo" {
+		t.Fatalf("TOML server %+v %v", sc, ok)
+	}
+	if l, ok := s.For("/x/.dockerignore"); !ok || l.Name != "gitignore" {
+		t.Fatalf("For(.dockerignore): %+v", l)
+	}
 	if _, ok := s.For("/x/LICENSE"); ok {
 		t.Fatal("a file without an extension matched a language")
 	}
