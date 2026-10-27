@@ -187,6 +187,7 @@ var Enums = map[string][]string{
 	"search.engine":                  {"auto", "ripgrep", "builtin"},
 	"updates.channel":                {"stable", "prerelease", "off"},
 	"agent.layout":                   {"fullscreen", "panel"},
+	"editor.keymap":                  {"default", "vim"},
 	"agent.providers.*.type":         {"anthropic", "openai"},
 	"agent.providers.*.effort":       {"low", "medium", "high", "xhigh", "max"},
 	"modes.*.approval.*":             {"auto", "ask", "deny"},

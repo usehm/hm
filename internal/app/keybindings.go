@@ -4,6 +4,7 @@ import (
 	"github.com/mirzakhany/yoga/ui"
 
 	"github.com/mirzakhany/hm/internal/config"
+	"github.com/mirzakhany/hm/internal/vim"
 	"github.com/mirzakhany/hm/internal/workspace"
 )
 
@@ -58,6 +59,11 @@ func (a *App) whenContext(c *ui.Ctx) map[string]bool {
 		"settingsTab":   tab != nil && tab.Kind == workspace.KindSettings,
 		"terminalFocus": false,
 		"agentFocus":    false,
+	}
+	if st := a.vimState(); st != nil {
+		ctx["vimNormal"] = st.Mode() == vim.Normal
+		ctx["vimInsert"] = st.Mode() == vim.Insert
+		ctx["vimVisual"] = st.Mode() == vim.Visual || st.Mode() == vim.VisualLine
 	}
 	if t := a.activeTerminal(); t != nil && a.panelOpen && a.panel == panelTerminal {
 		ctx["terminalFocus"] = t.view.Focused()

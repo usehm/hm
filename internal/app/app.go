@@ -18,6 +18,7 @@ import (
 	"github.com/mirzakhany/hm/internal/editor"
 	"github.com/mirzakhany/hm/internal/lang"
 	"github.com/mirzakhany/hm/internal/secrets"
+	"github.com/mirzakhany/hm/internal/vim"
 	"github.com/mirzakhany/hm/internal/workspace"
 )
 
@@ -33,6 +34,7 @@ type App struct {
 	rec         *keyRecorder // a shortcut being recorded in Settings
 	kbQuery     string       // the shortcuts page's filter
 	keyCommands []keyCommand
+	vims        map[*ui.Editor]*vim.State // each file editor's Vim keymap
 	notifsOpen  bool
 	sideOpen    bool
 	panel       panelKind
@@ -192,6 +194,7 @@ func (a *App) Body(c *ui.Ctx) ui.View {
 	a.idx.drain()
 	a.registerCommands(c)
 	a.trackNav()
+	a.syncCarets()
 	if ed := a.ws.ActiveEditor(); ed != nil && !a.modalOpen(c) {
 		c.Focus().EnsureFocus(ed)
 	}
@@ -226,6 +229,7 @@ func (a *App) OnKey(_ *ui.Ctx, k input.KeyEvent) bool {
 
 // attachEditor wires a new file editor to the app.
 func (a *App) attachEditor(ed *ui.Editor) {
+	a.attachVim(ed)
 	ed.OnModClick = func(off int) bool {
 		if !a.lang.HasServer(ed.Path) {
 			return false

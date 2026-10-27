@@ -43,6 +43,8 @@ type Editor struct {
 	InsertSpaces bool   `yaml:"insert_spaces"`
 	SoftWrap     bool   `yaml:"soft_wrap"`
 	LineNumbers  bool   `yaml:"line_numbers"`
+	// Keymap is default, or vim for Vim's modal editing.
+	Keymap string `yaml:"keymap"`
 	// ScrollPastEnd leaves room below the last line so it can scroll to the top.
 	ScrollPastEnd bool   `yaml:"scroll_past_end"`
 	FormatOnSave  bool   `yaml:"format_on_save"`

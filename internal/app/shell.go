@@ -48,7 +48,7 @@ func (a *App) toggleSide() { a.sideOpen = !a.sideOpen }
 // agentFullscreen reports whether the agent takes the editor's place
 // (agent.layout: fullscreen) rather than docking beside it.
 func (a *App) agentFullscreen() bool { return a.cfg.Current().Agent.Layout != "panel" }
-func (a *App) toggleAgent() { a.setAgentOpen(!a.agentOpen) }
+func (a *App) toggleAgent()          { a.setAgentOpen(!a.agentOpen) }
 
 // setAgentOpen shows or hides the agent panel; opening it focuses the
 // message box.
@@ -278,6 +278,9 @@ func (a *App) footer(c *ui.Ctx) ui.View {
 	if a.agentFullscreen() && a.agentOpen {
 		items = append(items, a.agentStatus(c)...)
 	} else if ed := a.ws.ActiveEditor(); ed != nil {
+		if st := a.vimState(); st != nil {
+			items = append(items, ui.Caption(st.Status()).Style(ui.Spec{}.TextColor(ui.TokenAccent)))
+		}
 		line, col := ed.LineCol(ed.Caret())
 		items = append(items,
 			ui.Caption(languageName(ed.Path)),
