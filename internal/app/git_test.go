@@ -14,6 +14,7 @@ import (
 
 	"github.com/mirzakhany/yoga/ui"
 
+	"github.com/mirzakhany/hm/internal/gitx"
 	"github.com/mirzakhany/hm/internal/update"
 	"github.com/mirzakhany/hm/internal/version"
 )
@@ -132,5 +133,33 @@ func TestUpdateAvailableNotification(t *testing.T) {
 	h.app.checkForUpdate(h.app.invalidate)
 	if h.app.upd.state().phase != updateNone {
 		t.Fatal("updates.channel: off should skip the check")
+	}
+}
+
+func TestChangeKindsMarksFoldersWithTheirMostNotableChange(t *testing.T) {
+	root := filepath.FromSlash("/w")
+	st := &gitx.Status{Changes: []gitx.Change{
+		{Path: "a/b/new.go", Kind: gitx.Untracked},
+		{Path: "a/b/old.go", Kind: gitx.Modified},
+		{Path: "a/c/x.go", Kind: gitx.Added},
+		{Path: "top.go", Kind: gitx.Conflicted},
+	}}
+	got := changeKinds(root, st)
+	want := map[string]gitx.ChangeKind{
+		"a/b/new.go": gitx.Untracked,
+		"a/b/old.go": gitx.Modified,
+		"a/c/x.go":   gitx.Added,
+		"top.go":     gitx.Conflicted,
+		"a/b":        gitx.Modified,
+		"a/c":        gitx.Added,
+		"a":          gitx.Modified,
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %v", got)
+	}
+	for rel, k := range want {
+		if g, ok := got[filepath.Join(root, filepath.FromSlash(rel))]; !ok || g != k {
+			t.Errorf("%s = %v (%v), want %v", rel, g, ok, k)
+		}
 	}
 }

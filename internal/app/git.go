@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/mirzakhany/yoga/render"
+	"github.com/mirzakhany/yoga/theme"
 	"github.com/mirzakhany/yoga/ui"
 
 	"github.com/mirzakhany/hm/internal/diff"
@@ -26,7 +28,8 @@ type gitState struct {
 	repo    *gitx.Repo // nil until opened, or when the folder is not a repository
 	head    string
 	polled  time.Time
-	bases   map[string]*gitBase // HEAD versions of open files, for change bars
+	bases   map[string]*gitBase        // HEAD versions of open files, for change bars
+	kinds   map[string]gitx.ChangeKind // absolute path -> change, files and the folders holding them
 	watcher *workspace.Watcher
 }
 
@@ -96,10 +99,59 @@ func (a *App) stopGit() {
 func (a *App) gitChanged(st *gitx.Status) {
 	g := &a.gitst
 	g.status = st
+	g.kinds = changeKinds(a.ws.Root, st)
 	if st != nil && st.Head != g.head {
 		g.head = st.Head
 		g.bases = map[string]*gitBase{} // HEAD moved: every base is stale
 	}
+}
+
+// changeKinds maps each changed file, and every folder above it, to its kind
+// of change. A folder takes the most notable kind among its files.
+func changeKinds(root string, st *gitx.Status) map[string]gitx.ChangeKind {
+	if st == nil || len(st.Changes) == 0 {
+		return nil
+	}
+	out := make(map[string]gitx.ChangeKind, len(st.Changes)*2)
+	for _, ch := range st.Changes {
+		p := filepath.Join(root, filepath.FromSlash(ch.Path))
+		out[p] = ch.Kind
+		for d := filepath.Dir(p); len(d) > len(root); d = filepath.Dir(d) {
+			if k, ok := out[d]; ok && changeRank(k) >= changeRank(ch.Kind) {
+				break
+			}
+			out[d] = ch.Kind
+		}
+	}
+	return out
+}
+
+// changeRank orders kinds by how much a folder should show them.
+func changeRank(k gitx.ChangeKind) int {
+	switch k {
+	case gitx.Conflicted:
+		return 3
+	case gitx.Modified, gitx.Renamed, gitx.Deleted:
+		return 2
+	}
+	return 1 // added, untracked
+}
+
+// treeLabelColor colors explorer names by git status: new files green,
+// changed ones yellow, conflicts red.
+func (a *App) treeLabelColor(path string, _ bool) (render.Color, bool) {
+	k, ok := a.gitst.kinds[path]
+	if !ok {
+		return render.Color{}, false
+	}
+	th := theme.Current()
+	switch k {
+	case gitx.Conflicted:
+		return th.ErrorForeground, true
+	case gitx.Added, gitx.Untracked:
+		return th.SuccessForeground, true
+	}
+	return th.WarningForeground, true
 }
 
 // pumpGit applies git results, file changes from disk and the periodic
@@ -222,13 +274,8 @@ func (a *App) updateChangeBars(ed *ui.Editor) {
 				for l, m := range diff.Marks(diff.Lines(string(base)), diff.Lines(string(text))) {
 					marks[l] = ui.LineMarkKind(m)
 				}
-			} else {
-				// Untracked: every line is new.
-				marks = map[int]ui.LineMarkKind{}
-				for l := range diff.Lines(string(text)) {
-					marks[l] = ui.LineAdded
-				}
 			}
+			// A new file gets no bars: the explorer colors its name instead.
 			a.onUI(func() {
 				b.busy, b.marks = false, marks
 				if e := a.bufs.Get(path); e != nil {
