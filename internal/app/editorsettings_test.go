@@ -3,6 +3,7 @@ package app
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -53,4 +54,36 @@ languages:
 	// Editing the project config reapplies to open editors.
 	writeFile(t, filepath.Join(root, ".hm", "config.yaml"), "languages:\n  markdown:\n    editor: { tab_width: 6 }\n")
 	h.until("reload", 5*time.Second, func() bool { return ed.TabWidth() == 6 })
+}
+
+func TestSettingsLanguagePicker(t *testing.T) {
+	root := project(t)
+	h := newHarness(t, root, false)
+	h.app.openSettings()
+	h.app.settingsCat = "editor"
+	h.app.settingsProject = true
+	h.app.settingsLang = "yaml"
+	h.frame()
+
+	h.app.setSetting([]string{"languages", "yaml", "editor", "tab_width"}, 6)
+	h.frame()
+	if es := h.app.editorSettings(filepath.Join(root, "a.yaml")); es.TabWidth != 6 || !es.InsertSpaces {
+		t.Fatalf("yaml settings %+v, want tab 6 with the built-in spaces", es)
+	}
+	data, _ := os.ReadFile(filepath.Join(root, ".hm", "config.yaml"))
+	if !strings.Contains(string(data), "tab_width: 6") {
+		t.Fatalf("project file:\n%s", data)
+	}
+
+	h.app.unsetSetting([]string{"languages", "yaml", "editor"})
+	h.frame()
+	if es := h.app.editorSettings(filepath.Join(root, "a.yaml")); es.TabWidth != 2 {
+		t.Fatalf("reset should go back to the built-in 2, got %d", es.TabWidth)
+	}
+	if ps := h.app.cfg.Problems(); len(ps) > 0 {
+		t.Fatal(ps)
+	}
+
+	h.app.settingsLang = "no-such-language"
+	h.frame() // falls back to all languages
 }

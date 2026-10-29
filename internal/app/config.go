@@ -208,6 +208,21 @@ func (a *App) writeSetting(project bool, key []string, value any) {
 	a.reloadConfig()
 }
 
+// unsetSetting removes key from the file the settings page edits.
+func (a *App) unsetSetting(key []string) {
+	user, proj := a.cfg.Paths()
+	path := user
+	if a.settingsProject {
+		path = proj
+	}
+	if err := config.Unset(path, key); err != nil {
+		a.fail("Could not save the setting", err)
+		return
+	}
+	a.reloadBuffer(path)
+	a.reloadConfig()
+}
+
 // reloadBuffer refreshes an open, unmodified buffer after hm wrote its file.
 func (a *App) reloadBuffer(path string) {
 	ed := a.bufs.Get(path)

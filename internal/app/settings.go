@@ -141,27 +141,7 @@ func (a *App) settingsSection(c *ui.Ctx, cat string) ui.View {
 	case "completion":
 		return a.completionSettings()
 	case "editor":
-		return ui.Form("settings-editor",
-			ui.FormHeading("Indentation", ""),
-			ui.FormNumber("set-tab-width", "Tab width", "Columns per tab stop",
-				float64(ed.TabWidth), 1, 16, 1, func(v float64) { a.setSetting(key("editor", "tab_width"), int(v)) }),
-			ui.FormSwitch("set-spaces", "Insert spaces", "Tab inserts spaces instead of a tab",
-				ed.InsertSpaces, func(v bool) { a.setSetting(key("editor", "insert_spaces"), v) }),
-			ui.FormSelect("set-auto-indent", "Auto indent", "keep copies the line's indent; advanced adds a level after an opening bracket",
-				enumOptions("editor.auto_indent"), enumIndex("editor.auto_indent", ed.AutoIndent),
-				func(v string) { a.setSetting(key("editor", "auto_indent"), v) }),
-			ui.FormHeading("Display", ""),
-			ui.FormSwitch("set-wrap", "Soft wrap", "Wrap long lines at the window edge",
-				ed.SoftWrap, func(v bool) { a.setSetting(key("editor", "soft_wrap"), v) }),
-			ui.FormSwitch("set-lines", "Line numbers", "Show the line-number gutter",
-				ed.LineNumbers, func(v bool) { a.setSetting(key("editor", "line_numbers"), v) }),
-			ui.FormSwitch("set-past-end", "Scroll past end", "Leave room below the last line",
-				ed.ScrollPastEnd, func(v bool) { a.setSetting(key("editor", "scroll_past_end"), v) }),
-			ui.FormHeading("Input", ""),
-			ui.FormSelect("set-keymap", "Keymap", "vim for Vim's modal editing",
-				enumOptions("editor.keymap"), enumIndex("editor.keymap", ed.Keymap),
-				func(v string) { a.setSetting(key("editor", "keymap"), v) }),
-		).Grouped()
+		return a.editorSection(c)
 	case "files":
 		return ui.Form("settings-files",
 			ui.FormHeading("Saving", ""),

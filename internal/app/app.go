@@ -52,6 +52,7 @@ type App struct {
 	problemsKey     string // last reported config problems, to toast once
 	settingsProject bool   // the settings page edits the project file
 	settingsCat     string // the settings page's category; "" is the first
+	settingsLang    string // the editor settings' language; "" is all languages
 	pendingText     *pendingText
 	lastEdit        map[string]editSeen
 	lastActive      string
