@@ -1,4 +1,4 @@
-// Draws the hm app icon: "Hm." on an ink squircle, the dot in coral.
+// Draws the hm app icon: "Hm" on an ink squircle with a coral dot.
 //
 //   swift build/icon/appicon.swift build/appicon-1024.png
 //
@@ -48,22 +48,40 @@ let rim = NSBezierPath(roundedRect: tile.insetBy(dx: 2, dy: 2), xRadius: radius 
 rim.lineWidth = 4
 rim.stroke()
 
-// "Hm" in paper, "." in coral, set as one line so kerning stays natural.
+// "Hm" in paper, set as one line so kerning stays natural. The heavy H
+// reads wider than the m, so the m gets a touch of horizontal expansion
+// (which also thickens its stems toward the H's) and a little more room.
 let font = NSFont.systemFont(ofSize: 360, weight: .heavy)
-let text = NSMutableAttributedString(string: "Hm.", attributes: [
+let text = NSMutableAttributedString(string: "Hm", attributes: [
     .font: font,
     .foregroundColor: paper,
-    .kern: -12,
 ])
-text.addAttribute(.foregroundColor, value: coral, range: NSRange(location: 2, length: 1))
-let bounds = text.boundingRect(with: NSSize(width: size, height: size), options: [.usesLineFragmentOrigin])
+text.addAttribute(.kern, value: -4, range: NSRange(location: 0, length: 1))
+text.addAttribute(.expansion, value: 0.07, range: NSRange(location: 1, length: 1))
+// Ink bounds, not the line box, so the dot can be placed against the
+// m's actual right edge.
+let ink = text.boundingRect(with: NSSize(width: size, height: size), options: [.usesLineFragmentOrigin, .usesDeviceMetrics])
+
+// The coral dot is drawn by hand rather than set as a period: a period
+// tucks tight against the m and sits on the baseline, so at 16-32 px it
+// smears into the m's last stem. A clear gap and a slight lift keep it a
+// distinct dot at every size.
+let dot: CGFloat = 76
+let gap: CGFloat = 40
+let lift: CGFloat = 6
+let width = ink.width + gap + dot
+
 // Center on the cap height rather than the line box so the word sits
 // optically in the middle.
 let capMid = font.capHeight / 2
-let origin = NSPoint(
-    x: (size - bounds.width) / 2 - bounds.minX,
-    y: size / 2 - capMid + font.descender)
+let baseline = size / 2 - capMid
+let origin = NSPoint(x: (size - width) / 2 - ink.minX, y: baseline + font.descender)
 text.draw(at: origin)
+
+coral.setFill()
+NSBezierPath(ovalIn: NSRect(
+    x: origin.x + ink.maxX + gap, y: baseline + lift,
+    width: dot, height: dot)).fill()
 
 NSGraphicsContext.restoreGraphicsState()
 
