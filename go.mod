@@ -10,7 +10,7 @@ require (
 	github.com/charmbracelet/x/vt v0.1.0
 	github.com/creack/pty v1.1.24
 	github.com/fsnotify/fsnotify v1.10.1
-	github.com/mirzakhany/yoga v0.36.1
+	github.com/mirzakhany/yoga v0.37.0
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/net v0.58.0

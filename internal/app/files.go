@@ -37,6 +37,7 @@ func (a *App) openFolder(root string) {
 	a.tree.OnMove = func(src, dst string) { a.ws.Renamed(src, dst); a.idx.refresh() }
 	a.tree.SetContextMenu(a.treeMenu)
 	a.tree.SetLabelColor(a.treeLabelColor)
+	a.tree.SetIconFor(treeIcon)
 	a.treeQuery = ""
 	a.idx = newFileIndex(a.ws.Root, a.invalidate)
 	a.startGit()

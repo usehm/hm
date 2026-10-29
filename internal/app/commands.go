@@ -114,6 +114,7 @@ func (a *App) registerCommands(c *ui.Ctx) {
 
 		ui.Section("View"),
 		ui.Cmd("view.sidebar").Title("Toggle Sidebar").Shortcut(a.key("view.sidebar")).Icon(icons.PanelLeft).Run(a.toggleSide),
+		ui.Cmd("explorer.collapseAll").Title("Explorer: Collapse All Folders").Icon(icons.ChevronsDownUp).Run(func() { a.tree.CollapseAll() }),
 		ui.Cmd("view.theme").Title("Color Theme…").Shortcut(a.key("view.theme")).Icon(icons.Palette).Run(func() {
 			c.Commands().ShowScope(scopeThemes, "Select a color theme")
 		}),

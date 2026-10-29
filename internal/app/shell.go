@@ -104,6 +104,7 @@ func (a *App) explorer(c *ui.Ctx) ui.View {
 				a.tree.Reload(a.ws.Root)
 				a.idx.refresh()
 			}),
+			ui.IconButton("tree-collapse", icons.ChevronsDownUp).Tooltip("Collapse all").OnClick(a.tree.CollapseAll),
 		).Gap(th.Spacing.XXS).Height(30).PaddingLeft(th.Spacing.M).PaddingRight(th.Spacing.XS),
 		ui.TextField("tree-filter", a.treeQuery).
 			Placeholder("Filter files").
