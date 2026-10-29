@@ -182,6 +182,12 @@ func (a *App) settingsSection(c *ui.Ctx, cat string) ui.View {
 	return ui.Form("settings-appearance",
 		ui.FormSelect("set-theme", "Theme", "Color theme for the whole window",
 			themeOptions(), themeIndex(ed.Theme), func(v string) { a.setSetting(key("editor", "theme"), v) }),
+		ui.FormSelect("set-zoom", "Zoom", "Scales the whole window; cmd+= and cmd+- step through these",
+			zoomOptions(), nearestZoomStep(ed.Zoom), func(v string) {
+				if z, err := strconv.ParseFloat(v, 64); err == nil {
+					a.setZoom(z)
+				}
+			}),
 		ui.FormNumber("set-font-size", "Font size", "Code font size in points",
 			float64(ed.FontSize), 6, 72, 1, func(v float64) { a.setSetting(key("editor", "font_size"), int(v)) }),
 		ui.FormText("set-font-family", "Font family", "Monospace font for code; empty uses the built-in one",

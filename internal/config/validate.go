@@ -214,6 +214,7 @@ var rules = func() []rule {
 			return msg
 		}},
 		{"editor.font_size", intRange(6, 72)},
+		{"editor.zoom", floatRange(0.5, 3)},
 		{"editor.tab_width", intRange(1, 16)},
 		{"languages.*.editor.tab_width", intRange(1, 16)},
 		{"terminal.font_size", intRange(6, 72)},
@@ -246,6 +247,19 @@ func intRange(lo, hi int) func(*yaml.Node) string {
 		}
 		if v < lo || v > hi {
 			return fmt.Sprintf("must be between %d and %d", lo, hi)
+		}
+		return ""
+	}
+}
+
+func floatRange(lo, hi float64) func(*yaml.Node) string {
+	return func(n *yaml.Node) string {
+		var v float64
+		if n.Decode(&v) != nil {
+			return "" // walk reports the type error
+		}
+		if v < lo || v > hi {
+			return fmt.Sprintf("must be between %g and %g", lo, hi)
 		}
 		return ""
 	}

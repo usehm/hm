@@ -4,6 +4,7 @@
 
 editor:
   theme: tokyo-night          # any theme name, or "system"
+  zoom: 1                     # whole-window zoom, 0.5 to 3; cmd+= / cmd+- / cmd+0
   font_size: 14
   font_family: ""             # empty = built-in monospace
   tab_width: 4
@@ -51,6 +52,9 @@ keys:                         # command id -> chord; overrides built-ins
   editor.addCursorBelow: cmd+alt+down
   agent.askSelection: cmd+shift+l
   app.settings: cmd+,
+  view.zoomIn: cmd+=
+  view.zoomOut: cmd+-
+  view.zoomReset: cmd+0
   nav.back: ctrl+-
   view.splitRight: cmd+\
   view.focusNextGroup: cmd+alt+right
@@ -64,7 +68,8 @@ keys:                         # command id -> chord; overrides built-ins
 # agentFocus, agentView, panelOpen, searchOpen, gitTab, settingsTab, and
 # vimNormal/vimInsert/vimVisual, with !, &&, || and parentheses. A command
 # of "-id" removes id's shortcut from keys.
-keybindings: []
+keybindings:
+  - { key: cmd+shift+=, command: view.zoomIn }   # cmd++ on US layouts
 #  - { key: "cmd+k cmd+s", command: file.saveAll }
 #  - { key: "ctrl+r", command: agent.toggle, when: "!terminalFocus" }
 

@@ -47,6 +47,7 @@ func (a *App) applyConfig(cfg config.Config) {
 		a.applied.font = font
 	}
 	a.applied.ok = true
+	applyZoom(ed.Zoom)
 	ui.EditorDefaults.SoftWrap = ed.SoftWrap
 	ui.EditorDefaults.LineNumbers = ed.LineNumbers
 	ui.EditorDefaults.ScrollPastEnd = ed.ScrollPastEnd

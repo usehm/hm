@@ -118,6 +118,9 @@ func (a *App) registerCommands(c *ui.Ctx) {
 		ui.Cmd("view.theme").Title("Color Theme…").Shortcut(a.key("view.theme")).Icon(icons.Palette).Run(func() {
 			c.Commands().ShowScope(scopeThemes, "Select a color theme")
 		}),
+		ui.Cmd("view.zoomIn").Title("Zoom In").Shortcut(a.key("view.zoomIn")).Icon(icons.ZoomIn).Run(func() { a.zoomStep(1) }),
+		ui.Cmd("view.zoomOut").Title("Zoom Out").Shortcut(a.key("view.zoomOut")).Icon(icons.ZoomOut).Run(func() { a.zoomStep(-1) }),
+		ui.Cmd("view.zoomReset").Title("Reset Zoom").Shortcut(a.key("view.zoomReset")).Icon(icons.RotateCcw).Run(func() { a.setZoom(1) }),
 		ui.Cmd("markdown.preview").Title("Markdown: Toggle Preview").Shortcut(a.key("markdown.preview")).Icon(icons.Eye).
 			Enabled(hasEd && isMarkdown(ed.Path)).Run(a.cycleMarkdownPreview),
 		ui.Cmd("view.tabs").Title("Go to Tab…").Shortcut(a.key("view.tabs")).Icon(icons.Layers).Run(func() {
