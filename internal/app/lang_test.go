@@ -191,6 +191,34 @@ func TestRenameAcrossFiles(t *testing.T) {
 	}
 }
 
+// Formatting a new Go file only appends gofmt's final newline; applying that
+// edit used to panic in the editor and take the app down.
+func TestFormatOnSaveNewGoFile(t *testing.T) {
+	if _, err := exec.LookPath("gopls"); err != nil {
+		t.Skip("gopls not installed")
+	}
+	root := project(t)
+	src := filepath.Join(root, "new.go")
+	writeFile(t, src, "")
+	h := newHarness(t, root, false)
+	h.app.openFile(src)
+	h.frame()
+	ed := h.app.ws.ActiveEditor()
+	h.until("gopls formatting", 60*time.Second, func() bool {
+		return h.app.lang.Manager().Supports(src, "documentFormattingProvider")
+	})
+	ed.SetText("package main")
+	h.frame()
+	h.press(input.KeyS, input.ModSuper)
+	h.until("formatted save", 30*time.Second, func() bool {
+		got, _ := os.ReadFile(src)
+		return !ed.Modified() && string(got) == "package main\n"
+	})
+	if string(ed.Bytes()) != "package main\n" {
+		t.Fatalf("buffer %q", ed.Bytes())
+	}
+}
+
 func TestProblemsPanelListsDiagnostics(t *testing.T) {
 	if _, err := exec.LookPath("gopls"); err != nil {
 		t.Skip("gopls not installed")
