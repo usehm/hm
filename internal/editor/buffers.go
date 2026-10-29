@@ -95,6 +95,17 @@ func (b *Buffers) Rename(from, to string) {
 	}
 }
 
+// All returns every open buffer, in no particular order.
+func (b *Buffers) All() []*ui.Editor {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	out := make([]*ui.Editor, 0, len(b.eds))
+	for _, ed := range b.eds {
+		out = append(out, ed)
+	}
+	return out
+}
+
 // Dirty lists the paths of buffers with unsaved changes.
 func (b *Buffers) Dirty() []string {
 	b.mu.Lock()

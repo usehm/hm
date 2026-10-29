@@ -10,6 +10,8 @@ editor:
   insert_spaces: false
   soft_wrap: false
   line_numbers: true
+  auto_indent: advanced       # none | keep | advanced
+  trim_trailing_whitespace: false
   scroll_past_end: true       # let the last line scroll up to the top
   keymap: default             # default | vim
   format_on_save: true
@@ -76,6 +78,9 @@ languages:
   # formatters. "on" picks when a formatter runs: save, manual, paste.
   # {file} is the file being formatted; stdin: true pipes the buffer in and
   # takes stdout back. With no formatters, the server's formatting is used.
+  # editor overrides the editor section for that language's files: tab_width,
+  # insert_spaces, auto_indent, soft_wrap, format_on_save and
+  # trim_trailing_whitespace.
   go:
     extensions: [.go]
     lsp:
@@ -88,6 +93,7 @@ languages:
     formatters:
       - { command: gofmt, args: ["-w", "{file}"], on: [save, manual] }
   typescript:
+    editor: { tab_width: 2, insert_spaces: true }
     extensions: [.ts, .tsx, .mts, .cts]
     language_ids: { .tsx: typescriptreact }
     lsp:
@@ -104,6 +110,7 @@ languages:
         on: [save, manual]
         install: [{ tool: npm, args: [install, -g, prettier] }]
   javascript:
+    editor: { tab_width: 2, insert_spaces: true }
     extensions: [.js, .jsx, .mjs, .cjs]
     language_ids: { .jsx: javascriptreact }
     lsp:
@@ -119,6 +126,7 @@ languages:
         on: [save, manual]
         install: [{ tool: npm, args: [install, -g, prettier] }]
   python:
+    editor: { tab_width: 4, insert_spaces: true }
     extensions: [.py, .pyi]
     lsp:
       command: pyright-langserver
@@ -135,6 +143,7 @@ languages:
           - { tool: brew, args: [install, ruff] }
           - { tool: pip3, args: [install, --user, ruff] }
   rust:
+    editor: { tab_width: 4, insert_spaces: true }
     extensions: [.rs]
     lsp:
       command: rust-analyzer
@@ -148,6 +157,7 @@ languages:
         on: [save, manual]
         install: [{ tool: rustup, args: [component, add, rustfmt] }]
   java:
+    editor: { tab_width: 4, insert_spaces: true }
     extensions: [.java]
     lsp:
       command: jdtls
@@ -181,12 +191,14 @@ languages:
         on: [manual]
         install: [{ tool: brew, args: [install, clang-format] }]
   csharp:
+    editor: { tab_width: 4, insert_spaces: true }
     extensions: [.cs]
     lsp:
       command: csharp-ls
       root_markers: [global.json, Directory.Build.props, .git]
       install: [{ tool: dotnet, args: [tool, install, --global, csharp-ls] }]
   zig:
+    editor: { tab_width: 4, insert_spaces: true }
     extensions: [.zig, .zon]
     lsp:
       command: zls
@@ -199,6 +211,7 @@ languages:
         on: [save, manual]
         install: [{ tool: brew, args: [install, zig] }]
   lua:
+    editor: { tab_width: 2, insert_spaces: true }
     extensions: [.lua]
     lsp:
       command: lua-language-server
@@ -212,6 +225,7 @@ languages:
           - { tool: brew, args: [install, stylua] }
           - { tool: cargo, args: [install, stylua] }
   ruby:
+    editor: { tab_width: 2, insert_spaces: true }
     extensions: [.rb, .rake, .gemspec, .ru]
     filenames: [Gemfile, Rakefile, Podfile, Vagrantfile]
     lsp:
@@ -219,6 +233,7 @@ languages:
       root_markers: [Gemfile]
       install: [{ tool: gem, args: [install, ruby-lsp] }]
   php:
+    editor: { tab_width: 4, insert_spaces: true }
     extensions: [.php]
     lsp:
       command: intelephense
@@ -226,6 +241,7 @@ languages:
       root_markers: [composer.json]
       install: [{ tool: npm, args: [install, -g, intelephense] }]
   proto:
+    editor: { tab_width: 2, insert_spaces: true }
     extensions: [.proto]
     lsp:
       command: protols
@@ -237,12 +253,14 @@ languages:
         on: [save, manual]
         install: [{ tool: brew, args: [install, bufbuild/buf/buf] }]
   yaml:
+    editor: { tab_width: 2, insert_spaces: true }
     extensions: [.yaml, .yml]
     lsp:
       command: yaml-language-server
       args: [--stdio]
       install: [{ tool: npm, args: [install, -g, yaml-language-server] }]
   toml:
+    editor: { tab_width: 4, insert_spaces: true }
     extensions: [.toml]
     filenames: [Cargo.lock, Pipfile, poetry.lock, uv.lock]
     lsp:
@@ -257,6 +275,7 @@ languages:
         on: [manual]
         install: [{ tool: brew, args: [install, taplo] }]
   json:
+    editor: { tab_width: 2, insert_spaces: true }
     extensions: [.json, .jsonc]
     lsp:
       command: vscode-json-language-server
@@ -305,12 +324,14 @@ languages:
   diff:
     extensions: [.diff, .patch]
   css:
+    editor: { tab_width: 2, insert_spaces: true }
     extensions: [.css]
     lsp:
       command: vscode-css-language-server
       args: [--stdio]
       install: [{ tool: npm, args: [install, -g, vscode-langservers-extracted] }]
   html:
+    editor: { tab_width: 2, insert_spaces: true }
     extensions: [.html, .htm]
     lsp:
       command: vscode-html-language-server

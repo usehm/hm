@@ -277,3 +277,40 @@ func TestLanguageFilesAddLanguages(t *testing.T) {
 		t.Fatalf("problems %v, want one in bad.yaml at line 1", ps)
 	}
 }
+
+func TestLanguageEditorOverrides(t *testing.T) {
+	user := Layer{Name: "user", Data: []byte(`
+editor:
+  tab_width: 8
+languages:
+  yaml:
+    editor: { auto_indent: keep, trim_trailing_whitespace: true }
+  go:
+    editor: { tab_width: 3 }
+`)}
+	cfg, ps := Load(user)
+	if len(ps) > 0 {
+		t.Fatal(ps)
+	}
+	y := cfg.Editor.For(cfg.Languages["yaml"].Editor)
+	if y.TabWidth != 2 || !y.InsertSpaces || y.AutoIndent != AutoIndentKeep || !y.TrimTrailingWhitespace {
+		t.Fatalf("yaml should merge the built-in and user overrides: %+v", y)
+	}
+	if g := cfg.Editor.For(cfg.Languages["go"].Editor); g.TabWidth != 3 || g.InsertSpaces {
+		t.Fatalf("go %+v", g)
+	}
+	if m := cfg.Editor.For(cfg.Languages["markdown"].Editor); m.TabWidth != 8 || m.AutoIndent != AutoIndentAdvanced {
+		t.Fatalf("a language without overrides keeps the editor section: %+v", m)
+	}
+
+	_, ps = Load(Layer{Name: "u", Data: []byte("languages:\n  go:\n    editor: { tab_width: 40, auto_indent: smart, tabsize: 2 }\n")})
+	got := map[string]bool{}
+	for _, p := range ps {
+		got[p.Key] = true
+	}
+	for _, k := range []string{"languages.go.editor.tab_width", "languages.go.editor.auto_indent", "languages.go.editor.tabsize"} {
+		if !got[k] {
+			t.Errorf("no problem for %s in %v", k, ps)
+		}
+	}
+}

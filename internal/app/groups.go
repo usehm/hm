@@ -158,6 +158,7 @@ func (a *App) groupOpen(g *editorGroup, path string) {
 	ed.SetSelection(off, off)
 	ed.ScrollPx = base.ScrollPx
 	a.attachVim(ed)
+	a.applyEditorSettings(ed, path)
 	g.mirrors[path] = &mirror{ed: ed, seenOwn: ed.Revision(), seenBase: base.Revision()}
 	g.paths = append(g.paths, path)
 	g.active = len(g.paths) - 1

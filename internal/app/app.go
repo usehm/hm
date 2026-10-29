@@ -233,6 +233,7 @@ func (a *App) OnKey(_ *ui.Ctx, k input.KeyEvent) bool {
 // attachEditor wires a new file editor to the app.
 func (a *App) attachEditor(ed *ui.Editor) {
 	a.attachVim(ed)
+	a.applyEditorSettings(ed, ed.Path)
 	ed.OnModClick = func(off int) bool {
 		if !a.lang.HasServer(ed.Path) {
 			return false

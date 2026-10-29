@@ -51,9 +51,11 @@ func (a *App) applyConfig(cfg config.Config) {
 	ui.EditorDefaults.LineNumbers = ed.LineNumbers
 	ui.EditorDefaults.ScrollPastEnd = ed.ScrollPastEnd
 	ui.EditorDefaults.IndentSpaces = ed.InsertSpaces
+	ui.EditorDefaults.AutoIndent = autoIndentModes[ed.AutoIndent]
 	for _, err := range a.lang.Apply(a.resolveQueryPaths(cfg.Languages)) {
 		a.notifs.Add(err.Error(), ui.ToastWarning)
 	}
+	a.applyAllEditorSettings()
 	if a.tree != nil {
 		hidden := ed.ShowHidden
 		a.tree.Hidden = func(name string, dir bool) bool {

@@ -28,7 +28,7 @@ func (a *App) formatRequest(ed *ui.Editor, trigger string) (lang.FormatRequest, 
 		if !m.Supports(path, "documentFormattingProvider") {
 			return req, false
 		}
-		edCfg := a.cfg.Current().Editor
+		edCfg := a.editorSettings(path)
 		opts := lsp.FormattingOptions{TabSize: edCfg.TabWidth, InsertSpaces: edCfg.InsertSpaces}
 		req.LSP = func(ctx context.Context, src []byte) ([]byte, error) {
 			edits, err := m.Format(ctx, path, opts)
@@ -122,7 +122,7 @@ func (a *App) saveFile(path string) error {
 	if ed == nil {
 		return nil
 	}
-	if a.cfg.Current().Editor.FormatOnSave && !a.isConfigPath(path) {
+	if a.editorSettings(path).FormatOnSave && !a.isConfigPath(path) {
 		if _, ok := a.formatRequest(ed, "save"); ok {
 			a.format(ed, "save", func() {
 				if a.bufs.Get(path) == ed {
@@ -141,13 +141,16 @@ func (a *App) saveFileNow(path string) error {
 	if ed == nil {
 		return nil
 	}
-	if a.cfg.Current().Editor.FormatOnSave && !a.isConfigPath(path) {
+	if a.editorSettings(path).FormatOnSave && !a.isConfigPath(path) {
 		a.formatNow(ed, "save")
 	}
 	return a.writeFile(path)
 }
 
 func (a *App) writeFile(path string) error {
+	if ed := a.bufs.Get(path); ed != nil {
+		a.trimTrailingWhitespace(ed)
+	}
 	if err := a.bufs.Save(path); err != nil {
 		return err
 	}

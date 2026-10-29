@@ -43,6 +43,11 @@ type Editor struct {
 	InsertSpaces bool   `yaml:"insert_spaces"`
 	SoftWrap     bool   `yaml:"soft_wrap"`
 	LineNumbers  bool   `yaml:"line_numbers"`
+	// AutoIndent is what Enter carries to the new line: none, keep (the
+	// line's indent) or advanced (one more level after an opening bracket).
+	AutoIndent string `yaml:"auto_indent"`
+	// TrimTrailingWhitespace strips blanks at line ends when saving.
+	TrimTrailingWhitespace bool `yaml:"trim_trailing_whitespace"`
 	// Keymap is default, or vim for Vim's modal editing.
 	Keymap string `yaml:"keymap"`
 	// ScrollPastEnd leaves room below the last line so it can scroll to the top.
@@ -52,6 +57,44 @@ type Editor struct {
 	// AutoSaveDelay is the idle time before a delayed auto save.
 	AutoSaveDelay Duration `yaml:"auto_save_delay"`
 	ShowHidden    bool     `yaml:"show_hidden"`
+}
+
+// Auto indent modes.
+const (
+	AutoIndentNone     = "none"
+	AutoIndentKeep     = "keep"
+	AutoIndentAdvanced = "advanced"
+)
+
+// EditorOverride is a language's editor settings; a field left out keeps
+// the editor section's value.
+type EditorOverride struct {
+	TabWidth               *int    `yaml:"tab_width"`
+	InsertSpaces           *bool   `yaml:"insert_spaces"`
+	AutoIndent             *string `yaml:"auto_indent"`
+	SoftWrap               *bool   `yaml:"soft_wrap"`
+	FormatOnSave           *bool   `yaml:"format_on_save"`
+	TrimTrailingWhitespace *bool   `yaml:"trim_trailing_whitespace"`
+}
+
+// For returns e with o's set fields applied.
+func (e Editor) For(o *EditorOverride) Editor {
+	if o == nil {
+		return e
+	}
+	set(&e.TabWidth, o.TabWidth)
+	set(&e.InsertSpaces, o.InsertSpaces)
+	set(&e.AutoIndent, o.AutoIndent)
+	set(&e.SoftWrap, o.SoftWrap)
+	set(&e.FormatOnSave, o.FormatOnSave)
+	set(&e.TrimTrailingWhitespace, o.TrimTrailingWhitespace)
+	return e
+}
+
+func set[T any](dst *T, v *T) {
+	if v != nil {
+		*dst = *v
+	}
 }
 
 // Auto save modes.
@@ -84,6 +127,8 @@ type Language struct {
 	HighlightQueries []string    `yaml:"highlight_queries"`
 	LSP              *LSP        `yaml:"lsp"`
 	Formatters       []Formatter `yaml:"formatters"`
+	// Editor overrides the editor section for this language's files.
+	Editor *EditorOverride `yaml:"editor"`
 }
 
 type LSP struct {
