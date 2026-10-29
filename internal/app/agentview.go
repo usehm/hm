@@ -547,6 +547,11 @@ func (a *App) questionCard(c *ui.Ctx, q *pendingQuestion) ui.View {
 	).Gap(th.Spacing.S).Padding(th.Spacing.M).BorderTop(ui.TokenAccent, th.Stroke.Thick).Background(ui.TokenChromeMuted)
 }
 
+// agentInput is the composer's text field.
+func agentInput(c *ui.Ctx) *ui.TextInput {
+	return c.Widget("agent-input", func() any { return ui.NewTextInput(ui.TextFieldConfig{Multiline: true}) }).(*ui.TextInput)
+}
+
 // composer is the message box with the mode and model pickers under it. A
 // fresh session shows it tall; once the chat starts it shrinks to grow with
 // its text.
@@ -558,7 +563,7 @@ func (a *App) composer(c *ui.Ctx, fresh bool) ui.View {
 		minRows, maxRows = 5, 14
 	}
 	// The box shows focus, not the field inside it.
-	tf := c.Widget("agent-input", func() any { return ui.NewTextInput(ui.TextFieldConfig{Multiline: true}) }).(*ui.TextInput)
+	tf := agentInput(c)
 	border := ui.TokenBorder
 	if tf.Focused() {
 		border = ui.TokenFocusRing

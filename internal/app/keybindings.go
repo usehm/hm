@@ -68,8 +68,6 @@ func (a *App) whenContext(c *ui.Ctx) map[string]bool {
 	if t := a.activeTerminal(); t != nil && a.panelOpen && a.panel == panelTerminal {
 		ctx["terminalFocus"] = t.view.Focused()
 	}
-	if tf, ok := c.Widget("agent-input", func() any { return nil }).(*ui.TextInput); ok && tf != nil {
-		ctx["agentFocus"] = tf.Focused()
-	}
+	ctx["agentFocus"] = agentInput(c).Focused()
 	return ctx
 }
