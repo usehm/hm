@@ -61,7 +61,7 @@ Fast where it can be, and quiet when you need to think.
 ### AI agent
 - Chat with the agent beside the editor or full screen; ask about a selection with `cmd+shift+l`.
 - Sessions in tabs, several working at once: `cmd+t` opens one, `ctrl+tab` / `ctrl+shift+tab` switch, and a spinner or dot marks a tab that is working, waiting for you or was interrupted.
-- Full screen, a sidebar replaces the explorer: Projects, Artifacts, a searchable history of every session (across all your folders, with sub-agents nested under the session that started them) and the agent's settings.
+- Full screen, a sidebar replaces the explorer: New chat, Projects, Artifacts, a filterable history of every session (across all your folders, with sub-agents nested under the session that started them) and Agent Settings.
 - Projects: a title, description and context that the agent is given before every task in the project's sessions. Pick one in the composer.
 - Type while the agent works: your message waits in a queue and reaches the agent after its current step.
 - Sessions are saved after every step. If hm stops mid-task, the session reopens marked as interrupted, with a **Resume** button.

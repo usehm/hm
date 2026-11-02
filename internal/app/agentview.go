@@ -197,7 +197,9 @@ func (a *App) agentHeader(c *ui.Ctx, r *agentRun, full bool) ui.View {
 	}
 	items = append(items, ui.Spacer())
 	if !full {
-		items = append(items, ui.Caption(a.agentUsage(r)).Tooltip("Tokens in (cached included) and out, and cost when known"))
+		// A narrow panel cuts the usage along with the title; the buttons stay.
+		items = append(items, ui.Caption(a.agentUsage(r)).Ellipsis(ui.EllipsisEnd).Shrink(1).
+			Tooltip("Tokens in (cached included) and out, and cost when known"))
 	}
 	items = append(items,
 		ui.IconButton(r.wid("undo"), icons.Undo2).Tooltip("Undo the last agent turn's file changes").
@@ -234,7 +236,7 @@ func (a *App) sessionMenu() []ui.MenuItem {
 	}
 	return append(items, ui.MenuSeparator,
 		ui.MenuItem{Label: "Projects", Icon: icons.FolderKanban, OnSelect: func() { a.openAgentPage(agentTabProjects, "") }},
-		ui.MenuItem{Label: "Agent settings", Icon: icons.Settings, OnSelect: func() { a.openAgentPage(agentTabSettings, "") }})
+		ui.MenuItem{Label: "Agent Settings", Icon: icons.Settings, OnSelect: func() { a.openAgentPage(agentTabSettings, "") }})
 }
 
 func sessionTitle(t string) string {
@@ -302,11 +304,11 @@ const agentColumnW = 880
 func (a *App) agentIntro(c *ui.Ctx) ui.View {
 	th := c.Theme()
 	tip := func(icon icons.Icon, text string) ui.View {
-		return ui.Row(ui.Icon(icon, th.Metrics.IconSizeSM, th.ForegroundMuted), ui.Muted(text)).Gap(th.Spacing.S)
+		return ui.Row(ui.Icon(icon, th.Metrics.IconSizeSM, th.ForegroundMuted), ui.Muted(text).Ellipsis(ui.EllipsisEnd).Shrink(1)).Gap(th.Spacing.S)
 	}
-	return ui.Center(ui.Column(
+	intro := ui.Column(
 		ui.Title("Hm"),
-		ui.Muted("Ask about this project, or tell the agent what to build or fix."),
+		ui.Row(ui.Muted("Ask about this project, or tell the agent what to build or fix.").Ellipsis(ui.EllipsisEnd).Shrink(1)),
 		ui.Column(
 			tip(icons.AtSign, "@file, @folder, @selection, @diagnostics or @git-diff add context"),
 			tip(icons.SlidersHorizontal, "/mode switches between lazy, rubber-duck, auto and fullstack"),
@@ -314,7 +316,10 @@ func (a *App) agentIntro(c *ui.Ctx) ui.View {
 			tip(icons.MessageSquarePlus, "Type while the agent works; it reads your message after its next step"),
 			tip(icons.SquareCode, "The title bar button, or "+a.key("agent.toggle")+", goes back to the editor"),
 		).Gap(th.Spacing.S).MarginXY(0, th.Spacing.M),
-	).Gap(th.Spacing.S).Align(ui.AlignStart))
+	).Gap(th.Spacing.S).Shrink(1)
+	// Centered by spacers rather than ui.Center, so a narrow pane shrinks
+	// the block and cuts its lines short instead of spilling past the pane.
+	return ui.Column(ui.Row(ui.Spacer(), intro, ui.Spacer())).Justify(ui.JustifyCenter).Grow(1)
 }
 
 // agentStatus is the footer's agent part, full screen: mode, model, usage.
@@ -329,13 +334,13 @@ func (a *App) agentStatus(c *ui.Ctx) []ui.View {
 		icon = icons.Bot
 	}
 	out := []ui.View{
-		ui.Row(ui.Icon(icon, 14, th.ForegroundMuted), ui.Caption(r.mode)).Gap(th.Spacing.XXS).Tooltip("Mode · /mode to switch"),
+		ui.Row(ui.Icon(icon, 14, th.ForegroundMuted), ui.Caption(r.mode)).Gap(th.Spacing.XXS).Shrink(0).Tooltip("Mode · /mode to switch"),
 	}
 	if m := a.modelOf(r.provider); m != "" {
-		out = append(out, ui.Caption(m).Tooltip(providerLabel(r.provider)))
+		out = append(out, ui.Caption(m).Ellipsis(ui.EllipsisEnd).Shrink(1).Tooltip(providerLabel(r.provider)))
 	}
 	if u := a.agentUsage(r); u != "" {
-		out = append(out, ui.Caption(u).Tooltip("Tokens in (cached included) and out, and cost when known"))
+		out = append(out, ui.Caption(u).Ellipsis(ui.EllipsisEnd).Shrink(1).Tooltip("Tokens in (cached included) and out, and cost when known"))
 	}
 	return out
 }
@@ -608,7 +613,7 @@ func (a *App) approvalCard(c *ui.Ctx, r *agentRun, p *pendingApproval) ui.View {
 	}
 	rows := []ui.View{ui.Strong(title)}
 	if req.Reason != "" {
-		rows = append(rows, ui.Caption("Asking because "+req.Reason).Style(ui.Spec{}.TextColor(ui.TokenWarning)))
+		rows = append(rows, ui.Paragraph("Asking because "+req.Reason).Size(th.Typography.Caption.Size).Style(ui.Spec{}.TextColor(ui.TokenWarning)))
 	}
 	if len(p.files) == 0 {
 		rows = append(rows, ui.Column(ui.Paragraph(req.Plan.Summary).Style(ui.Spec{}.FontWeight(600))).
@@ -652,7 +657,8 @@ func (a *App) approvalCard(c *ui.Ctx, r *agentRun, p *pendingApproval) ui.View {
 		allow = "Apply selected"
 	}
 	actions = append(actions, ui.Button(r.wid("approval-allow"), ui.Text(allow)).Primary().OnClick(func() { a.answerApproval(r, true, false) }))
-	rows = append(rows, ui.Row(actions...).Gap(th.Spacing.XS))
+	// A narrow panel wraps the buttons rather than cut them off.
+	rows = append(rows, ui.Row(actions...).Gap(th.Spacing.XS).Wrap())
 	return ui.Column(rows...).Gap(th.Spacing.S).Padding(th.Spacing.M).
 		BorderTop(ui.TokenAccent, th.Stroke.Thick).Background(ui.TokenChromeMuted)
 }
@@ -801,7 +807,7 @@ func (a *App) composerModel(r *agentRun) ui.View {
 	case label == "":
 		label = providerLabel(r.provider)
 	}
-	return ui.MenuButton(r.wid("model"), label, items).Ghost().Disabled(r.running)
+	return ui.MenuButton(r.wid("model"), label, items).Ghost().Shrink(1).Disabled(r.running)
 }
 
 // projectPicker picks the project whose context the session starts with.
@@ -820,7 +826,7 @@ func (a *App) projectPicker(r *agentRun) ui.View {
 	if p, ok := a.agent.projects.Get(s.ProjectID); ok {
 		label = p.Title
 	}
-	return ui.MenuButton(r.wid("project"), label, items).IconStart(icons.FolderKanban).Ghost().
+	return ui.MenuButton(r.wid("project"), label, items).IconStart(icons.FolderKanban).Ghost().Shrink(1).
 		Disabled(r.running || len(s.Snapshot()) > 0)
 }
 

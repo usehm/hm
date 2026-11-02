@@ -301,12 +301,13 @@ func (a *App) sessionList() []agent.Summary {
 	return st.sessions
 }
 
-// agentSidebar is the explorer's place while the agent is full screen:
-// projects, artifacts, the session history with a filter, and settings.
+// agentSidebar is the explorer's place while the agent is full screen: a
+// new session, projects, artifacts, the session history with a filter, and
+// settings.
 func (a *App) agentSidebar(c *ui.Ctx) ui.View {
 	th := c.Theme()
 	st := &a.agent
-	nav := func(id, label string, icon icons.Icon, kind string) ui.View {
+	nav := func(id, label string, icon icons.Icon, kind string) *ui.Node {
 		b := ui.Button(id, ui.Text(label)).Ghost().HoverFill().IconStart(icon).Justify(ui.JustifyStart).
 			OnClick(func() { a.openAgentPage(kind, "") })
 		if t := a.activeAgentTab(); t != nil && t.kind == kind {
@@ -320,26 +321,47 @@ func (a *App) agentSidebar(c *ui.Ctx) ui.View {
 		if st.sideQuery != "" {
 			msg = "No sessions match"
 		}
-		rows = append(rows, ui.Muted(msg).PaddingXY(th.Spacing.S, th.Spacing.XS))
+		// Lined up with the session titles, past a row's padding and mark.
+		rows = append(rows, ui.Muted(msg).PaddingLeft(th.Spacing.XS+8+th.Spacing.S).PaddingTop(th.Spacing.XS))
 	}
-	return ui.Column(
+	filter := ui.IconButton("agent-side-filter-toggle", icons.ListFilter).Tooltip("Filter sessions").OnClick(func() {
+		st.sideFilter = !st.sideFilter
+		st.sideFocus = st.sideFilter
+		if !st.sideFilter {
+			st.sideQuery = ""
+		}
+	})
+	if st.sideFilter {
+		filter = filter.Background(ui.TokenListActive)
+	}
+	col := []ui.View{
 		ui.Column(
+			ui.Button("agent-side-new", ui.Text("New chat")).Ghost().HoverFill().IconStart(icons.SquarePen).Justify(ui.JustifyStart).
+				Tooltip("New session ("+a.key("agent.newTab")+")").OnClick(a.newAgentSession),
 			nav("agent-side-projects", "Projects", icons.FolderKanban, agentTabProjects),
 			nav("agent-side-artifacts", "Artifacts", icons.Package, agentTabArtifacts),
 		).Gap(th.Spacing.XXS).PaddingXY(th.Spacing.S, th.Spacing.S),
 		ui.Row(
 			ui.Caption("SESSIONS").Grow(1),
-			ui.IconButton("agent-side-new", icons.SquarePen).Tooltip("New session").OnClick(a.newAgentSession),
+			filter,
 		).Align(ui.AlignCenter).Height(30).PaddingLeft(th.Spacing.M).PaddingRight(th.Spacing.XS),
-		ui.TextField("agent-side-filter", st.sideQuery).
+	}
+	if st.sideFilter {
+		col = append(col, ui.TextField("agent-side-filter", st.sideQuery).
 			Placeholder("Search sessions").
 			IconStart(icons.Search).
+			FocusNow(st.sideFocus).
 			OnChange(func(q string) { st.sideQuery = q }).
-			MarginXY(th.Spacing.S, th.Spacing.XS),
-		ui.Scroll("agent-side-sessions", ui.Column(rows...).Gap(th.Spacing.XXS).PaddingXY(th.Spacing.S, th.Spacing.XS)).Grow(1),
-		ui.Column(nav("agent-side-settings", "Settings", icons.Settings, agentTabSettings)).
+			MarginXY(th.Spacing.S, th.Spacing.XS))
+		st.sideFocus = false
+	}
+	col = append(col,
+		ui.Scroll("agent-side-sessions", ui.Column(rows...).Gap(th.Spacing.XXS).PaddingXY(th.Spacing.S, th.Spacing.XS)).
+			Background(ui.TokenChrome).Grow(1),
+		ui.Column(nav("agent-side-settings", "Agent Settings", icons.Settings, agentTabSettings)).
 			PaddingXY(th.Spacing.S, th.Spacing.S).BorderTop(ui.TokenBorder, th.Stroke.Thin),
-	).Grow(1).Background(ui.TokenChrome)
+	)
+	return ui.Column(col...).Grow(1).Background(ui.TokenChrome)
 }
 
 // sidebarSessions are the session rows matching the filter, each followed
@@ -377,8 +399,8 @@ func (a *App) sessionMatches(s agent.Summary, q string) bool {
 	return strings.Contains(hay, q)
 }
 
-// sessionRow is one session in the sidebar: a status mark, the title, and
-// where and when it ran, with a menu to rename or remove it.
+// sessionRow is one session in the sidebar: a status mark and the title,
+// with a menu, shown on hover, to rename or remove it.
 func (a *App) sessionRow(c *ui.Ctx, s agent.Summary, child bool) ui.View {
 	th := c.Theme()
 	id := s.ID
@@ -398,37 +420,39 @@ func (a *App) sessionRow(c *ui.Ctx, s agent.Summary, child bool) ui.View {
 	default:
 		mark = statusDot(render.Color{}).Tooltip("")
 	}
-	meta := ago(s.Updated)
-	if s.Root != "" && s.Root != a.ws.Root {
-		meta = filepath.Base(s.Root) + " · " + meta
-	}
-	if p, ok := a.agent.projects.Get(s.ProjectID); ok {
-		meta = p.Title + " · " + meta
-	}
 	title := sessionTitle(s.Title)
 	if child {
 		title = "↳ " + title
 	}
 	body := ui.Row(
 		mark,
-		ui.Column(
-			ui.Text(title).Ellipsis(ui.EllipsisEnd),
-			ui.Caption(meta).Ellipsis(ui.EllipsisEnd),
-		).Gap(0).Grow(1).Shrink(1),
-	).Gap(th.Spacing.S).Align(ui.AlignCenter).Grow(1)
-	h := th.Typography.Body.LineHeight + th.Typography.Caption.LineHeight + 2*th.Spacing.XS
-	btn := ui.Button("agent-side-s-"+id, body).Ghost().HoverFill().Height(h).Grow(1).Shrink(1).
-		Tooltip(s.Updated.Format("Mon Jan 2 2006, 15:04")).
-		OnClick(func() { a.resumeAgentSession(id) })
+		ui.Text(title).Ellipsis(ui.EllipsisEnd).Grow(1).Shrink(1),
+	).Gap(th.Spacing.S).Align(ui.AlignCenter).Grow(1).Shrink(1)
+	active := false
 	if t := a.activeAgentTab(); t != nil && t.kind == agentTabSession && t.id() == id {
-		btn = btn.Background(ui.TokenListActive)
+		active = true
 	}
-	row := ui.Row(btn,
-		ui.IconButton("agent-side-more-"+id, icons.Ellipsis).Tooltip("More").Menu([]ui.MenuItem{
-			{Label: "Rename…", Icon: icons.Pencil, OnSelect: func() { a.renameSession(id) }},
-			{Label: "Remove", Icon: icons.Trash2, Danger: true, OnSelect: func() { a.removeSession(id) }},
-		}),
-	).Gap(th.Spacing.XXS).Align(ui.AlignCenter)
+	// The menu button takes the row's height, so rows sit as close as the
+	// nav buttons above them.
+	h := th.Typography.Body.LineHeight + 2*th.Spacing.XXS
+	row := ui.HoverGroup("agent-side-row-"+id, func(hovered bool) ui.View {
+		btn := ui.Button("agent-side-s-"+id, body).Ghost().HoverFill().Grow(1).Shrink(1).
+			Tooltip(sessionTitle(s.Title)).
+			OnClick(func() { a.resumeAgentSession(id) })
+		switch {
+		case active:
+			btn = btn.Background(ui.TokenListActive)
+		case hovered:
+			// Lit while the pointer is on the menu button too.
+			btn = btn.Background(ui.TokenListHover)
+		}
+		return ui.Row(btn,
+			ui.IconButton("agent-side-more-"+id, icons.Ellipsis).Height(h).Tooltip("More").Reveal(hovered).Menu([]ui.MenuItem{
+				{Label: "Rename…", Icon: icons.Pencil, OnSelect: func() { a.renameSession(id) }},
+				{Label: "Remove", Icon: icons.Trash2, Danger: true, OnSelect: func() { a.removeSession(id) }},
+			}),
+		).Gap(th.Spacing.XXS).Align(ui.AlignCenter)
+	})
 	if child {
 		row = row.PaddingLeft(th.Spacing.M)
 	}
@@ -494,7 +518,7 @@ func (a *App) projectsPage(c *ui.Ctx) ui.View {
 	head := ui.Row(
 		ui.Column(
 			ui.Title("Projects"),
-			ui.Caption("A project's context is given to the agent before every task in its sessions."),
+			ui.Row(ui.Caption("A project's context is given to the agent before every task in its sessions.").Ellipsis(ui.EllipsisEnd).Shrink(1)),
 		).Gap(th.Spacing.XXS).Grow(1).Shrink(1),
 		ui.Button("projects-new", ui.Text("New project")).Primary().IconStart(icons.Plus).
 			OnClick(func() { a.openAgentPage(agentTabProject, "new") }),

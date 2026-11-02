@@ -52,6 +52,20 @@ func (a *App) settingsPage(c *ui.Ctx) ui.View {
 // settingsPageOf is the settings page limited to the categories in only
 // (every one when nil), the selected one kept in *sel.
 func (a *App) settingsPageOf(c *ui.Ctx, only []string, sel *string) ui.View {
+	id := "settings-page"
+	if only != nil {
+		id = "settings-page-agent"
+	}
+	return ui.Responsive(id, func(w float32) ui.View {
+		return a.settingsLayout(c, only, sel, w > 0 && w < settingsCompactW)
+	}).Grow(1)
+}
+
+// settingsCompactW is the page width below which the category list folds
+// into a menu on the title, leaving the form the whole width.
+const settingsCompactW = 680
+
+func (a *App) settingsLayout(c *ui.Ctx, only []string, sel *string, compact bool) ui.View {
 	th := c.Theme()
 	user, project := a.cfg.Paths()
 	target := user
@@ -76,10 +90,14 @@ func (a *App) settingsPageOf(c *ui.Ctx, only []string, sel *string) ui.View {
 			title = sc.label
 		}
 	}
+	var heading ui.View = ui.Title(title)
+	if compact {
+		heading = a.settingsCatMenu(c, cat, only, sel)
+	}
 	body := []ui.View{ui.Row(
 		ui.Column(
-			ui.Title(title),
-			ui.Caption("Writes to "+a.ws.Rel(target)).Ellipsis(ui.EllipsisMiddle),
+			heading,
+			ui.Row(ui.Caption("Writes to "+a.ws.Rel(target)).Ellipsis(ui.EllipsisMiddle).Shrink(1)),
 		).Gap(th.Spacing.XXS).Grow(1).Shrink(1),
 		ui.Segmented("settings-scope", settingsScopes...).Selected(scope).
 			Tooltip("Which config file changes are saved to").
@@ -93,10 +111,44 @@ func (a *App) settingsPageOf(c *ui.Ctx, only []string, sel *string) ui.View {
 		body = append(body, ui.Alert("Settings were not applied: "+msg, ui.AlertError))
 	}
 	body = append(body, a.settingsSection(c, cat))
+	pad := th.Spacing.XL
+	if compact {
+		pad = th.Spacing.M
+	}
 	content := ui.Scroll("settings-scroll",
-		ui.Column(body...).Gap(th.Spacing.L).PaddingXY(th.Spacing.XL, th.Spacing.XL).MaxWidth(800),
+		ui.Column(body...).Gap(th.Spacing.L).PaddingXY(pad, pad).MaxWidth(800),
 	).Grow(1)
+	if compact {
+		return ui.Column(content).Grow(1)
+	}
 	return ui.Row(a.settingsNav(c, cat, target, only, sel), content).Align(ui.AlignStretch).Grow(1)
+}
+
+// settingsCatMenu is the page title as a menu of the categories and the
+// YAML links, standing in for the side list on a narrow page.
+func (a *App) settingsCatMenu(c *ui.Ctx, cat string, only []string, sel *string) ui.View {
+	var items []ui.MenuItem
+	label := ""
+	group := -1
+	for _, sc := range settingsCategories {
+		if only != nil && !slices.Contains(only, sc.id) {
+			continue
+		}
+		if group >= 0 && sc.group != group {
+			items = append(items, ui.MenuSeparator)
+		}
+		group = sc.group
+		id := sc.id
+		if id == cat {
+			label = sc.label
+		}
+		items = append(items, ui.MenuItem{Label: sc.label, Icon: sc.icon, Checked: id == cat, OnSelect: func() { *sel = id }})
+	}
+	items = append(items, ui.MenuSeparator,
+		ui.MenuItem{Label: "Edit as YAML", Icon: icons.FileCode, OnSelect: func() { a.openConfigYAML(a.settingsProject) }},
+		ui.MenuItem{Label: "View defaults", Icon: icons.FileText, OnSelect: a.openDefaults},
+	)
+	return ui.Row(ui.MenuButton("settings-cat-menu", label, items).Ghost().Shrink(1))
 }
 
 // settingsNav lists the categories in groups, then links to the YAML files

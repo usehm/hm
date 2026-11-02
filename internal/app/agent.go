@@ -46,6 +46,9 @@ type agentState struct {
 	sessions      []agent.Summary
 	sessionsStale bool
 	sideQuery     string
+	// sideFilter shows the sidebar's session filter field; sideFocus moves
+	// focus to it on the next build.
+	sideFilter, sideFocus bool
 	// drafts are the project tabs' unsaved forms, by tab key.
 	drafts map[string]*agent.Project
 	// settingsCat is the category the agent's settings tab shows.

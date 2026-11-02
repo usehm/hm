@@ -95,6 +95,7 @@ func (a *App) center(c *ui.Ctx) ui.View {
 		Edge(ui.EdgeRight).
 		Push().
 		Size(380).
+		MinSize(280).
 		Resizable(true).
 		OnOpenChange(a.setAgentOpen).
 		Grow(1)
@@ -267,18 +268,20 @@ func (a *App) breadcrumb(c *ui.Ctx, path string, trailing ...ui.View) ui.View {
 
 func (a *App) welcome(c *ui.Ctx) ui.View {
 	th := c.Theme()
-	return ui.Center(
-		ui.Column(
-			ui.Title("hm"),
-			ui.Muted("Editor and coding agent"),
-			ui.Row(
-				ui.Button("welcome-open", ui.Text("Open Folder")).Primary().IconStart(icons.FolderOpen).OnClick(a.askOpenFolder),
-				ui.Button("welcome-files", ui.Text("Go to File")).IconStart(icons.Search).Hint("⌘P").OnClick(a.showQuickOpen),
-				ui.Button("welcome-palette", ui.Text("Commands")).IconStart(icons.Command).Hint(c.Commands().ToggleLabel()).
-					OnClick(func() { c.Commands().Show() }),
-			).Gap(th.Spacing.S),
-		).Gap(th.Spacing.M).Align(ui.AlignCenter),
-	).Grow(1)
+	center := func(v ui.View) ui.View { return ui.Row(v).Justify(ui.JustifyCenter) }
+	// Centered by spacers rather than ui.Center, so beside the agent panel
+	// the buttons wrap instead of running past the editor's edges.
+	inner := ui.Column(
+		center(ui.Title("hm")),
+		center(ui.Muted("Editor and coding agent")),
+		ui.Row(
+			ui.Button("welcome-open", ui.Text("Open Folder")).Primary().IconStart(icons.FolderOpen).OnClick(a.askOpenFolder),
+			ui.Button("welcome-files", ui.Text("Go to File")).IconStart(icons.Search).Hint("⌘P").OnClick(a.showQuickOpen),
+			ui.Button("welcome-palette", ui.Text("Commands")).IconStart(icons.Command).Hint(c.Commands().ToggleLabel()).
+				OnClick(func() { c.Commands().Show() }),
+		).Gap(th.Spacing.S).Wrap().Justify(ui.JustifyCenter),
+	).Gap(th.Spacing.M).Align(ui.AlignStretch).Shrink(1).PaddingXY(th.Spacing.M, 0)
+	return ui.Column(ui.Row(ui.Spacer(), inner, ui.Spacer())).Justify(ui.JustifyCenter).Grow(1)
 }
 
 func (a *App) footer(c *ui.Ctx) ui.View {
