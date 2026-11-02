@@ -17,6 +17,11 @@ import (
 // builtinSkillsDir is where the bundled skills are written for the agent.
 func builtinSkillsDir() string { return filepath.Join(config.UserDir(), "skills-builtin") }
 
+// readOnlyTools are what a sub-agent without write may use: reading,
+// searching, the web, and the other agents.
+var readOnlyTools = []string{"read", "ls", "glob", "grep", "search_project", "lsp_*", "git_status", "git_diff",
+	"git_log", "web_search", "web_fetch", "todo", "skill", "task", "send_message", "wait_message", "list_agents"}
+
 // toolset is what one agent turn may use.
 type toolset struct {
 	reg       *tools.Registry
@@ -28,10 +33,10 @@ type toolset struct {
 // agentToolset builds the tools for a mode: built-ins, the editor's
 // language tools, web tools, the config's command tools, MCP tools and the
 // skill tool. The mode's tool list filters all of them.
-func (a *App) agentToolset(mode agent.Mode) toolset {
+func (a *App) agentToolset(r *agentRun, mode agent.Mode) toolset {
 	cfg := a.cfg.Current()
 	st := &a.agent
-	all := tools.Builtin(st.shells, st.todos)
+	all := tools.Builtin(r.shells, r.todos)
 	all = append(all, tools.CodeTools(agentCode{a})...)
 	all = append(all, tools.WebTools(cfg.Tools.Web.Search)...)
 	builtinNames := map[string]bool{}
@@ -60,7 +65,11 @@ func (a *App) agentToolset(mode agent.Mode) toolset {
 			rules[k] = v
 		}
 	}
+	all = append(all, tools.AgentTools(agentLink{a, r}, r.depth < cfg.Agent.Subagents.MaxDepth)...)
 	reg := tools.NewRegistry(all...).Filter(mode.Tools)
+	if r.parent != nil && !r.write {
+		reg = reg.Filter(readOnlyTools)
+	}
 
 	var ts toolset
 	dirs := skills.Dirs(builtinSkillsDir(), cfg.Tools.Skills.Paths, a.ws.Root)

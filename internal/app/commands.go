@@ -10,9 +10,10 @@ import (
 
 // Scopes keep long lists out of the main palette.
 const (
-	scopeFiles  = "files"
-	scopeThemes = "themes"
-	scopeTabs   = "tabs"
+	scopeFiles     = "files"
+	scopeThemes    = "themes"
+	scopeTabs      = "tabs"
+	scopeAgentTabs = "agentTabs"
 	// scopeLocations lists references, definitions and symbols.
 	scopeLocations = "locations"
 )
@@ -33,7 +34,15 @@ func (a *App) registerCommands(c *ui.Ctx) {
 		ui.Cmd("file.newFile").Title("New File…").Shortcut(a.key("file.newFile")).Icon(icons.FilePlus).Run(func() { a.newEntry(a.newFileDir(), false) }),
 		ui.Cmd("file.save").Title("Save").Shortcut(a.key("file.save")).Icon(icons.Save).Enabled(hasEd).Run(a.save),
 		ui.Cmd("file.saveAll").Title("Save All").Shortcut(a.key("file.saveAll")).Icon(icons.Save).Run(func() { a.saveAll(false) }),
-		ui.Cmd("file.close").Title("Close Tab").Shortcut(a.key("file.close")).Icon(icons.X).Enabled(a.ws.ActiveTab() != nil).Run(func() { a.closeTab(a.ws.Active) }),
+		ui.Cmd("file.close").Title("Close Tab").Shortcut(a.key("file.close")).Icon(icons.X).
+			Enabled(a.ws.ActiveTab() != nil || a.agentShowsAlone()).Run(func() {
+			// Full screen, the agent's tabs are the ones in view.
+			if a.agentShowsAlone() {
+				a.closeAgentTab(a.agent.active)
+				return
+			}
+			a.closeTab(a.ws.Active)
+		}),
 		ui.Cmd("tabs.closeOthers").Title("Close Other Tabs").Shortcut(a.key("tabs.closeOthers")).Icon(icons.X).
 			Enabled(len(a.ws.Tabs) > 1).Run(func() { a.closeOthers(a.ws.Active) }),
 		ui.Cmd("tabs.closeRight").Title("Close Tabs to the Right").Shortcut(a.key("tabs.closeRight")).Icon(icons.X).
@@ -139,8 +148,24 @@ func (a *App) registerCommands(c *ui.Ctx) {
 		ui.Cmd("panel.output").Title("Toggle Output").Icon(icons.ScrollText).Run(func() { a.togglePanel(panelOutput) }),
 		ui.Cmd("panel.close").Title("Close Panel").Icon(icons.PanelBottomClose).Enabled(a.panelOpen).Run(func() { a.panelOpen = false }),
 		ui.Cmd("agent.new").Title("Agent: New Session").Icon(icons.SquarePen).Run(func() { a.agentOpen = true; a.newAgentSession() }),
-		ui.Cmd("agent.undo").Title("Agent: Undo Last Turn").Icon(icons.Undo2).Enabled(a.agent.lastCheckpoint != nil).Run(a.undoAgentTurn),
-		ui.Cmd("agent.stop").Title("Agent: Stop").Icon(icons.Square).Enabled(a.agent.running).Run(a.stopAgent),
+		ui.Cmd("agent.newTab").Title("Agent: New Session Tab").Shortcut(a.key("agent.newTab")).Icon(icons.Plus).
+			Enabled(a.agentOpen).Run(a.newAgentSession),
+		ui.Cmd("agent.closeTab").Title("Agent: Close Tab").Shortcut(a.key("agent.closeTab")).Icon(icons.X).
+			Enabled(a.agentOpen && len(a.agent.tabs) > 0).Run(func() { a.closeAgentTab(a.agent.active) }),
+		ui.Cmd("agent.nextTab").Title("Agent: Next Tab").Shortcut(a.key("agent.nextTab")).Icon(icons.ChevronRight).
+			Enabled(a.agentOpen && len(a.agent.tabs) > 1).Run(func() { a.cycleAgentTab(1) }),
+		ui.Cmd("agent.prevTab").Title("Agent: Previous Tab").Shortcut(a.key("agent.prevTab")).Icon(icons.ChevronLeft).
+			Enabled(a.agentOpen && len(a.agent.tabs) > 1).Run(func() { a.cycleAgentTab(-1) }),
+		ui.Cmd("agent.tabs").Title("Agent: Go to Tab…").Shortcut(a.key("agent.tabs")).Icon(icons.Layers).
+			Enabled(len(a.agent.tabs) > 0).Run(func() { c.Commands().ShowScope(scopeAgentTabs, "Go to agent tab") }),
+		ui.Cmd("agent.projects").Title("Agent: Projects").Icon(icons.FolderKanban).Run(func() { a.openAgentPage(agentTabProjects, "") }),
+		ui.Cmd("agent.settings").Title("Agent: Settings").Icon(icons.Settings).Run(func() { a.openAgentPage(agentTabSettings, "") }),
+		ui.Cmd("agent.undo").Title("Agent: Undo Last Turn").Icon(icons.Undo2).Enabled(a.run() != nil && a.run().lastCheckpoint != nil).Run(func() {
+			if r := a.run(); r != nil {
+				a.undoAgentTurn(r)
+			}
+		}),
+		ui.Cmd("agent.stop").Title("Agent: Stop").Icon(icons.Square).Enabled(a.run() != nil && a.run().running).Run(a.stopAgent),
 		ui.Cmd("agent.askSelection").Title("Ask Agent About Selection").Shortcut(a.key("agent.askSelection")).Icon(icons.Bot).
 			Enabled(hasEd && ed.HasSelection()).Run(a.askAboutSelection),
 		ui.Cmd("agent.toggle").Title("Toggle Agent").Shortcut(a.key("agent.toggle")).Icon(icons.Bot).Run(a.toggleAgent),
@@ -157,6 +182,12 @@ func (a *App) registerCommands(c *ui.Ctx) {
 	for _, name := range theme.Names() {
 		n := name
 		cmds = append(cmds, ui.Item("theme."+n).Title(n).Icon(icons.Palette).Scope(scopeThemes).Run(func() { a.setUserSetting([]string{"editor", "theme"}, n) }))
+	}
+	for i, t := range a.agent.tabs {
+		i := i
+		m := a.agentTabModel(c, t)
+		cmds = append(cmds, ui.Item("agenttab."+itoa(i)+"."+t.id()).Title(m.Title).Detail(t.kind).
+			Icon(m.Icon).Scope(scopeAgentTabs).Run(func() { a.agentOpen = true; a.focusAgentTab(i) }))
 	}
 	for i, t := range a.ws.Tabs {
 		i := i

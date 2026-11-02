@@ -98,12 +98,15 @@ func (a *App) reloadConfig() {
 	}
 	// New defaults reach the agent unless the user picked another mode or
 	// provider for this session.
-	if st := &a.agent; !st.running {
-		if st.mode == before.Agent.DefaultMode {
-			st.mode = cfg.Agent.DefaultMode
+	for _, r := range a.runs() {
+		if r.running {
+			continue
 		}
-		if st.provider == before.Agent.DefaultProvider {
-			st.provider = cfg.Agent.DefaultProvider
+		if r.mode == before.Agent.DefaultMode {
+			r.mode = cfg.Agent.DefaultMode
+		}
+		if r.provider == before.Agent.DefaultProvider {
+			r.provider = cfg.Agent.DefaultProvider
 		}
 	}
 	a.toast("Settings applied", ui.ToastSuccess)

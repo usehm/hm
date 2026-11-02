@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -19,90 +20,239 @@ func sortStrings(s []string) { sort.Strings(s) }
 // maxResultLines is how much of a tool result a card shows opened.
 const maxResultLines = 40
 
+// agentView is the agent docked beside the editor: the tab strip, then the
+// active tab.
 func (a *App) agentView(c *ui.Ctx) ui.View {
 	th := c.Theme()
-	st := &a.agent
-	body := []ui.View{a.agentHeader(c, false)}
-	switch {
-	case st.sessionsOpen:
-		body = append(body, a.sessionList(c))
-	case a.agentFresh():
+	a.ensureAgentTab()
+	t := a.activeAgentTab()
+	var body ui.View
+	if t.run != nil {
+		body = a.sessionPanel(c, t.run)
+	} else {
+		body = a.agentPage(c, t)
+	}
+	return ui.Column(a.agentTabStrip(c, false), ui.ViewOf(body).Grow(1)).
+		Grow(1).Background(ui.TokenChrome).BorderLeft(ui.TokenBorder, th.Stroke.Thin)
+}
+
+// sessionPanel is a session in the docked agent.
+func (a *App) sessionPanel(c *ui.Ctx, r *agentRun) ui.View {
+	th := c.Theme()
+	body := []ui.View{a.agentHeader(c, r, false)}
+	if a.agentFresh(r) {
 		// Before the first message the composer sits at the top, tall.
-		body = append(body, ui.Column(a.composer(c, true), ui.Caption(
+		body = append(body, ui.Column(a.composer(c, r, true), ui.Caption(
 			"Enter to send · Shift+Enter for a new line")).
 			Gap(th.Spacing.S).Padding(th.Spacing.M))
-		if st.errText != "" {
-			body = append(body, a.agentError(c))
+		if r.errText != "" {
+			body = append(body, a.agentError(c, r))
 		}
 		body = append(body, ui.Spacer())
-		return ui.Column(body...).Grow(1).Background(ui.TokenChrome).BorderLeft(ui.TokenBorder, th.Stroke.Thin)
-	default:
-		body = append(body, a.transcript(c))
+		return ui.Column(body...).Grow(1)
 	}
-	if t := a.todoView(c); t != nil {
-		body = append(body, t)
+	body = append(body, a.transcript(c, r))
+	body = append(body, a.sessionFooter(c, r)...)
+	if !r.replay {
+		body = append(body, ui.Column(a.composer(c, r, false)).Padding(th.Spacing.S))
 	}
-	if p := st.approval; p != nil {
-		body = append(body, a.approvalCard(c, p))
+	return ui.Column(body...).Grow(1)
+}
+
+// sessionFooter is what sits between the transcript and the composer: the
+// replay controls, the interrupted notice, tasks, cards waiting for the
+// user, errors and queued messages.
+func (a *App) sessionFooter(c *ui.Ctx, r *agentRun) []ui.View {
+	var out []ui.View
+	if r.replay {
+		return append(out, a.replayBar(c, r))
 	}
-	if q := st.question; q != nil {
-		body = append(body, a.questionCard(c, q))
+	if v := a.interruptedNotice(c, r); v != nil {
+		out = append(out, v)
 	}
-	if st.errText != "" {
-		body = append(body, a.agentError(c))
+	if t := a.todoView(c, r); t != nil {
+		out = append(out, t)
 	}
-	body = append(body, ui.Column(a.composer(c, false)).Padding(th.Spacing.S))
-	return ui.Column(body...).Grow(1).Background(ui.TokenChrome).BorderLeft(ui.TokenBorder, th.Stroke.Thin)
+	if p := r.approval; p != nil {
+		out = append(out, a.approvalCard(c, r, p))
+	}
+	if q := r.question; q != nil {
+		out = append(out, a.questionCard(c, r, q))
+	}
+	if r.errText != "" {
+		out = append(out, a.agentError(c, r))
+	}
+	if v := a.queueView(c, r); v != nil {
+		out = append(out, v)
+	}
+	return out
 }
 
 // agentFresh reports whether the session has nothing in it yet.
-func (a *App) agentFresh() bool {
-	st := &a.agent
-	return !st.running && (st.session == nil || len(st.session.Snapshot()) == 0)
+func (a *App) agentFresh(r *agentRun) bool {
+	return !r.running && len(r.session.Snapshot()) == 0
 }
 
-func (a *App) agentError(c *ui.Ctx) ui.View {
+func (a *App) agentError(c *ui.Ctx, r *agentRun) ui.View {
 	th := c.Theme()
-	st := &a.agent
 	return ui.Row(
-		ui.Paragraph(st.errText).Style(ui.Spec{}.TextColor(ui.TokenError)).Grow(1),
-		ui.IconButton("agent-err-close", icons.X).OnClick(func() { st.errText = "" }),
+		ui.Paragraph(r.errText).Style(ui.Spec{}.TextColor(ui.TokenError)).Grow(1),
+		ui.IconButton(r.wid("err-close"), icons.X).OnClick(func() { r.errText = "" }),
 	).Gap(th.Spacing.XS).PaddingXY(th.Spacing.M, th.Spacing.XXS)
 }
 
-// agentHeader is the agent's toolbar. Full screen, usage moves to the footer
-// and there is nothing to close: the title bar switches back to the editor.
-func (a *App) agentHeader(c *ui.Ctx, full bool) ui.View {
-	th := c.Theme()
-	st := &a.agent
-	title := "Agent"
-	if full && st.session != nil && st.session.Title != "" {
-		title = st.session.Title
+// wid is a widget id unique to r, so tabs keep their own scroll, focus and
+// hover.
+func (r *agentRun) wid(name string) string { return "agent-" + r.session.ID + "-" + name }
+
+// interruptedNotice offers to continue a session whose turn was cut off
+// when hm stopped.
+func (a *App) interruptedNotice(c *ui.Ctx, r *agentRun) ui.View {
+	if r.running || r.session.StatusNow() != agent.StatusInterrupted {
+		return nil
 	}
-	items := []ui.View{ui.Strong(title).Ellipsis(ui.EllipsisEnd).Shrink(1), ui.Spacer()}
+	th := c.Theme()
+	dismiss := func() {
+		r.session.SetStatus(agent.StatusIdle)
+		_ = a.agent.store.Save(r.session)
+	}
+	return ui.Row(
+		ui.Icon(icons.TriangleAlert, th.Metrics.IconSizeSM, th.Warning),
+		ui.Paragraph("This task was interrupted when hm stopped. Background shells and "+
+			"\"allow for session\" answers did not survive.").Grow(1),
+		ui.Button(r.wid("resume"), ui.Text("Resume")).Primary().OnClick(func() {
+			dismiss()
+			if err := a.startTurn(r, "hm stopped in the middle of your last turn. Check what was done, then continue the task where you left off."); err != nil {
+				r.errText = err.Error()
+			}
+		}),
+		ui.Button(r.wid("dismiss"), ui.Text("Dismiss")).Subtle().OnClick(dismiss),
+	).Gap(th.Spacing.S).Align(ui.AlignCenter).PaddingXY(th.Spacing.M, th.Spacing.S).
+		BorderTop(ui.TokenWarning, th.Stroke.Thick).Background(ui.TokenChromeMuted)
+}
+
+// queueView lists messages waiting for the running agent, each removable.
+func (a *App) queueView(c *ui.Ctx, r *agentRun) ui.View {
+	q := r.queued()
+	if len(q) == 0 {
+		return nil
+	}
+	th := c.Theme()
+	rows := []ui.View{ui.Caption("Queued; the agent reads these after its current step")}
+	for i, m := range q {
+		i := i
+		rows = append(rows, ui.Row(
+			ui.Icon(icons.Clock, 12, th.ForegroundMuted),
+			ui.Text(firstLineOf(userShown(m))).Ellipsis(ui.EllipsisEnd).Grow(1),
+			ui.IconButton(r.wid(fmt.Sprintf("unqueue-%d", i)), icons.X).Tooltip("Remove").OnClick(func() { r.unqueue(i) }),
+		).Gap(th.Spacing.XS).Align(ui.AlignCenter))
+	}
+	return ui.Column(rows...).Gap(th.Spacing.XXS).PaddingXY(th.Spacing.M, th.Spacing.S).
+		BorderTop(ui.TokenBorder, th.Stroke.Thin)
+}
+
+func firstLineOf(s string) string {
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		return s[:i] + " …"
+	}
+	return s
+}
+
+// replayBar steps through a finished session one message at a time.
+func (a *App) replayBar(c *ui.Ctx, r *agentRun) ui.View {
+	th := c.Theme()
+	n := len(r.session.Snapshot())
+	r.replayStep = max(1, min(r.replayStep, n))
+	times := r.session.TimesNow()
+	label := fmt.Sprintf("Message %d of %d", r.replayStep, n)
+	if t := times[r.replayStep-1]; !t.IsZero() {
+		label += " · " + t.Format("Jan 2 15:04:05")
+		if r.replayStep > 1 && !times[r.replayStep-2].IsZero() {
+			label += fmt.Sprintf(" (+%s)", t.Sub(times[r.replayStep-2]).Round(time.Second))
+		}
+	}
+	step := func(d int) func() { return func() { r.replayStep = max(1, min(n, r.replayStep+d)) } }
+	return ui.Row(
+		ui.IconButton(r.wid("replay-first"), icons.ChevronsLeft).Tooltip("First").Disabled(r.replayStep <= 1).OnClick(step(-n)),
+		ui.IconButton(r.wid("replay-prev"), icons.ChevronLeft).Tooltip("Previous").Disabled(r.replayStep <= 1).OnClick(step(-1)),
+		ui.IconButton(r.wid("replay-next"), icons.ChevronRight).Tooltip("Next").Disabled(r.replayStep >= n).OnClick(step(1)),
+		ui.IconButton(r.wid("replay-last"), icons.ChevronsRight).Tooltip("Last").Disabled(r.replayStep >= n).OnClick(step(n)),
+		ui.Caption(label).Grow(1),
+		ui.Button(r.wid("replay-exit"), ui.Text("Exit replay")).Subtle().OnClick(func() { r.replay = false }),
+	).Gap(th.Spacing.XXS).Align(ui.AlignCenter).PaddingXY(th.Spacing.M, th.Spacing.S).
+		BorderTop(ui.TokenAccent, th.Stroke.Thick).Background(ui.TokenChromeMuted)
+}
+
+// agentHeader is a session's toolbar. Full screen, usage moves to the footer
+// and there is nothing to close: the title bar switches back to the editor.
+func (a *App) agentHeader(c *ui.Ctx, r *agentRun, full bool) ui.View {
+	th := c.Theme()
+	title := r.session.Title
+	if title == "" {
+		title = "New session"
+	}
+	items := []ui.View{ui.Strong(title).Ellipsis(ui.EllipsisEnd).Shrink(1)}
+	if p, ok := a.agent.projects.Get(r.session.ProjectID); ok {
+		items = append(items, ui.Badge(p.Title))
+	}
+	items = append(items, ui.Spacer())
 	if !full {
-		items = append(items, ui.Caption(a.agentUsage()).Tooltip("Tokens in (cached included) and out, and cost when known"))
+		items = append(items, ui.Caption(a.agentUsage(r)).Tooltip("Tokens in (cached included) and out, and cost when known"))
 	}
 	items = append(items,
-		ui.IconButton("agent-undo", icons.Undo2).Tooltip("Undo the last agent turn's file changes").
-			Disabled(st.lastCheckpoint == nil || st.running).OnClick(a.undoAgentTurn),
-		ui.IconButton("agent-history", icons.Clock).Tooltip("Sessions").
-			OnClick(a.toggleSessions),
-		ui.IconButton("agent-new", icons.SquarePen).Tooltip("New session").Disabled(st.running).OnClick(a.newAgentSession),
+		ui.IconButton(r.wid("undo"), icons.Undo2).Tooltip("Undo the last agent turn's file changes").
+			Disabled(r.lastCheckpoint == nil || r.running).OnClick(func() { a.undoAgentTurn(r) }),
+		ui.IconButton(r.wid("replay"), icons.Rewind).Tooltip("Replay the session step by step").
+			Disabled(r.running || len(r.session.Snapshot()) == 0).OnClick(func() {
+			r.replay = !r.replay
+			r.replayStep = 1
+		}),
 	)
 	if !full {
-		items = append(items, ui.IconButton("agent-close", icons.X).Tooltip("Close").OnClick(func() { a.agentOpen = false }))
+		items = append(items,
+			ui.IconButton("agent-history", icons.Clock).Tooltip("Sessions").Menu(a.sessionMenu()),
+			ui.IconButton("agent-close", icons.X).Tooltip("Close").OnClick(func() { a.agentOpen = false }))
 	}
-	return ui.Row(items...).Gap(th.Spacing.XXS).PaddingXY(th.Spacing.M, th.Spacing.S).BorderBottom(ui.TokenBorder, th.Stroke.Thin)
+	return ui.Row(items...).Gap(th.Spacing.XXS).Align(ui.AlignCenter).PaddingXY(th.Spacing.M, th.Spacing.S).BorderBottom(ui.TokenBorder, th.Stroke.Thin)
+}
+
+// sessionMenu lists recent sessions for the docked agent, which has no
+// sidebar.
+func (a *App) sessionMenu() []ui.MenuItem {
+	var items []ui.MenuItem
+	for i, s := range a.sessionList() {
+		if i == 15 {
+			break
+		}
+		id := s.ID
+		items = append(items, ui.MenuItem{Label: sessionTitle(s.Title), Shortcut: ago(s.Updated),
+			Checked:  a.agentTabIndex(agentTabSession, id) == a.agent.active && a.agentTabIndex(agentTabSession, id) >= 0,
+			OnSelect: func() { a.resumeAgentSession(id) }})
+	}
+	if len(items) == 0 {
+		items = append(items, ui.MenuItem{Label: "No saved sessions yet", Disabled: true})
+	}
+	return append(items, ui.MenuSeparator,
+		ui.MenuItem{Label: "Projects", Icon: icons.FolderKanban, OnSelect: func() { a.openAgentPage(agentTabProjects, "") }},
+		ui.MenuItem{Label: "Agent settings", Icon: icons.Settings, OnSelect: func() { a.openAgentPage(agentTabSettings, "") }})
+}
+
+func sessionTitle(t string) string {
+	if t == "" {
+		return "Untitled session"
+	}
+	return t
 }
 
 // agentUsage is the session's tokens in and out, and cost when known.
-func (a *App) agentUsage() string {
-	s := a.agent.session
-	if s == nil || s.UsageNow().Input+s.UsageNow().Output == 0 {
+func (a *App) agentUsage(r *agentRun) string {
+	if r == nil {
 		return ""
 	}
-	u := s.UsageNow()
+	u := r.session.UsageNow()
+	if u.Input+u.Output == 0 {
+		return ""
+	}
 	usage := fmt.Sprintf("↑%s ↓%s", tokens(u.Input+u.CacheRead+u.CacheWrite), tokens(u.Output))
 	if u.Cost > 0 {
 		usage += fmt.Sprintf(" · $%.3f", u.Cost)
@@ -110,38 +260,38 @@ func (a *App) agentUsage() string {
 	return usage
 }
 
-// agentFullView is the agent in the editor's place: the conversation in a
-// centered column, the short composer under it.
+// agentFullView is the agent in the editor's place: the tab strip, then the
+// active tab; a session shows its conversation in a centered column with
+// the short composer under it.
 func (a *App) agentFullView(c *ui.Ctx) ui.View {
+	a.ensureAgentTab()
+	t := a.activeAgentTab()
+	var body ui.View
+	if t.run != nil {
+		body = a.sessionFull(c, t.run)
+	} else {
+		body = a.agentPage(c, t)
+	}
+	return ui.Column(a.agentTabStrip(c, true), ui.ViewOf(body).Grow(1)).Grow(1).Background(ui.TokenSurface)
+}
+
+func (a *App) sessionFull(c *ui.Ctx, r *agentRun) ui.View {
 	th := c.Theme()
-	st := &a.agent
 	var main ui.View
-	switch {
-	case st.sessionsOpen:
-		main = a.sessionList(c)
-	case a.agentFresh():
+	if a.agentFresh(r) {
 		main = a.agentIntro(c)
-	default:
-		main = a.transcript(c)
+	} else {
+		main = a.transcript(c, r)
 	}
 	col := []ui.View{ui.ViewOf(main).Grow(1)}
-	if t := a.todoView(c); t != nil {
-		col = append(col, t)
+	col = append(col, a.sessionFooter(c, r)...)
+	if !r.replay {
+		col = append(col, ui.Column(a.composer(c, r, false)).PaddingXY(th.Spacing.S, th.Spacing.M))
 	}
-	if p := st.approval; p != nil {
-		col = append(col, a.approvalCard(c, p))
-	}
-	if q := st.question; q != nil {
-		col = append(col, a.questionCard(c, q))
-	}
-	if st.errText != "" {
-		col = append(col, a.agentError(c))
-	}
-	col = append(col, ui.Column(a.composer(c, false)).PaddingXY(th.Spacing.S, th.Spacing.M))
 	return ui.Column(
-		a.agentHeader(c, true),
+		a.agentHeader(c, r, true),
 		ui.Row(ui.Column(col...).Grow(1).MaxWidth(agentColumnW)).Justify(ui.JustifyCenter).Align(ui.AlignStretch).Grow(1),
-	).Grow(1).Background(ui.TokenSurface)
+	).Grow(1)
 }
 
 // agentColumnW is the widest the full-screen conversation gets.
@@ -160,7 +310,8 @@ func (a *App) agentIntro(c *ui.Ctx) ui.View {
 		ui.Column(
 			tip(icons.AtSign, "@file, @folder, @selection, @diagnostics or @git-diff add context"),
 			tip(icons.SlidersHorizontal, "/mode switches between lazy, rubber-duck, auto and fullstack"),
-			tip(icons.Clock, "Earlier sessions are under the clock above"),
+			tip(icons.FolderKanban, "Pick a project below to give the agent its context"),
+			tip(icons.MessageSquarePlus, "Type while the agent works; it reads your message after its next step"),
 			tip(icons.SquareCode, "The title bar button, or "+a.key("agent.toggle")+", goes back to the editor"),
 		).Gap(th.Spacing.S).MarginXY(0, th.Spacing.M),
 	).Gap(th.Spacing.S).Align(ui.AlignStart))
@@ -169,18 +320,21 @@ func (a *App) agentIntro(c *ui.Ctx) ui.View {
 // agentStatus is the footer's agent part, full screen: mode, model, usage.
 func (a *App) agentStatus(c *ui.Ctx) []ui.View {
 	th := c.Theme()
-	st := &a.agent
-	icon, ok := modeIcons[st.mode]
+	r := a.run()
+	if r == nil {
+		return nil
+	}
+	icon, ok := modeIcons[r.mode]
 	if !ok {
 		icon = icons.Bot
 	}
 	out := []ui.View{
-		ui.Row(ui.Icon(icon, 14, th.ForegroundMuted), ui.Caption(st.mode)).Gap(th.Spacing.XXS).Tooltip("Mode · /mode to switch"),
+		ui.Row(ui.Icon(icon, 14, th.ForegroundMuted), ui.Caption(r.mode)).Gap(th.Spacing.XXS).Tooltip("Mode · /mode to switch"),
 	}
-	if m := a.modelOf(st.provider); m != "" {
-		out = append(out, ui.Caption(m).Tooltip(providerLabel(st.provider)))
+	if m := a.modelOf(r.provider); m != "" {
+		out = append(out, ui.Caption(m).Tooltip(providerLabel(r.provider)))
 	}
-	if u := a.agentUsage(); u != "" {
+	if u := a.agentUsage(r); u != "" {
 		out = append(out, ui.Caption(u).Tooltip("Tokens in (cached included) and out, and cost when known"))
 	}
 	return out
@@ -194,78 +348,6 @@ func tokens(n int64) string {
 		return fmt.Sprintf("%.1fk", float64(n)/1e3)
 	}
 	return fmt.Sprint(n)
-}
-
-// toggleSessions opens or closes the history list, reading it on open.
-func (a *App) toggleSessions() {
-	st := &a.agent
-	st.sessionsOpen = !st.sessionsOpen
-	if !st.sessionsOpen {
-		st.focusInput = true
-		return
-	}
-	st.sessions = st.sessions[:0]
-	for _, s := range st.store.List() {
-		if s.Turns > 0 {
-			st.sessions = append(st.sessions, s)
-		}
-	}
-}
-
-func (a *App) sessionList(c *ui.Ctx) ui.View {
-	th := c.Theme()
-	st := &a.agent
-	rows := []ui.View{ui.Row(
-		ui.Strong("Sessions"),
-		ui.Spacer(),
-		ui.Caption(fmt.Sprintf("%d in this workspace", len(st.sessions))),
-	).Gap(th.Spacing.XS)}
-	for i, s := range st.sessions {
-		rows = append(rows, a.sessionCard(c, i, s))
-	}
-	if len(st.sessions) == 0 {
-		rows = append(rows, ui.Muted("No saved sessions yet"))
-	}
-	return ui.Scroll("agent-sessions", ui.Column(rows...).Gap(th.Spacing.S).Padding(th.Spacing.M)).Grow(1)
-}
-
-// sessionCard is one saved session: its title, then its mode, size and age.
-func (a *App) sessionCard(c *ui.Ctx, i int, s agent.Summary) ui.View {
-	th := c.Theme()
-	st := &a.agent
-	title := s.Title
-	if title == "" {
-		title = "Untitled session"
-	}
-	icon, ok := modeIcons[s.Mode]
-	if !ok {
-		icon = icons.Bot
-	}
-	turns := "1 message"
-	if s.Turns != 1 {
-		turns = fmt.Sprintf("%d messages", s.Turns)
-	}
-	meta := []ui.View{
-		ui.Icon(icon, th.Metrics.IconSizeSM, th.ForegroundMuted),
-		ui.Caption(s.Mode + " · " + turns),
-	}
-	if s.Cost >= 0.005 {
-		meta = append(meta, ui.Caption(fmt.Sprintf("· $%.2f", s.Cost)))
-	}
-	meta = append(meta, ui.Spacer(), ui.Caption(ago(s.Updated)).Tooltip(s.Updated.Format("Mon Jan 2 2006, 15:04")))
-	border := ui.TokenBorder
-	if cur := st.session; cur != nil && cur.ID == s.ID {
-		border = ui.TokenAccent
-	}
-	// A button is one control high unless told otherwise; the card has two
-	// lines.
-	h := 2*th.Spacing.S + th.Typography.Body.LineHeight + th.Spacing.XS + th.Metrics.IconSizeSM + th.Spacing.XXS
-	return ui.Button(fmt.Sprintf("agent-sess-%d", i), ui.Column(
-		ui.Text(title).Weight(600).Ellipsis(ui.EllipsisEnd),
-		ui.Row(meta...).Gap(th.Spacing.XS),
-	).Gap(th.Spacing.XS).Grow(1)).Ghost().HoverFill().
-		Height(h).Padding(th.Spacing.S).Radius(th.Radius.XLarge).Border(border, th.Stroke.Thin).Background(ui.TokenSurface).
-		OnClick(func() { a.resumeAgentSession(s.ID) })
 }
 
 // ago says how long ago t was, coarsely.
@@ -285,13 +367,13 @@ func ago(t time.Time) string {
 }
 
 // transcript shows the session's messages, then the turn in progress.
-func (a *App) transcript(c *ui.Ctx) ui.View {
+func (a *App) transcript(c *ui.Ctx, r *agentRun) ui.View {
 	th := c.Theme()
-	st := &a.agent
+	st := r
 	var rows []ui.View
-	var msgs []provider.Message
-	if st.session != nil {
-		msgs = st.session.Snapshot()
+	msgs := r.session.Snapshot()
+	if r.replay && r.replayStep < len(msgs) {
+		msgs = msgs[:max(1, r.replayStep)]
 	}
 	results := map[string]provider.Block{}
 	for _, m := range msgs {
@@ -313,24 +395,24 @@ func (a *App) transcript(c *ui.Ctx) ui.View {
 			switch b.Type {
 			case provider.Thinking:
 				if strings.TrimSpace(b.Text) != "" {
-					rows = append(rows, a.thinkingView(c, fmt.Sprintf("think-%d-%d", i, j), b.Text))
+					rows = append(rows, a.thinkingView(c, r, fmt.Sprintf("think-%d-%d", i, j), b.Text))
 				}
 			case provider.Text:
 				if strings.TrimSpace(b.Text) != "" {
-					rows = append(rows, a.agentMarkdown(fmt.Sprintf("msg-%d-%d", i, j), strings.TrimSpace(b.Text)))
+					rows = append(rows, a.agentMarkdown(r.wid(fmt.Sprintf("msg-%d-%d", i, j)), strings.TrimSpace(b.Text)))
 				}
 			case provider.ToolUse:
 				res, done := results[b.ToolID]
-				rows = append(rows, a.toolCard(c, b, res, done))
+				rows = append(rows, a.toolCard(c, r, b, res, done))
 			}
 		}
 	}
 	if st.running {
 		if st.thinking != "" {
-			rows = append(rows, a.thinkingView(c, "think-live", st.thinking))
+			rows = append(rows, a.thinkingView(c, r, "think-live", st.thinking))
 		}
 		if st.stream != "" {
-			rows = append(rows, a.agentMarkdown("msg-live", st.stream))
+			rows = append(rows, a.agentMarkdown(r.wid("msg-live"), st.stream))
 		}
 		status := "Thinking…"
 		if st.streamTool != "" {
@@ -339,14 +421,14 @@ func (a *App) transcript(c *ui.Ctx) ui.View {
 		if st.approval != nil {
 			status = "Waiting for you"
 		}
-		rows = append(rows, ui.Row(ui.Spinner("agent-spin", 14), ui.Caption(status)).Gap(th.Spacing.XS))
+		rows = append(rows, ui.Row(ui.Spinner(r.wid("spin"), 14), ui.Caption(status)).Gap(th.Spacing.XS))
 		c.Animate(120e6)
 	}
 	if len(rows) == 0 {
 		return ui.ViewOf(ui.EmptyState("Ask the agent", "Mention @file, @folder, @selection, @diagnostics or @git-diff "+
 			"to add context. /mode switches mode.").EmptyIcon(icons.Bot)).Grow(1)
 	}
-	return ui.Scroll("agent-transcript", ui.Column(rows...).Gap(th.Spacing.S).Padding(th.Spacing.M)).Follow(true).Grow(1)
+	return ui.Scroll(r.wid("transcript"), ui.Column(rows...).Gap(th.Spacing.S).Padding(th.Spacing.M)).Follow(!r.replay).Grow(1)
 }
 
 // agentMarkdown renders assistant text; links resolve against the workspace.
@@ -364,24 +446,24 @@ func userShown(t string) string {
 	return t
 }
 
-func (a *App) thinkingView(c *ui.Ctx, id, text string) ui.View {
+func (a *App) thinkingView(c *ui.Ctx, r *agentRun, id, text string) ui.View {
 	th := c.Theme()
-	open := a.agent.calls[id].open
+	open := r.calls[id].open
 	icon := icons.ChevronRight
 	if open {
 		icon = icons.ChevronDown
 	}
-	rows := []ui.View{ui.Button(id, ui.Row(ui.Icon(icon, 12, th.ForegroundMuted), ui.Caption("Reasoning")).Gap(th.Spacing.XXS)).
-		Ghost().OnClick(func() { cv := a.agent.calls[id]; cv.open = !cv.open; a.agent.calls[id] = cv })}
+	rows := []ui.View{ui.Button(r.wid(id), ui.Row(ui.Icon(icon, 12, th.ForegroundMuted), ui.Caption("Reasoning")).Gap(th.Spacing.XXS)).
+		Ghost().OnClick(func() { cv := r.calls[id]; cv.open = !cv.open; r.calls[id] = cv })}
 	if open {
 		rows = append(rows, ui.Paragraph(strings.TrimSpace(text)).Style(ui.Spec{}.TextColor(ui.TokenForegroundMuted)))
 	}
 	return ui.Column(rows...).Gap(th.Spacing.XXS)
 }
 
-func (a *App) toolCard(c *ui.Ctx, call, res provider.Block, done bool) ui.View {
+func (a *App) toolCard(c *ui.Ctx, r *agentRun, call, res provider.Block, done bool) ui.View {
 	th := c.Theme()
-	st := &a.agent
+	st := r
 	cv := st.calls[call.ToolID]
 	summary := cv.summary
 	if summary == "" {
@@ -399,7 +481,7 @@ func (a *App) toolCard(c *ui.Ctx, call, res provider.Block, done bool) ui.View {
 	default:
 		icon, color = icons.CircleCheck, th.SuccessForeground
 	}
-	id := "tool-" + call.ToolID
+	id := r.wid("tool-" + call.ToolID)
 	head := ui.Button(id, ui.Row(
 		ui.Icon(icon, 14, color),
 		ui.Caption(call.ToolName),
@@ -407,6 +489,11 @@ func (a *App) toolCard(c *ui.Ctx, call, res provider.Block, done bool) ui.View {
 	).Gap(th.Spacing.XS).Grow(1)).Ghost().HoverFill().Grow(1).
 		OnClick(func() { cv := st.calls[call.ToolID]; cv.open = !cv.open; st.calls[call.ToolID] = cv })
 	rows := []ui.View{head}
+	if call.ToolName == "task" {
+		if v := a.subagentRow(c, r, call, res, done); v != nil {
+			rows = append(rows, v)
+		}
+	}
 	if cv.open && done {
 		text := res.Text
 		if lines := strings.Split(text, "\n"); len(lines) > maxResultLines {
@@ -419,9 +506,79 @@ func (a *App) toolCard(c *ui.Ctx, call, res provider.Block, done bool) ui.View {
 		Padding(th.Spacing.XXS)
 }
 
-func (a *App) todoView(c *ui.Ctx) ui.View {
+// subagentRow shows what a task call's sub-agent is doing, with a button
+// to open its session.
+func (a *App) subagentRow(c *ui.Ctx, r *agentRun, call, res provider.Block, done bool) ui.View {
 	th := c.Theme()
-	items := a.agent.todos.Items()
+	ch := r.children[call.ToolID]
+	id := ""
+	if ch != nil {
+		id = ch.session.ID
+	} else if m := subagentID.FindStringSubmatch(res.Text); m != nil {
+		id = m[1] // a saved session, from before this run of hm
+	}
+	if id == "" {
+		return nil
+	}
+	status := "Finished"
+	var lead ui.View = ui.Icon(icons.Bot, 12, th.ForegroundMuted)
+	if ch != nil && ch.running {
+		lead = ui.Spinner(r.wid("sub-spin-"+call.ToolID), 12)
+		status = "Thinking…"
+		switch {
+		case ch.approval != nil || ch.question != nil:
+			status = "Waiting for you"
+		case ch.streamTool != "":
+			status = "Calling " + ch.streamTool + "…"
+		case ch.stream != "":
+			status = lastLine(ch.stream)
+		default:
+			if t := lastToolSummary(ch); t != "" {
+				status = t
+			}
+		}
+	} else if !done {
+		status = "Starting…"
+	}
+	return ui.Row(
+		lead,
+		ui.Caption(status).Ellipsis(ui.EllipsisEnd).Grow(1).Shrink(1),
+		ui.Button(r.wid("sub-open-"+call.ToolID), ui.Text("Open")).Subtle().
+			Tooltip("Open the sub-agent's session in a tab").OnClick(func() { a.resumeAgentSession(id) }),
+	).Gap(th.Spacing.XS).Align(ui.AlignCenter).PaddingXY(th.Spacing.S, 0)
+}
+
+// subagentID finds the session a task result names.
+var subagentID = regexp.MustCompile(`\(sub-agent session ([0-9a-f-]+)\)`)
+
+func lastLine(s string) string {
+	s = strings.TrimSpace(s)
+	if i := strings.LastIndexByte(s, '\n'); i >= 0 {
+		s = s[i+1:]
+	}
+	return s
+}
+
+// lastToolSummary is what the sub-agent's latest call does.
+func lastToolSummary(r *agentRun) string {
+	msgs := r.session.Snapshot()
+	for i := len(msgs) - 1; i >= 0; i-- {
+		uses := msgs[i].ToolUses()
+		if len(uses) == 0 {
+			continue
+		}
+		u := uses[len(uses)-1]
+		if cv := r.calls[u.ToolID]; cv.summary != "" {
+			return u.ToolName + " " + cv.summary
+		}
+		return u.ToolName
+	}
+	return ""
+}
+
+func (a *App) todoView(c *ui.Ctx, r *agentRun) ui.View {
+	th := c.Theme()
+	items := r.todos.Items()
 	if len(items) == 0 {
 		return nil
 	}
@@ -442,7 +599,7 @@ func (a *App) todoView(c *ui.Ctx) ui.View {
 
 // approvalCard asks before a call runs; for edits it shows each hunk with a
 // box to keep or drop it.
-func (a *App) approvalCard(c *ui.Ctx, p *pendingApproval) ui.View {
+func (a *App) approvalCard(c *ui.Ctx, r *agentRun, p *pendingApproval) ui.View {
 	th := c.Theme()
 	req := p.req
 	title := "Run " + req.Tool + "?"
@@ -471,30 +628,30 @@ func (a *App) approvalCard(c *ui.Ctx, p *pendingApproval) ui.View {
 		for hi, h := range f.hunks {
 			hi, fi := hi, fi
 			hunks = append(hunks, ui.Row(
-				ui.Checkbox(fmt.Sprintf("hunk-%d-%d", fi, hi), fmt.Sprintf("Lines %d–%d", h.B0+1, max(h.B1, h.B0+1))).
+				ui.Checkbox(r.wid(fmt.Sprintf("hunk-%d-%d", fi, hi)), fmt.Sprintf("Lines %d–%d", h.B0+1, max(h.B1, h.B0+1))).
 					Check(f.accepted[hi]).OnToggle(func(v bool) { p.files[fi].accepted[hi] = v }),
 			))
 			hunks = append(hunks, hunkView(c, f, h))
 		}
 	}
 	if len(hunks) > 0 {
-		rows = append(rows, ui.Scroll("approval-hunks", ui.Column(hunks...).Gap(th.Spacing.XS)).Height(280))
+		rows = append(rows, ui.Scroll(r.wid("approval-hunks"), ui.Column(hunks...).Gap(th.Spacing.XS)).Height(280))
 	}
-	rows = append(rows, ui.TextField("approval-note", p.note).Placeholder("Note for the agent (optional)").
+	rows = append(rows, ui.TextField(r.wid("approval-note"), p.note).Placeholder("Note for the agent (optional)").
 		OnChange(func(v string) { p.note = v }))
 	actions := []ui.View{
-		ui.Button("approval-deny", ui.Text("Deny")).OnClick(func() { a.answerApproval(false, false) }),
+		ui.Button(r.wid("approval-deny"), ui.Text("Deny")).OnClick(func() { a.answerApproval(r, false, false) }),
 		ui.Spacer(),
 	}
 	if req.CanGrant && len(p.files) == 0 {
-		actions = append(actions, ui.Button("approval-session", ui.Text("Allow for session")).
-			Tooltip("Allow calls like this until the session ends").OnClick(func() { a.answerApproval(true, true) }))
+		actions = append(actions, ui.Button(r.wid("approval-session"), ui.Text("Allow for session")).
+			Tooltip("Allow calls like this until the session ends").OnClick(func() { a.answerApproval(r, true, true) }))
 	}
 	allow := "Allow once"
 	if len(p.files) > 0 {
 		allow = "Apply selected"
 	}
-	actions = append(actions, ui.Button("approval-allow", ui.Text(allow)).Primary().OnClick(func() { a.answerApproval(true, false) }))
+	actions = append(actions, ui.Button(r.wid("approval-allow"), ui.Text(allow)).Primary().OnClick(func() { a.answerApproval(r, true, false) }))
 	rows = append(rows, ui.Row(actions...).Gap(th.Spacing.XS))
 	return ui.Column(rows...).Gap(th.Spacing.S).Padding(th.Spacing.M).
 		BorderTop(ui.TokenAccent, th.Stroke.Thick).Background(ui.TokenChromeMuted)
@@ -527,67 +684,72 @@ func hunkView(c *ui.Ctx, f *reviewFile, h diff.Hunk) ui.View {
 	return ui.Column(lines...).Padding(th.Spacing.XS).Radius(th.Radius.Small).Background(ui.TokenSurface)
 }
 
-func (a *App) questionCard(c *ui.Ctx, q *pendingQuestion) ui.View {
+func (a *App) questionCard(c *ui.Ctx, r *agentRun, q *pendingQuestion) ui.View {
 	th := c.Theme()
 	send := func() {
 		if strings.TrimSpace(q.answer) == "" {
 			return
 		}
 		q.reply <- q.answer
-		a.agent.question = nil
+		r.question = nil
 	}
 	return ui.Column(
 		ui.Strong("The agent asks"),
 		ui.Paragraph(q.text),
 		ui.Row(
-			ui.TextField("question-answer", q.answer).Placeholder("Your answer").DefaultFocus().
+			ui.TextField(r.wid("question-answer"), q.answer).Placeholder("Your answer").DefaultFocus().
 				OnChange(func(v string) { q.answer = v }).OnSubmit(func(string) { send() }).Grow(1),
-			ui.Button("question-send", ui.Text("Answer")).Primary().OnClick(send),
+			ui.Button(r.wid("question-send"), ui.Text("Answer")).Primary().OnClick(send),
 		).Gap(th.Spacing.XS),
 	).Gap(th.Spacing.S).Padding(th.Spacing.M).BorderTop(ui.TokenAccent, th.Stroke.Thick).Background(ui.TokenChromeMuted)
 }
 
-// agentInput is the composer's text field.
-func agentInput(c *ui.Ctx) *ui.TextInput {
-	return c.Widget("agent-input", func() any { return ui.NewTextInput(ui.TextFieldConfig{Multiline: true}) }).(*ui.TextInput)
+// agentInput is a session's message box.
+func agentInput(c *ui.Ctx, r *agentRun) *ui.TextInput {
+	return c.Widget(r.wid("input"), func() any { return ui.NewTextInput(ui.TextFieldConfig{Multiline: true}) }).(*ui.TextInput)
 }
 
-// composer is the message box with the mode and model pickers under it. A
-// fresh session shows it tall; once the chat starts it shrinks to grow with
-// its text.
-func (a *App) composer(c *ui.Ctx, fresh bool) ui.View {
+// composer is the message box with the mode, model and project pickers
+// under it. A fresh session shows it tall; once the chat starts it shrinks
+// to grow with its text. While the agent works, what is sent waits in the
+// queue.
+func (a *App) composer(c *ui.Ctx, r *agentRun, fresh bool) ui.View {
 	th := c.Theme()
-	st := &a.agent
 	minRows, maxRows := 1, 8
 	if fresh {
 		minRows, maxRows = 5, 14
 	}
 	// The box shows focus, not the field inside it.
-	tf := agentInput(c)
+	tf := agentInput(c, r)
 	border := ui.TokenBorder
 	if tf.Focused() {
 		border = ui.TokenFocusRing
 		// The panel may open over a few frames before the field is laid
 		// out, so keep asking for focus until it lands.
-		st.focusInput = false
+		r.focusInput = false
 	}
-	field := ui.TextArea("agent-input", st.input).Rows(minRows, maxRows).
-		Placeholder("Plan, build, / for commands, @ for context").
-		OnChange(func(v string) { st.input = v }).
-		OnSubmit(func(string) { a.sendAgent() }).
+	placeholder := "Plan, build, / for commands, @ for context"
+	if r.running {
+		placeholder = "Add guidance; the agent reads it after its current step"
+	}
+	field := ui.TextArea(r.wid("input"), r.input).Rows(minRows, maxRows).
+		Placeholder(placeholder).
+		OnChange(func(v string) { r.input = v }).
+		OnSubmit(func(string) { a.sendRun(r) }).
 		Suggest(a.agentSuggest).
-		DefaultFocus().FocusNow(st.focusInput).
+		DefaultFocus().FocusNow(r.focusInput).
 		Style(ui.Background(ui.TokenUnset).Border(ui.TokenUnset, 0).When(ui.Focused, ui.Spec{}.Border(ui.TokenUnset, 0)))
-	var btn ui.View
-	if st.running {
-		btn = ui.IconButton("agent-stop", icons.Square).Tooltip("Stop").OnClick(a.stopAgent)
-	} else {
-		btn = ui.Button("agent-send", ui.Icon(icons.ArrowUp, th.Metrics.IconSizeSM, th.AccentForeground)).Primary().
-			Tooltip("Send (Enter)").Disabled(strings.TrimSpace(st.input) == "").OnClick(a.sendAgent)
+	send := ui.Button(r.wid("send"), ui.Icon(icons.ArrowUp, th.Metrics.IconSizeSM, th.AccentForeground)).Primary().
+		Tooltip("Send (Enter)").Disabled(strings.TrimSpace(r.input) == "").OnClick(func() { a.sendRun(r) })
+	controls := []ui.View{a.modePicker(r), a.composerModel(r), a.projectPicker(r), ui.Spacer()}
+	if r.running {
+		send = send.Tooltip("Queue for the agent (Enter)")
+		controls = append(controls, ui.IconButton(r.wid("stop"), icons.Square).Tooltip("Stop").OnClick(func() { a.stopRun(r) }))
 	}
+	controls = append(controls, send)
 	return ui.Column(
 		field,
-		ui.Row(a.modePicker(), a.composerModel(), ui.Spacer(), btn).Gap(th.Spacing.XS).PaddingXY(th.Spacing.XS, 0),
+		ui.Row(controls...).Gap(th.Spacing.XS).PaddingXY(th.Spacing.XS, 0),
 	).Gap(th.Spacing.XXS).PaddingXY(0, th.Spacing.XS).Radius(th.Radius.XLarge).
 		Border(border, th.Stroke.Thin).Background(ui.TokenSurface)
 }
@@ -600,25 +762,23 @@ var modeIcons = map[string]icons.Icon{
 	"fullstack":   icons.Layers,
 }
 
-func (a *App) modePicker() ui.View {
-	st := &a.agent
+func (a *App) modePicker(r *agentRun) ui.View {
 	modes := agent.ModeNames(a.modes())
 	items := make([]ui.MenuItem, len(modes))
 	for i, m := range modes {
 		m := m
-		items[i] = ui.MenuItem{Label: m, Checked: m == st.mode, OnSelect: func() { st.mode = m }}
+		items[i] = ui.MenuItem{Label: m, Checked: m == r.mode, OnSelect: func() { r.mode = m }}
 	}
-	icon, ok := modeIcons[st.mode]
+	icon, ok := modeIcons[r.mode]
 	if !ok {
 		icon = icons.Bot
 	}
-	return ui.MenuButton("agent-mode", st.mode, items).IconStart(icon).Subtle().Disabled(st.running)
+	return ui.MenuButton(r.wid("mode"), r.mode, items).IconStart(icon).Subtle().Disabled(r.running)
 }
 
 // composerModel switches between the configured providers, each shown by the
 // model it runs; the model itself is picked in Settings.
-func (a *App) composerModel() ui.View {
-	st := &a.agent
+func (a *App) composerModel(r *agentRun) ui.View {
 	var items []ui.MenuItem
 	for _, p := range a.providerNames() {
 		p := p
@@ -630,18 +790,38 @@ func (a *App) composerModel() ui.View {
 		if !a.providerReady(p) {
 			hint = "no key"
 		}
-		items = append(items, ui.MenuItem{Label: label, Shortcut: hint, Checked: p == st.provider,
-			OnSelect: func() { st.provider = p }})
+		items = append(items, ui.MenuItem{Label: label, Shortcut: hint, Checked: p == r.provider,
+			OnSelect: func() { r.provider = p }})
 	}
 	items = append(items, ui.MenuSeparator, ui.MenuItem{Label: "Models and keys…", OnSelect: a.openSettings})
-	label := a.modelOf(st.provider)
+	label := a.modelOf(r.provider)
 	switch {
-	case !a.providerReady(st.provider):
+	case !a.providerReady(r.provider):
 		label = "Set up a model"
 	case label == "":
-		label = providerLabel(st.provider)
+		label = providerLabel(r.provider)
 	}
-	return ui.MenuButton("agent-model", label, items).Ghost().Disabled(st.running)
+	return ui.MenuButton(r.wid("model"), label, items).Ghost().Disabled(r.running)
+}
+
+// projectPicker picks the project whose context the session starts with.
+// The context is part of the system prompt, so it is fixed once the
+// session has a message.
+func (a *App) projectPicker(r *agentRun) ui.View {
+	s := r.session
+	items := []ui.MenuItem{{Label: "No project", Checked: s.ProjectID == "", OnSelect: func() { s.ProjectID = "" }}}
+	for _, p := range a.agent.projects.List() {
+		id := p.ID
+		items = append(items, ui.MenuItem{Label: p.Title, Checked: id == s.ProjectID, OnSelect: func() { s.ProjectID = id }})
+	}
+	items = append(items, ui.MenuSeparator,
+		ui.MenuItem{Label: "Manage projects…", OnSelect: func() { a.openAgentPage(agentTabProjects, "") }})
+	label := "No project"
+	if p, ok := a.agent.projects.Get(s.ProjectID); ok {
+		label = p.Title
+	}
+	return ui.MenuButton(r.wid("project"), label, items).IconStart(icons.FolderKanban).Ghost().
+		Disabled(r.running || len(s.Snapshot()) > 0)
 }
 
 // agentSuggest completes slash commands, mode names and @ mentions.

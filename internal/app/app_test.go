@@ -164,10 +164,10 @@ func TestAgentToggleSwapsTheEditorFullScreen(t *testing.T) {
 	h.frame()
 	h.app.toggleAgent()
 	h.frame()
-	if !h.app.agentOpen || !h.app.agentFresh() {
+	if !h.app.agentOpen || !h.app.agentFresh(h.app.run()) {
 		t.Fatal("toggle should show a fresh agent")
 	}
-	if h.c.Widget("agent-input", nil) == nil {
+	if h.c.Widget(h.app.run().wid("input"), nil) == nil {
 		t.Fatal("composer not built in the full-screen view")
 	}
 	h.app.toggleAgent()

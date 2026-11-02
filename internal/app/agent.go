@@ -23,16 +23,55 @@ import (
 	"github.com/mirzakhany/hm/internal/workspace"
 )
 
-// agentState is the agent panel's state.
+// agentState is the agent's state shared by its tabs: the stores, keys,
+// models and MCP servers, and which tabs are open.
 type agentState struct {
 	// materialize tracks writing the built-in skills to disk.
 	materialize sync.WaitGroup
 	store       *agent.Store
-	session     *agent.Session
-	grants      *agent.Grants // "allow for this session" answers of session
-	mode        string
-	provider    string
-	input       string
+	projects    *agent.Projects
+	mcp         *mcp.Manager
+	borrowed    map[string]bool // buffers opened for the agent's language tools
+
+	tabs   []*agentTab
+	active int
+
+	// bus carries messages between agents; live holds every run that is
+	// open or working, sub-agents included, by session ID.
+	bus  *agent.Bus
+	live map[string]*agentRun
+
+	// sessions is the sidebar's list of saved sessions, read again when
+	// one is saved, renamed or removed.
+	sessions      []agent.Summary
+	sessionsStale bool
+	sideQuery     string
+	// drafts are the project tabs' unsaved forms, by tab key.
+	drafts map[string]*agent.Project
+	// settingsCat is the category the agent's settings tab shows.
+	settingsCat string
+
+	keys secrets.Store
+	// keyOK says which providers' keys resolve. Reading the keychain runs
+	// a process, so it is read off the UI goroutine by refreshProviderKeys.
+	keyOK  map[string]bool
+	keySeq uint64
+
+	// models caches each provider's model list by modelsKey; modelsErr
+	// holds failed fetches and modelsLoading those in flight.
+	models        map[string][]string
+	modelsErr     map[string]string
+	modelsLoading map[string]bool
+}
+
+// agentRun is one session open in a tab: its conversation and the turn in
+// progress. Several runs may work at once.
+type agentRun struct {
+	session  *agent.Session
+	grants   *agent.Grants // "allow for this session" answers of session
+	mode     string
+	provider string
+	input    string
 
 	running bool
 	cancel  context.CancelFunc
@@ -46,30 +85,33 @@ type agentState struct {
 	approval *pendingApproval
 	question *pendingQuestion
 
-	shells   *tools.Shells
-	todos    *tools.Todos
-	mcp      *mcp.Manager
-	borrowed map[string]bool // buffers opened for the agent's language tools
+	shells *tools.Shells
+	todos  *tools.Todos
 
 	turnCheckpoint checkpoint
 	lastCheckpoint *checkpoint
 
-	sessionsOpen bool
-	// sessions is the history list, read when it opens.
-	sessions []agent.Summary
+	// queueMu guards queue: messages typed while the turn runs, taken by
+	// the agent's goroutine between steps.
+	queueMu sync.Mutex
+	queue   []string
+
+	// replay, when on, shows the transcript up to replayStep messages.
+	replay     bool
+	replayStep int
+
 	// focusInput moves focus to the message box on the next build.
 	focusInput bool
-	keys       secrets.Store
-	// keyOK says which providers' keys resolve. Reading the keychain runs
-	// a process, so it is read off the UI goroutine by refreshProviderKeys.
-	keyOK  map[string]bool
-	keySeq uint64
 
-	// models caches each provider's model list by modelsKey; modelsErr
-	// holds failed fetches and modelsLoading those in flight.
-	models        map[string][]string
-	modelsErr     map[string]string
-	modelsLoading map[string]bool
+	// A sub-agent's run knows its parent and how deep it is nested; write
+	// says it may edit. children are the sub-agents a run started, by the
+	// task call that started them.
+	parent   *agentRun
+	depth    int
+	write    bool
+	children map[string]*agentRun
+	// subSem bounds the sub-agents of this run working at once.
+	subSem chan struct{}
 }
 
 // callView is what the transcript shows for a tool call.
@@ -102,7 +144,8 @@ type pendingQuestion struct {
 	reply  chan string
 }
 
-// initAgent prepares the agent panel for the open folder.
+// initAgent prepares the agent for the open folder: sessions of the last
+// folder close, and this folder's old sessions move to the shared store.
 func (a *App) initAgent() {
 	st := &a.agent
 	if st.keys == nil {
@@ -110,9 +153,30 @@ func (a *App) initAgent() {
 	}
 	keys := st.keys
 	config.Keychain = func(name string) (string, error) { return keys.Get(name) }
-	st.store = agent.NewStore(workspace.StateDir(), a.ws.Root)
-	st.shells, st.todos = tools.NewShells(), &tools.Todos{}
-	st.calls = map[string]callView{}
+	for _, t := range st.tabs {
+		if t.run != nil {
+			a.stopRun(t.run)
+			t.run.shells.StopAll()
+		}
+	}
+	for _, r := range st.live {
+		a.stopRun(r)
+	}
+	st.tabs, st.active = nil, 0
+	st.live = map[string]*agentRun{}
+	st.bus = agent.NewBus(func(id string) { a.onUI(func() { a.mailArrived(id) }) })
+	st.store = agent.NewStore(workspace.StateDir())
+	if err := st.store.Migrate(a.ws.Root); err != nil {
+		a.notifs.Add("Could not move the old agent sessions: "+err.Error(), ui.ToastWarning)
+	}
+	if st.projects == nil {
+		ps, err := agent.LoadProjects(workspace.StateDir())
+		if err != nil {
+			a.notifs.Add("Could not read the agent projects: "+err.Error(), ui.ToastWarning)
+		}
+		st.projects = ps
+	}
+	st.sessionsStale = true
 	a.newMCP()
 	a.startMCP(a.cfg.Current().Tools.MCP)
 	a.agent.materialize.Go(func() {
@@ -120,23 +184,129 @@ func (a *App) initAgent() {
 			a.onUI(func() { a.notifs.Add("Could not write the built-in skills: "+err.Error(), ui.ToastWarning) })
 		}
 	})
-	cfg := a.cfg.Current().Agent
-	if st.mode == "" {
-		st.mode = cfg.DefaultMode
-	}
-	if st.provider == "" {
-		st.provider = cfg.DefaultProvider
-	}
-	st.session, st.grants = nil, nil
 	a.refreshProviderKeys()
 }
 
-func (a *App) currentSession() *agent.Session {
-	st := &a.agent
-	if st.session == nil {
-		st.session = agent.NewSession(st.mode, st.provider)
+// newRun makes a run for s, or for a new session when s is nil.
+func (a *App) newRun(s *agent.Session) *agentRun {
+	cfg := a.cfg.Current().Agent
+	r := &agentRun{mode: cfg.DefaultMode, provider: cfg.DefaultProvider,
+		shells: tools.NewShells(), todos: &tools.Todos{}, calls: map[string]callView{}, focusInput: true,
+		subSem: make(chan struct{}, max(1, cfg.Subagents.MaxConcurrent))}
+	if s == nil {
+		s = agent.NewSession(r.mode, r.provider)
+		s.Root = a.ws.Root
+		s.ProjectID = a.lastProject()
+		return r.with(s)
 	}
-	return st.session
+	if s.Mode != "" {
+		r.mode = s.Mode
+	}
+	if s.Provider != "" {
+		r.provider = s.Provider
+	}
+	r.todos.Set(s.Todos)
+	return r.with(s)
+}
+
+func (r *agentRun) with(s *agent.Session) *agentRun { r.session = s; return r }
+
+// track makes r reachable by messages and by ID while it is open or
+// working.
+func (a *App) track(r *agentRun) {
+	st := &a.agent
+	if st.live == nil {
+		st.live = map[string]*agentRun{}
+	}
+	st.live[r.session.ID] = r
+	parent := ""
+	if r.parent != nil {
+		parent = r.parent.session.ID
+	}
+	name := r.session.Title
+	if name == "" {
+		name = "session " + r.session.ID
+	}
+	if st.bus != nil {
+		st.bus.Register(r.session.ID, name, parent)
+	}
+}
+
+// untrack forgets r once it is neither in a tab nor working.
+func (a *App) untrack(r *agentRun) {
+	if r.running || a.agentTabIndex(agentTabSession, r.session.ID) >= 0 {
+		return
+	}
+	for _, ch := range r.children {
+		if ch.running {
+			return // its report still has to reach r
+		}
+	}
+	delete(a.agent.live, r.session.ID)
+	if r.parent != nil {
+		r.shells.StopAll()
+	}
+	if a.agent.bus != nil {
+		a.agent.bus.Unregister(r.session.ID)
+	}
+}
+
+// mailArrived starts a turn for an idle session that got a message, such
+// as a background sub-agent's report.
+func (a *App) mailArrived(id string) {
+	r := a.agent.live[id]
+	if r == nil || r.running || !a.agent.bus.Pending(id) {
+		return
+	}
+	if r.parent != nil {
+		return // a finished sub-agent is not woken
+	}
+	if err := a.startTurn(r, ""); err != nil {
+		r.errText = err.Error()
+	}
+}
+
+// lastProject is the project of the newest session, for a new one.
+func (a *App) lastProject() string {
+	for _, s := range a.sessionList() {
+		if s.ProjectID != "" {
+			if _, ok := a.agent.projects.Get(s.ProjectID); ok {
+				return s.ProjectID
+			}
+		}
+		break
+	}
+	return ""
+}
+
+// run is the session of the active agent tab; nil when the tab is not a
+// session.
+func (a *App) run() *agentRun {
+	if t := a.activeAgentTab(); t != nil {
+		return t.run
+	}
+	return nil
+}
+
+// runs lists the open sessions.
+func (a *App) runs() []*agentRun {
+	var out []*agentRun
+	for _, t := range a.agent.tabs {
+		if t.run != nil {
+			out = append(out, t.run)
+		}
+	}
+	return out
+}
+
+// anyRunning reports whether a session is working.
+func (a *App) anyRunning() bool {
+	for _, r := range a.runs() {
+		if r.running {
+			return true
+		}
+	}
+	return false
 }
 
 // modes resolves the configured modes for this workspace.
@@ -172,149 +342,293 @@ func buildProvider(name string, pc config.Provider) (provider.Provider, error) {
 	return provider.New(provider.Config{Type: pc.Type, BaseURL: pc.BaseURL, APIKey: key})
 }
 
-// sendAgent starts a turn with the input box's text, or runs a slash
-// command.
+// sendAgent sends the active session's message box.
 func (a *App) sendAgent() {
-	st := &a.agent
-	text := strings.TrimSpace(st.input)
-	if text == "" || st.running {
+	if r := a.run(); r != nil {
+		a.sendRun(r)
+	}
+}
+
+// sendRun starts a turn with r's message box, or runs a slash command.
+// While a turn runs the message waits in the queue and reaches the agent
+// after its next step.
+func (a *App) sendRun(r *agentRun) {
+	text := strings.TrimSpace(r.input)
+	if text == "" {
 		return
 	}
-	st.input = ""
 	if strings.HasPrefix(text, "/") {
-		a.slashCommand(text)
+		r.input = ""
+		a.slashCommand(r, text)
 		return
 	}
+	if r.running {
+		r.input = ""
+		r.queueMu.Lock()
+		r.queue = append(r.queue, a.expandContext(text))
+		r.queueMu.Unlock()
+		return
+	}
+	if err := a.startTurn(r, a.expandContext(text)); err != nil {
+		r.errText = err.Error()
+		return
+	}
+	r.input = ""
+}
+
+// agentFor builds the agent for one turn of r: the provider, guard, tools,
+// policy and system prompt as they are now.
+func (a *App) agentFor(r *agentRun) (*agent.Agent, error) {
 	modes := a.modes()
-	mode, ok := modes[st.mode]
+	mode, ok := modes[r.mode]
 	if !ok {
-		st.errText = "Unknown mode " + st.mode + "; pick one with /mode"
-		return
+		return nil, errors.New("Unknown mode " + r.mode + "; pick one with /mode")
 	}
-	prov, pc, err := a.newProvider(st.provider)
+	prov, pc, err := a.newProvider(r.provider)
 	if err != nil {
-		st.errText = err.Error()
-		return
+		return nil, err
 	}
 	// Read per message, so edits to guard.yaml apply to the next one. A
 	// broken file stops the agent rather than letting it run unguarded.
 	grd, err := guard.Load(userGuardPath(), projectGuardPath(a.ws.Root), a.ws.Root)
 	if err != nil {
-		st.errText = "guard.yaml: " + err.Error()
-		return
+		return nil, errors.New("guard.yaml: " + err.Error())
 	}
-	s := a.currentSession()
-	s.Mode, s.Provider = st.mode, st.provider
-	ts := a.agentToolset(mode)
+	s := r.session
+	s.Mode, s.Provider = r.mode, r.provider
+	ts := a.agentToolset(r, mode)
 	policy := agent.NewPolicy(a.ws.Root, ts.rules)
 	policy.ReadRoots = ts.readRoots
-	if st.grants == nil {
-		st.grants = agent.NewGrants()
+	if r.grants == nil {
+		r.grants = agent.NewGrants()
 	}
-	policy.Grants = st.grants // grants last the session, not one message
-	ag := &agent.Agent{
+	policy.Grants = r.grants // grants last the session, not one message
+	var project *agent.Project
+	if p, ok := a.agent.projects.Get(s.ProjectID); ok {
+		project = &p
+	}
+	store := a.agent.store
+	extra := ts.extra
+	// A sub-agent asks the user through the session at the top, the one
+	// on screen.
+	asker, label := r, ""
+	if r.parent != nil {
+		for asker.parent != nil {
+			asker = asker.parent
+		}
+		label = "sub-agent \"" + s.Title + "\""
+		extra = subagentPrompt(r) + "\n" + extra
+	}
+	return &agent.Agent{
 		Provider: prov, Model: pc.Model, Effort: pc.Effort,
-		System: agent.System(mode, a.ws.Root, s.Created, ts.extra),
+		System: agent.System(mode, a.ws.Root, s.Created, project, extra),
 		Tools:  ts.reg, Policy: policy, Guard: grd, Env: agentEnv{a},
+		Parallel: map[string]bool{"task": true},
 		Hooks: agent.Hooks{
-			Event:   func(e agent.Event) { a.onUI(func() { a.agentEvent(e) }) },
-			Approve: a.agentApprove,
+			Event: func(e agent.Event) { a.onUI(func() { a.agentEvent(r, e) }) },
+			Approve: func(ctx context.Context, req agent.Approval) agent.Answer {
+				if label != "" {
+					req.Reason = strings.TrimSpace(label + " asks; " + req.Reason)
+				}
+				return a.agentApprove(ctx, asker, req)
+			},
 			Blocked: func(tool, why string) {
 				a.onUI(func() {
 					a.toast("Guard blocked "+tool+": "+why, ui.ToastWarning,
 						notifAction{label: "Edit guard.yaml", run: func() { a.openGuard(false) }})
 				})
 			},
-			Ask: a.agentAsk,
+			Ask: func(ctx context.Context, q string) (string, error) {
+				if label != "" {
+					q = label + " asks: " + q
+				}
+				return a.agentAsk(ctx, asker, q)
+			},
 			Apply: func(_ context.Context, edits []tools.FileEdit) error {
 				var err error
-				if cerr := a.callUI(func() { err = a.applyAgentEdits(edits) }); cerr != nil {
+				if cerr := a.callUI(func() { err = a.applyAgentEdits(r, edits) }); cerr != nil {
 					return cerr
 				}
 				return err
 			},
+			Inbox:   func() []string { return a.inboxOf(r) },
+			Persist: func() { _ = store.Save(s) },
 		},
+	}, nil
+}
+
+// startTurn runs the agent on prompt in the background.
+func (a *App) startTurn(r *agentRun, prompt string) error {
+	ag, err := a.agentFor(r)
+	if err != nil {
+		return err
 	}
+	if prompt == "" {
+		// Woken by mail: the mail is the message.
+		prompt = strings.Join(a.inboxOf(r), "\n\n")
+		if prompt == "" {
+			return nil
+		}
+	}
+	s := r.session
 	ctx, cancel := context.WithCancel(context.Background())
-	st.running, st.cancel, st.errText = true, cancel, ""
-	st.stream, st.thinking, st.streamTool = "", "", ""
-	st.turnCheckpoint = checkpoint{}
-	prompt := a.expandContext(text)
+	r.running, r.cancel, r.errText = true, cancel, ""
+	r.stream, r.thinking, r.streamTool = "", "", ""
+	r.turnCheckpoint = checkpoint{}
+	s.SetStatus(agent.StatusRunning)
+	a.track(r)
+	a.agent.bus.SetRunning(s.ID, true)
 	go func() {
 		err := ag.Run(ctx, s, prompt)
-		a.onUI(func() {
-			st.running, st.cancel = false, nil
-			st.stream, st.thinking, st.streamTool = "", "", ""
-			st.approval, st.question = nil, nil
-			a.releaseAgentBuffers()
-			if len(st.turnCheckpoint.order) > 0 {
-				cp := st.turnCheckpoint
-				st.lastCheckpoint = &cp
-			}
-			st.todosSnapshot()
-			if err != nil && !errors.Is(err, context.Canceled) && st.errText == "" {
-				st.errText = err.Error()
-			}
-			if serr := st.store.Save(s); serr != nil {
-				a.notifs.Add("Could not save the agent session: "+serr.Error(), ui.ToastWarning)
-			}
-			if err == nil {
-				a.notifs.Add("Agent finished: "+s.Title, ui.ToastSuccess,
-					notifAction{label: "Open Agent", run: func() { a.setAgentOpen(true) }})
-			}
-		})
+		a.onUI(func() { a.turnEnded(r, err) })
 	}()
+	return nil
 }
 
-func (st *agentState) todosSnapshot() {
-	if st.session != nil && st.todos != nil {
-		st.session.Todos = st.todos.Items()
+// turnEnded settles r after its turn, and starts the next one when
+// messages are still waiting.
+func (a *App) turnEnded(r *agentRun, err error) {
+	s := r.session
+	r.running, r.cancel = false, nil
+	r.stream, r.thinking, r.streamTool = "", "", ""
+	r.approval, r.question = nil, nil
+	if !a.anyRunning() {
+		a.releaseAgentBuffers()
+	}
+	if len(r.turnCheckpoint.order) > 0 {
+		cp := r.turnCheckpoint
+		r.lastCheckpoint = &cp
+	}
+	r.todosSnapshot()
+	if err != nil && !errors.Is(err, context.Canceled) && r.errText == "" {
+		r.errText = err.Error()
+	}
+	s.SetStatus(agent.StatusIdle)
+	a.agent.bus.SetRunning(s.ID, false)
+	if serr := a.agent.store.Save(s); serr != nil {
+		a.notifs.Add("Could not save the agent session: "+serr.Error(), ui.ToastWarning)
+	}
+	a.agent.sessionsStale = true
+	if r.parent != nil {
+		return // the parent reports the sub-agent's work
+	}
+	if err == nil {
+		a.notifs.Add("Agent finished: "+s.Title, ui.ToastSuccess,
+			notifAction{label: "Open Agent", run: func() { a.focusRun(r) }})
+	}
+	if q := a.inboxOf(r); len(q) > 0 && !errors.Is(err, context.Canceled) {
+		if serr := a.startTurn(r, strings.Join(q, "\n\n")); serr != nil {
+			r.errText = serr.Error()
+		}
 	}
 }
 
-// stopAgent cancels the turn in progress.
+// inboxOf is what reaches r's agent between steps: the user's queued
+// messages, then other agents' mail.
+func (a *App) inboxOf(r *agentRun) []string {
+	out := r.takeQueue()
+	if a.agent.bus != nil {
+		for _, m := range a.agent.bus.Take(r.session.ID) {
+			out = append(out, mailText(m))
+		}
+	}
+	return out
+}
+
+func mailText(m agent.Mail) string {
+	return fmt.Sprintf("<agent_message from=%q name=%q>\n%s\n</agent_message>", m.From, m.FromName, m.Text)
+}
+
+// takeQueue returns and clears the messages waiting for the agent.
+func (r *agentRun) takeQueue() []string {
+	r.queueMu.Lock()
+	defer r.queueMu.Unlock()
+	q := r.queue
+	r.queue = nil
+	return q
+}
+
+// queued copies the waiting messages for display.
+func (r *agentRun) queued() []string {
+	r.queueMu.Lock()
+	defer r.queueMu.Unlock()
+	return append([]string(nil), r.queue...)
+}
+
+// unqueue drops waiting message i.
+func (r *agentRun) unqueue(i int) {
+	r.queueMu.Lock()
+	defer r.queueMu.Unlock()
+	if i >= 0 && i < len(r.queue) {
+		r.queue = append(r.queue[:i], r.queue[i+1:]...)
+	}
+}
+
+func (r *agentRun) todosSnapshot() {
+	if r.session != nil && r.todos != nil {
+		r.session.Todos = r.todos.Items()
+	}
+}
+
+// stopAgent cancels the active session's turn.
 func (a *App) stopAgent() {
-	st := &a.agent
-	if st.cancel != nil {
-		st.cancel()
-	}
-	if p := st.approval; p != nil {
-		p.reply <- agent.Answer{Allow: false, Note: "stopped by the user"}
-		st.approval = nil
-	}
-	if q := st.question; q != nil {
-		q.reply <- ""
-		st.question = nil
+	if r := a.run(); r != nil {
+		a.stopRun(r)
 	}
 }
 
-// agentEvent applies a report from the agent goroutine to the panel.
-func (a *App) agentEvent(e agent.Event) {
-	st := &a.agent
+// stopAllAgents cancels every running turn.
+func (a *App) stopAllAgents() {
+	for _, r := range a.runs() {
+		a.stopRun(r)
+	}
+}
+
+// stopRun cancels r's turn in progress; waiting messages are dropped.
+func (a *App) stopRun(r *agentRun) {
+	r.takeQueue()
+	for _, ch := range r.children {
+		a.stopRun(ch)
+	}
+	if r.cancel != nil {
+		r.cancel()
+	}
+	if p := r.approval; p != nil {
+		p.reply <- agent.Answer{Allow: false, Note: "stopped by the user"}
+		r.approval = nil
+	}
+	if q := r.question; q != nil {
+		q.reply <- ""
+		r.question = nil
+	}
+}
+
+// agentEvent applies a report from r's agent goroutine.
+func (a *App) agentEvent(r *agentRun, e agent.Event) {
 	switch e.Kind {
 	case agent.EvText:
-		st.stream += e.Text
+		r.stream += e.Text
 	case agent.EvThinking:
-		st.thinking += e.Text
+		r.thinking += e.Text
 	case agent.EvToolStart:
-		st.streamTool = e.Tool
+		r.streamTool = e.Tool
 	case agent.EvMessage:
-		st.stream, st.thinking, st.streamTool = "", "", ""
+		r.stream, r.thinking, r.streamTool = "", "", ""
 	case agent.EvToolCall:
-		st.calls[e.CallID] = callView{summary: e.Summary}
+		r.calls[e.CallID] = callView{summary: e.Summary}
 	case agent.EvToolResult:
-		cv := st.calls[e.CallID]
+		cv := r.calls[e.CallID]
 		res := e.Result
 		cv.result = &res
-		st.calls[e.CallID] = cv
-		st.todosSnapshot()
+		r.calls[e.CallID] = cv
+		r.todosSnapshot()
 	case agent.EvError:
-		st.errText = e.Text
+		r.errText = e.Text
 	}
 }
 
-// agentApprove shows an approval card and waits for the user.
-func (a *App) agentApprove(ctx context.Context, req agent.Approval) agent.Answer {
+// agentApprove shows an approval card in r and waits for the user.
+func (a *App) agentApprove(ctx context.Context, r *agentRun, req agent.Approval) agent.Answer {
 	reply := make(chan agent.Answer, 1)
 	_ = a.callUI(func() {
 		p := &pendingApproval{req: req, reply: reply}
@@ -328,7 +642,7 @@ func (a *App) agentApprove(ctx context.Context, req agent.Approval) agent.Answer
 			}
 			p.files = append(p.files, rf)
 		}
-		a.agent.approval = p
+		r.approval = p
 		a.agentOpen = true
 	})
 	select {
@@ -339,13 +653,13 @@ func (a *App) agentApprove(ctx context.Context, req agent.Approval) agent.Answer
 	}
 }
 
-// answerApproval replies to the card.
-func (a *App) answerApproval(allow, forSession bool) {
-	p := a.agent.approval
+// answerApproval replies to r's card.
+func (a *App) answerApproval(r *agentRun, allow, forSession bool) {
+	p := r.approval
 	if p == nil {
 		return
 	}
-	a.agent.approval = nil
+	r.approval = nil
 	ans := agent.Answer{Allow: allow, ForSession: forSession, Note: strings.TrimSpace(p.note)}
 	if allow && len(p.files) > 0 {
 		for _, f := range p.files {
@@ -369,11 +683,11 @@ func (a *App) answerApproval(allow, forSession bool) {
 	p.reply <- ans
 }
 
-// agentAsk puts ask_user's question in the panel and waits for the answer.
-func (a *App) agentAsk(ctx context.Context, question string) (string, error) {
+// agentAsk puts ask_user's question in r and waits for the answer.
+func (a *App) agentAsk(ctx context.Context, r *agentRun, question string) (string, error) {
 	reply := make(chan string, 1)
 	_ = a.callUI(func() {
-		a.agent.question = &pendingQuestion{text: question, reply: reply}
+		r.question = &pendingQuestion{text: question, reply: reply}
 		a.agentOpen = true
 	})
 	select {
@@ -388,70 +702,80 @@ func (a *App) agentAsk(ctx context.Context, question string) (string, error) {
 }
 
 // slashCommand runs /mode, /new and /provider.
-func (a *App) slashCommand(text string) {
-	st := &a.agent
+func (a *App) slashCommand(r *agentRun, text string) {
 	f := strings.Fields(text)
 	switch f[0] {
 	case "/mode":
 		modes := a.modes()
 		if len(f) < 2 {
-			st.errText = "Modes: " + strings.Join(agent.ModeNames(modes), ", ")
+			r.errText = "Modes: " + strings.Join(agent.ModeNames(modes), ", ")
 			return
 		}
 		if _, ok := modes[f[1]]; !ok {
-			st.errText = "Unknown mode " + f[1] + ". Modes: " + strings.Join(agent.ModeNames(modes), ", ")
+			r.errText = "Unknown mode " + f[1] + ". Modes: " + strings.Join(agent.ModeNames(modes), ", ")
 			return
 		}
-		st.mode, st.errText = f[1], ""
+		r.mode, r.errText = f[1], ""
 		a.toast("Agent mode: "+f[1], ui.ToastInfo)
 	case "/provider":
 		if len(f) < 2 {
-			st.errText = "Providers: " + strings.Join(a.providerNames(), ", ")
+			r.errText = "Providers: " + strings.Join(a.providerNames(), ", ")
 			return
 		}
 		if _, ok := a.cfg.Current().Agent.Providers[f[1]]; !ok {
-			st.errText = "Unknown provider " + f[1]
+			r.errText = "Unknown provider " + f[1]
 			return
 		}
-		st.provider, st.errText = f[1], ""
+		r.provider, r.errText = f[1], ""
 	case "/new", "/clear":
 		a.newAgentSession()
 	default:
-		st.errText = "Unknown command " + f[0] + ". Try /mode, /provider or /new."
+		r.errText = "Unknown command " + f[0] + ". Try /mode, /provider or /new."
 	}
 }
 
+// newAgentSession opens a new session in a tab.
 func (a *App) newAgentSession() {
-	st := &a.agent
-	if st.running {
-		return
-	}
-	st.session, st.grants, st.errText, st.lastCheckpoint = nil, nil, "", nil
-	st.calls = map[string]callView{}
-	st.todos.Set(nil)
-	st.sessionsOpen, st.focusInput = false, true
+	a.openRunTab(a.newRun(nil))
+	a.agentOpen = true
 }
 
+// resumeAgentSession opens a saved session in a tab, or focuses its tab.
+// A session of another folder asks to open that folder first.
 func (a *App) resumeAgentSession(id string) {
-	st := &a.agent
-	if st.running {
+	if i := a.agentTabIndex(agentTabSession, id); i >= 0 {
+		a.focusAgentTab(i)
 		return
 	}
-	s, err := st.store.Load(id)
+	if r := a.agent.live[id]; r != nil {
+		a.openRunTab(r) // a sub-agent at work
+		return
+	}
+	s, err := a.agent.store.Load(id)
 	if err != nil {
 		a.fail("Could not open the session", err)
 		return
 	}
-	st.session, st.grants, st.errText, st.lastCheckpoint = s, nil, "", nil
-	st.calls = map[string]callView{}
-	if s.Mode != "" {
-		st.mode = s.Mode
+	if s.Root != "" && s.Root != a.ws.Root {
+		root := s.Root
+		a.ctx.Dialogs().ShowAction("Open "+filepath.Base(root)+"?",
+			"This session works in "+root+". Open that folder to continue it?",
+			func() {
+				a.confirmDiscard("Open folder?", func() {
+					a.openFolder(root)
+					a.agentOpen = true
+					a.resumeAgentSession(id)
+				})
+			}, nil)
+		return
 	}
-	if s.Provider != "" {
-		st.provider = s.Provider
+	if s.Status == agent.StatusRunning {
+		// Saved mid-turn by a run of hm that is gone.
+		s.Status = agent.StatusInterrupted
+		s.Repair()
+		_ = a.agent.store.Save(s)
 	}
-	st.todos.Set(s.Todos)
-	st.sessionsOpen, st.focusInput = false, true
+	a.openRunTab(a.newRun(s))
 }
 
 func (a *App) providerNames() []string {
@@ -529,9 +853,15 @@ func (e agentEnv) diagnosticsNow() []string {
 
 // askAboutSelection opens the agent with the selection attached.
 func (a *App) askAboutSelection() {
-	a.agentOpen, a.agent.focusInput = true, true
-	if a.agent.input == "" {
-		a.agent.input = "@selection "
+	a.agentOpen = true
+	r := a.run()
+	if r == nil {
+		r = a.newRun(nil)
+		a.openRunTab(r)
+	}
+	r.focusInput = true
+	if r.input == "" {
+		r.input = "@selection "
 	}
 }
 

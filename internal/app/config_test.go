@@ -149,14 +149,15 @@ func TestSettingsApplyLive(t *testing.T) {
 	}
 
 	// A new default mode reaches the agent while it uses the old default...
+	h.app.newAgentSession()
 	h.app.setSetting([]string{"agent", "default_mode"}, "lazy")
-	if h.app.agent.mode != "lazy" {
-		t.Fatalf("agent mode %q, want the new default", h.app.agent.mode)
+	if h.app.run().mode != "lazy" {
+		t.Fatalf("agent mode %q, want the new default", h.app.run().mode)
 	}
 	// ...but not once the user picked one.
-	h.app.agent.mode = "auto"
+	h.app.run().mode = "auto"
 	h.app.setSetting([]string{"agent", "default_mode"}, "rubber-duck")
-	if h.app.agent.mode != "auto" {
-		t.Fatalf("agent mode %q, want the user's pick kept", h.app.agent.mode)
+	if h.app.run().mode != "auto" {
+		t.Fatalf("agent mode %q, want the user's pick kept", h.app.run().mode)
 	}
 }

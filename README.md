@@ -60,6 +60,13 @@ Fast where it can be, and quiet when you need to think.
 
 ### AI agent
 - Chat with the agent beside the editor or full screen; ask about a selection with `cmd+shift+l`.
+- Sessions in tabs, several working at once: `cmd+t` opens one, `ctrl+tab` / `ctrl+shift+tab` switch, and a spinner or dot marks a tab that is working, waiting for you or was interrupted.
+- Full screen, a sidebar replaces the explorer: Projects, Artifacts, a searchable history of every session (across all your folders, with sub-agents nested under the session that started them) and the agent's settings.
+- Projects: a title, description and context that the agent is given before every task in the project's sessions. Pick one in the composer.
+- Type while the agent works: your message waits in a queue and reaches the agent after its current step.
+- Sessions are saved after every step. If hm stops mid-task, the session reopens marked as interrupted, with a **Resume** button.
+- Replay a session one message at a time, with when each one happened.
+- Sub-agents: the `task` tool hands work to an agent in a session of its own, in the foreground or the background, read-only unless allowed to write. Several run at once. Agents message each other with `send_message`, `wait_message` and `list_agents`.
 - Modes, switched with `/mode`:
   - **lazy** changes only what is necessary;
   - **rubber-duck** plans and pushes back before touching code;
@@ -114,6 +121,10 @@ agent:
   default_provider: anthropic
   providers:
     openrouter: { type: openai, base_url: "https://openrouter.ai/api/v1", api_key: "${OPENROUTER_API_KEY}" }
+  subagents: { max_depth: 1, max_concurrent: 4 }   # max_depth: 0 turns the task tool off
+
+artifacts:
+  storage: none   # none | gcs | s3 | git (not wired up yet)
 ```
 
 ## Roadmap
@@ -124,6 +135,7 @@ agent:
 - **Reset** in the per-language settings removes your overrides but not the built-in per-language defaults (such as two-space YAML); those can only be overridden.
 
 ### Planned
+- Artifact storage in a GCS or S3 bucket or a git repository (the settings exist; the Artifacts tab is empty for now).
 - A diff option to ignore whitespace-only changes (`ignore_trim_whitespace`).
 - Full-color file icons, once Yoga can draw multi-color SVG icons in the tree.
 - Prebuilt, signed releases for macOS, Linux and Windows.

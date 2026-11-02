@@ -2,6 +2,7 @@ package app
 
 import (
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -36,6 +37,7 @@ var settingsCategories = []struct {
 	{"agent", "Agent", icons.Bot, 1},
 	{"completion", "Completion", icons.Sparkles, 1},
 	{"security", "Agent Security", icons.ShieldCheck, 1},
+	{"artifacts", "Artifacts", icons.Package, 1},
 	{"keys", "Keyboard Shortcuts", icons.Keyboard, 2},
 	{"updates", "Updates", icons.Download, 2},
 }
@@ -44,15 +46,24 @@ var settingsCategories = []struct {
 // selected category's form scrolling on the right. Changes are written to
 // the user or project YAML file, keeping its comments.
 func (a *App) settingsPage(c *ui.Ctx) ui.View {
+	return a.settingsPageOf(c, nil, &a.settingsCat)
+}
+
+// settingsPageOf is the settings page limited to the categories in only
+// (every one when nil), the selected one kept in *sel.
+func (a *App) settingsPageOf(c *ui.Ctx, only []string, sel *string) ui.View {
 	th := c.Theme()
 	user, project := a.cfg.Paths()
 	target := user
 	if a.settingsProject {
 		target = project
 	}
-	cat := a.settingsCat
-	if cat == "" {
+	cat := *sel
+	if cat == "" || only != nil && !slices.Contains(only, cat) {
 		cat = settingsCategories[0].id
+		if only != nil {
+			cat = only[0]
+		}
 	}
 	scope := 0
 	if a.settingsProject {
@@ -85,12 +96,12 @@ func (a *App) settingsPage(c *ui.Ctx) ui.View {
 	content := ui.Scroll("settings-scroll",
 		ui.Column(body...).Gap(th.Spacing.L).PaddingXY(th.Spacing.XL, th.Spacing.XL).MaxWidth(800),
 	).Grow(1)
-	return ui.Row(a.settingsNav(c, cat, target), content).Align(ui.AlignStretch).Grow(1)
+	return ui.Row(a.settingsNav(c, cat, target, only, sel), content).Align(ui.AlignStretch).Grow(1)
 }
 
 // settingsNav lists the categories in groups, then links to the YAML files
 // behind them.
-func (a *App) settingsNav(c *ui.Ctx, cat, target string) ui.View {
+func (a *App) settingsNav(c *ui.Ctx, cat, target string, only []string, sel *string) ui.View {
 	th := c.Theme()
 	divider := func() ui.View {
 		return ui.Row().BorderTop(ui.TokenBorder, th.Stroke.Thin).MarginXY(th.Spacing.S, th.Spacing.S)
@@ -104,12 +115,17 @@ func (a *App) settingsNav(c *ui.Ctx, cat, target string) ui.View {
 			Gap(th.Spacing.XS).Align(ui.AlignCenter)).Ghost().HoverFill().IconStart(icon).Justify(ui.JustifyStart)
 	}
 	var rows []ui.View
-	for i, sc := range settingsCategories {
-		if i > 0 && sc.group != settingsCategories[i-1].group {
+	group := -1
+	for _, sc := range settingsCategories {
+		if only != nil && !slices.Contains(only, sc.id) {
+			continue
+		}
+		if group >= 0 && sc.group != group {
 			rows = append(rows, divider())
 		}
+		group = sc.group
 		id := sc.id
-		b := item("settings-cat-"+id, sc.label, sc.icon).OnClick(func() { a.settingsCat = id })
+		b := item("settings-cat-"+id, sc.label, sc.icon).OnClick(func() { *sel = id })
 		if id == cat {
 			b = b.Background(ui.TokenListActive)
 		}
@@ -138,6 +154,28 @@ func (a *App) settingsSection(c *ui.Ctx, cat string) ui.View {
 		return a.securitySection(c)
 	case "agent":
 		return a.agentSettings(c)
+	case "artifacts":
+		art := cfg.Artifacts
+		fields := []ui.FormItem{
+			ui.FormSelect("set-art-storage", "Storage", "Where the agent keeps artifacts. Not wired up yet",
+				enumOptions("artifacts.storage"), enumIndex("artifacts.storage", art.Storage),
+				func(v string) { a.setSetting(key("artifacts", "storage"), v) }),
+		}
+		switch art.Storage {
+		case "gcs", "s3":
+			fields = append(fields,
+				ui.FormText("set-art-bucket", "Bucket", "The bucket's name",
+					a.textValue(key("artifacts", "bucket"), art.Bucket), func(v string) { a.setTextSetting(key("artifacts", "bucket"), v) }),
+				ui.FormText("set-art-prefix", "Prefix", "Folder inside the bucket; empty for its root",
+					a.textValue(key("artifacts", "prefix"), art.Prefix), func(v string) { a.setTextSetting(key("artifacts", "prefix"), v) }))
+		case "git":
+			fields = append(fields,
+				ui.FormText("set-art-repo", "Repository", "Remote URL to push artifacts to",
+					a.textValue(key("artifacts", "repo"), art.Repo), func(v string) { a.setTextSetting(key("artifacts", "repo"), v) }),
+				ui.FormText("set-art-branch", "Branch", "Branch artifacts are committed on",
+					a.textValue(key("artifacts", "branch"), art.Branch), func(v string) { a.setTextSetting(key("artifacts", "branch"), v) }))
+		}
+		return ui.Form("settings-artifacts", fields...).Grouped()
 	case "completion":
 		return a.completionSettings()
 	case "editor":

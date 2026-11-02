@@ -165,6 +165,9 @@ ui.Tabs(id, []ui.TabModel{{Title: "a.go", Modified: true, Badge: "2"}}).
     OnTabContextMenu(func(i int) []ui.MenuItem { … }). // right-click menu per tab
     Closable(false). // hide close buttons for section-style tabs
     TabBackground(th.Background)
+// TabModel.Busy swaps the icon for a small spinner (a running task);
+// TabModel.Status paints a colored dot after the title (e.g. th.Warning for
+// an interrupted task).
 // Too many tabs: the strip scrolls (wheel/trackpad), keeps the active tab in
 // view, and a "+N" button at the right edge lists the hidden tabs.
 
@@ -213,6 +216,12 @@ Nav orientations: `NavVertical`, `NavHorizontal`. Item layouts: `NavIconLeft`, `
 
 ```go
 ui.Card("Title", "Subtitle", body).Elevated() // or .Flat(); default raised
+ui.ClickableCard(id, "Title", "Subtitle", body). // hover fill, pointer, click
+    OnClick(open).
+    Actions(ui.IconButton(id+"-more", icons.Ellipsis).Menu(items)). // title-row slot; its clicks skip the card
+    Footer(ui.Caption("Updated 2h ago")).
+    CardSelected(sel) // accent border
+// Card grid: fixed-width cards in ui.Row(cards...).Wrap().Gap(…)
 ui.Alert("message", ui.AlertInfo) // Warning, Error, Success
 ui.Alert("…", ui.AlertError).Dismissable(func() { … })
 ui.Spinner(id, 24)
@@ -258,6 +267,8 @@ ui.ContextMenu(id, child, []ui.MenuItem{
 }).Width(180) // opens on right-click
 ```
 
+`MenuItem` fields: `Label`, `OnSelect`, `Shortcut` (right hint), `Disabled`, `Separator` (or `ui.MenuSeparator`), `Checked`, `Color`, `Icon` (drawn before the label; labels of the whole menu indent to line up) and `Danger` (error-colored, for Delete/Remove).
+
 Tooltip/Popover/ContextMenu share `placeAnchor` (preferred side + flip + viewport clamp). Popover has **no scrim** (unlike dialogs). Escape / outside click dismisses Popover and ContextMenu. `TableAction.Tooltip` is shown on action-icon hover.
 
 ## Overlay hosts (window services)
@@ -267,6 +278,8 @@ c.Dialogs().ShowInfo("Info", "note", func() {})
 c.Dialogs().ShowWarning("Warning", "careful", func() {})
 c.Dialogs().ShowError("Error", "failed", func() {})
 c.Dialogs().ShowAction("Delete?", "Cannot undo.", onYes, onNo)
+c.Dialogs().ShowDanger("Remove project?", "Cannot undo.", "Remove", onRemove) // Cancel + error-colored confirm
+// DialogAction{Label, Primary, Danger, Disabled, OnClick} for custom footers
 c.Dialogs().ShowInput("Name", "placeholder", func(v string) {}, func() {})
 c.Dialogs().Show(ui.DialogOpts{
     Title: "Settings", Width: 720, Height: 520,
@@ -353,6 +366,8 @@ Virtualized, piece-table, LSP overlay self-registered. `CapturesTab() == true` (
 
 **Wrapping.** `ed.SetSoftWrap(true)` (or `ui.WithSoftWrap(true)`) wraps long lines at the viewport width and can be toggled at runtime; the caret and the row under it (or the top row, if the caret is off screen) keep their place. Continuation rows carry no line number, and caret movement, selection, clicks and Up/Down all work on visual rows.
 
+**Indentation.** `ed.SetTabWidth(n)` lays tabs out every `n` columns for this editor only (`0` follows `shape.FontConfig.TabWidth`), `ed.SetIndentSpaces(v)` makes Tab insert spaces or a tab, and `ed.SetAutoIndent(m)` picks what Enter carries to the new line: `ui.AutoIndentNone`, `ui.AutoIndentKeep` (the line's leading whitespace) or `ui.AutoIndentBrackets` (one more level after `{ [ (` or a trailing `:`, and a closing bracket right after the caret moves to its own line). Unset editors follow `ui.EditorDefaults.IndentSpaces` and `ui.EditorDefaults.AutoIndent`; use these for per-language settings.
+
 `ed.SetWrapIndent(ui.WrapHanging)` (or `ui.WithWrapIndent`) picks where continuation rows start: `WrapIndentNone` (column 0, default), `WrapIndentSame` (under the line's leading whitespace) or `WrapHanging` (one tab stop past it). Indents count rendered columns (tabs expanded) and are capped at half the row width.
 
 **Gutter.** By default the line-number gutter is 52 px, filled with `ChromeMuted`, with a border. `ed.SetGutter(spec)` (or `ui.WithGutter`) sizes it to the digit count instead:
@@ -419,11 +434,14 @@ tree.Loader = func(n *ui.TreeNode) []*ui.TreeNode {
 }
 tree.OnActivate = func(n *ui.TreeNode) { … }
 tree.SetFilter(q)
+tree.CollapseAll() // close every branch; selection moves to its top-level row
 ui.ViewOf(tree).Grow(1)
 
 ft := ui.NewFileTree(cwd)
 ft.OnOpenFile = func(path string) { … }
 ft.SetContextMenu(func(path string) []ui.MenuItem { return … })
+ft.SetIconFor(func(path string, dir, open bool) (icons.Icon, render.Color) { … }) // per file type; nil = defaults
+ft.CollapseAll() // fires OnChange
 ft.SetFilter(q)
 ui.ViewOf(ft).Grow(1)
 ```

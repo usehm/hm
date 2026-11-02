@@ -67,12 +67,15 @@ func modePrompt(p, root string) string {
 }
 
 // System builds the system prompt. It changes only when the session
-// starts, so it caches.
-func System(m Mode, root string, started time.Time, extra string) string {
+// starts, so it caches. project may be nil.
+func System(m Mode, root string, started time.Time, project *Project, extra string) string {
 	var b strings.Builder
 	b.WriteString(basePrompt)
 	fmt.Fprintf(&b, "\n\n# Environment\nWorkspace root: %s\nOS: %s/%s\nSession started: %s\n",
 		root, runtime.GOOS, runtime.GOARCH, started.Format("2006-01-02"))
+	if p := project.Prompt(); p != "" {
+		b.WriteString("\n" + p)
+	}
 	if m.Prompt != "" {
 		fmt.Fprintf(&b, "\n# Mode: %s\n%s\n", m.Name, strings.TrimSpace(m.Prompt))
 	}

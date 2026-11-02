@@ -55,9 +55,9 @@ agent:`, tracker.URL), 1))
 	h.until("MCP tools", 10*time.Second, func() bool { return len(h.app.agent.mcp.Tools()) == 1 })
 
 	runTask(t, h, "fix issue 7")
-	h.until("turn end", 60*time.Second, func() bool { return !h.app.agent.running })
-	if h.app.agent.errText != "" {
-		t.Fatal(h.app.agent.errText)
+	h.until("turn end", 60*time.Second, func() bool { return !h.app.run().running })
+	if h.app.run().errText != "" {
+		t.Fatal(h.app.run().errText)
 	}
 	offered := fmt.Sprint(model.requests[0]["tools"])
 	for _, name := range []string{"mcp__tracker__get_issue", "run_tests", "skill", "web_search", "lsp_definition"} {

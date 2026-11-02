@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/mirzakhany/hm/internal/agent/guard"
@@ -70,6 +71,13 @@ type Hooks struct {
 	Apply func(ctx context.Context, edits []tools.FileEdit) error
 	// Blocked is told when the guard refuses a call.
 	Blocked func(tool, reason string)
+	// Inbox returns, and forgets, messages sent while the turn runs: from
+	// the user or from other agents. They join the conversation after the
+	// next tool results, or start another step when the model is done.
+	Inbox func() []string
+	// Persist is called each time a message joins the session, so a crash
+	// loses at most the step in progress.
+	Persist func()
 }
 
 // Agent runs turns of one session.
@@ -85,19 +93,38 @@ type Agent struct {
 	Guard *guard.Guard
 	Env   tools.Env
 	Hooks Hooks
+	// Parallel names tools whose calls in one message run at once.
+	Parallel map[string]bool
 }
 
 func (a *Agent) emit(e Event) {
+	if e.Kind == EvMessage && a.Hooks.Persist != nil {
+		a.Hooks.Persist()
+	}
 	if a.Hooks.Event != nil {
 		a.Hooks.Event(e)
 	}
+}
+
+// inbox returns the waiting messages as text blocks.
+func (a *Agent) inbox() []provider.Block {
+	if a.Hooks.Inbox == nil {
+		return nil
+	}
+	var out []provider.Block
+	for _, m := range a.Hooks.Inbox() {
+		if m = strings.TrimSpace(m); m != "" {
+			out = append(out, provider.Block{Type: provider.Text, Text: m})
+		}
+	}
+	return out
 }
 
 // Run adds the user's message and works until the model ends its turn,
 // asking for approvals on the way. The session grows append-only: earlier
 // turns are never edited, so cached prefixes and thinking stay valid.
 func (a *Agent) Run(ctx context.Context, s *Session, input string) error {
-	s.append(provider.Message{Role: provider.User, Blocks: []provider.Block{{Type: provider.Text, Text: input}}})
+	s.addUserText(input)
 	a.emit(Event{Kind: EvMessage})
 	for step := 0; step < maxSteps; step++ {
 		req := provider.Request{
@@ -136,6 +163,9 @@ func (a *Agent) Run(ctx context.Context, s *Session, input string) error {
 			return nil
 		case provider.StopToolUse, provider.StopMaxTokens:
 		default:
+			if a.continueWithInbox(s) {
+				continue
+			}
 			return nil
 		}
 		calls := resp.Message.ToolUses()
@@ -143,19 +173,38 @@ func (a *Agent) Run(ctx context.Context, s *Session, input string) error {
 			if resp.StopReason == provider.StopMaxTokens {
 				a.emit(Event{Kind: EvError, Text: "The response hit the token limit"})
 			}
+			if a.continueWithInbox(s) {
+				continue
+			}
 			return nil
 		}
 		// Every tool result goes back in one user message.
 		results := make([]provider.Block, 0, len(calls))
-		for _, call := range calls {
-			res := a.call(ctx, call)
-			if ctx.Err() != nil {
-				res = tools.Result{Text: "Cancelled by the user", IsError: true}
+		for i := 0; i < len(calls); {
+			// Calls of tools that may run side by side, one after another
+			// in the message, run at once: several sub-agents, say.
+			j := i + 1
+			for a.Parallel[calls[i].ToolName] && j < len(calls) && a.Parallel[calls[j].ToolName] {
+				j++
 			}
-			results = append(results, provider.Block{Type: provider.ToolResult, ToolID: call.ToolID,
-				ToolName: call.ToolName, Text: res.Text, IsError: res.IsError})
-			a.emit(Event{Kind: EvToolResult, Tool: call.ToolName, CallID: call.ToolID, Result: res})
+			res := make([]tools.Result, j-i)
+			var wg sync.WaitGroup
+			for k := i; k < j; k++ {
+				wg.Go(func() { res[k-i] = a.call(ctx, calls[k]) })
+			}
+			wg.Wait()
+			for k := i; k < j; k++ {
+				call, r := calls[k], res[k-i]
+				if ctx.Err() != nil {
+					r = tools.Result{Text: "Cancelled by the user", IsError: true}
+				}
+				results = append(results, provider.Block{Type: provider.ToolResult, ToolID: call.ToolID,
+					ToolName: call.ToolName, Text: r.Text, IsError: r.IsError})
+				a.emit(Event{Kind: EvToolResult, Tool: call.ToolName, CallID: call.ToolID, Result: r})
+			}
+			i = j
 		}
+		results = append(results, a.inbox()...)
 		s.append(provider.Message{Role: provider.User, Blocks: results})
 		a.emit(Event{Kind: EvMessage})
 		if ctx.Err() != nil {
@@ -164,6 +213,18 @@ func (a *Agent) Run(ctx context.Context, s *Session, input string) error {
 	}
 	a.emit(Event{Kind: EvError, Text: fmt.Sprintf("Stopped after %d steps", maxSteps)})
 	return nil
+}
+
+// continueWithInbox starts another step with the waiting messages when the
+// model ended its turn while they arrived.
+func (a *Agent) continueWithInbox(s *Session) bool {
+	msgs := a.inbox()
+	if len(msgs) == 0 {
+		return false
+	}
+	s.append(provider.Message{Role: provider.User, Blocks: msgs})
+	a.emit(Event{Kind: EvMessage})
+	return true
 }
 
 // call runs one tool call through the policy.
@@ -241,7 +302,7 @@ func (a *Agent) call(ctx context.Context, call provider.Block) tools.Result {
 		}
 		return tools.Result{Text: describeEdits(a.Env, plan.Edits, edits, ans.Note)}
 	case plan.Run != nil:
-		return plan.Run(ctx)
+		return plan.Run(tools.WithCallID(ctx, call.ToolID))
 	}
 	return tools.Result{Text: "Nothing to do"}
 }

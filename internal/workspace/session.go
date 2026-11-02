@@ -16,12 +16,22 @@ type Session struct {
 	Side   *bool        `json:"side,omitempty"`
 	// Agent is true when the agent was showing.
 	Agent bool `json:"agent,omitempty"`
-	// AgentSession is the agent session that was open.
+	// AgentSession is the agent session that was open, from before the
+	// agent had tabs.
 	AgentSession string `json:"agent_session,omitempty"`
+	// AgentTabs are the agent's tabs, and AgentActive the one showing.
+	AgentTabs   []AgentTab `json:"agent_tabs,omitempty"`
+	AgentActive int        `json:"agent_active,omitempty"`
 	// Panel is the bottom panel that was open: terminal, problems or output.
 	Panel string `json:"panel,omitempty"`
 	// Groups are split view's groups after the first: each one's files.
 	Groups [][]string `json:"groups,omitempty"`
+}
+
+// AgentTab is one tab of the agent: a session, a project or a page.
+type AgentTab struct {
+	Kind string `json:"kind"`
+	Key  string `json:"key,omitempty"`
 }
 
 // SessionTab is one tab with the caret it had.

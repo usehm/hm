@@ -260,11 +260,11 @@ func (a *App) attachEditor(ed *ui.Editor) {
 // Close saves the session and releases editors and watchers.
 func (a *App) Close() {
 	a.saveSession()
-	a.stopAgent()
+	a.stopAllAgents()
 	a.closeAllTerminals()
 	a.agent.materialize.Wait()
-	if a.agent.shells != nil {
-		a.agent.shells.StopAll()
+	for _, r := range a.runs() {
+		r.shells.StopAll()
 	}
 	if a.agent.mcp != nil {
 		a.agent.mcp.Close()
@@ -282,12 +282,11 @@ func (a *App) Close() {
 // the last run left them.
 func (a *App) restoreViews(s workspace.Session) {
 	a.agentOpen = s.Agent
-	if s.AgentSession != "" {
-		if _, err := a.agent.store.Load(s.AgentSession); err == nil {
-			a.resumeAgentSession(s.AgentSession)
-		}
+	tabs := s.AgentTabs
+	if len(tabs) == 0 && s.AgentSession != "" {
+		tabs = []workspace.AgentTab{{Kind: agentTabSession, Key: s.AgentSession}}
 	}
-	a.agent.focusInput = a.agentOpen
+	a.restoreAgentTabs(tabs, s.AgentActive)
 	for i, p := range panelTabs {
 		if p.Value == s.Panel {
 			a.showPanel(panelKind(i))
@@ -318,9 +317,7 @@ func (a *App) saveSession() {
 	side := a.sideOpen
 	s.Side = &side
 	s.Agent = a.agentOpen
-	if as := a.agent.session; as != nil && len(as.Snapshot()) > 0 {
-		s.AgentSession = as.ID
-	}
+	s.AgentTabs, s.AgentActive = a.agentTabsState()
 	if a.panelOpen {
 		s.Panel = panelTabs[a.panel].Value
 	}

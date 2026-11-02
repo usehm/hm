@@ -41,6 +41,9 @@ keys:                         # command id -> chord; overrides built-ins
   panel.git: cmd+shift+g
   panel.problems: cmd+shift+m
   agent.toggle: cmd+l
+  agent.newTab: cmd+t         # while the agent shows; cmd+w closes its tab full screen
+  agent.nextTab: ctrl+tab
+  agent.prevTab: ctrl+shift+tab
   editor.definition: f12
   editor.references: shift+f12
   editor.rename: f2
@@ -367,6 +370,19 @@ agent:
     # Any OpenAI-compatible endpoint: OpenAI, OpenRouter
     # (https://openrouter.ai/api/v1), Ollama (http://localhost:11434/v1), ...
     openai: { type: openai, base_url: "https://api.openai.com/v1", api_key: "keychain:openai" }
+  # The task tool lets the agent hand work to sub-agents, which run in
+  # sessions of their own and report back.
+  subagents:
+    max_depth: 1              # how deep sub-agents nest; 0 turns the task tool off
+    max_concurrent: 4         # sub-agents of one agent running at once
+
+# Where the agent keeps artifacts. Storage backends are not wired up yet.
+artifacts:
+  storage: none               # none | gcs | s3 | git
+  bucket: ""                  # gcs / s3 bucket
+  prefix: ""                  # folder in the bucket
+  repo: ""                    # git remote URL
+  branch: main
 
 # AI inline completions: ghost text at the caret, Tab accepts, Esc dismisses.
 completion:

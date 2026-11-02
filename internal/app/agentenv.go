@@ -117,8 +117,8 @@ type checkpoint struct {
 // applyAgentEdits writes the agent's edits through the buffers, so open tabs
 // show them and undo works there too, and saves them so builds and tests
 // see them.
-func (a *App) applyAgentEdits(edits []tools.FileEdit) error {
-	cp := &a.agent.turnCheckpoint
+func (a *App) applyAgentEdits(r *agentRun, edits []tools.FileEdit) error {
+	cp := &r.turnCheckpoint
 	if cp.files == nil {
 		cp.files = map[string][]byte{}
 	}
@@ -172,9 +172,9 @@ func (a *App) writeAgentFile(path string, content []byte) error {
 	return nil
 }
 
-// undoAgentTurn puts back every file the last agent turn changed.
-func (a *App) undoAgentTurn() {
-	cp := a.agent.lastCheckpoint
+// undoAgentTurn puts back every file r's last turn changed.
+func (a *App) undoAgentTurn(r *agentRun) {
+	cp := r.lastCheckpoint
 	if cp == nil || len(cp.order) == 0 {
 		a.toast("The last agent turn changed no files", ui.ToastInfo)
 		return
@@ -187,7 +187,7 @@ func (a *App) undoAgentTurn() {
 			failed = append(failed, a.ws.Rel(p)+": "+err.Error())
 		}
 	}
-	a.agent.lastCheckpoint = nil
+	r.lastCheckpoint = nil
 	if len(failed) > 0 {
 		a.toast(fmt.Sprintf("Could not undo %d files: %s", len(failed), failed[0]), ui.ToastError)
 		return

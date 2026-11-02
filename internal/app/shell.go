@@ -50,18 +50,24 @@ func (a *App) toggleSide() { a.sideOpen = !a.sideOpen }
 func (a *App) agentFullscreen() bool { return a.cfg.Current().Agent.Layout != "panel" }
 func (a *App) toggleAgent()          { a.setAgentOpen(!a.agentOpen) }
 
+// agentShowsAlone reports whether the agent is full screen, in the editor's
+// place.
+func (a *App) agentShowsAlone() bool { return a.agentOpen && a.agentFullscreen() }
+
 // setAgentOpen shows or hides the agent panel; opening it focuses the
 // message box.
 func (a *App) setAgentOpen(v bool) {
 	a.agentOpen = v
-	a.agent.focusInput = v
+	if r := a.run(); r != nil {
+		r.focusInput = v
+	}
 }
 
 // center is everything between the title bar and the footer: the explorer,
 // the tabs and editor, the bottom panel and the agent drawer.
 func (a *App) center(c *ui.Ctx) ui.View {
 	if a.agentFullscreen() && a.agentOpen {
-		return ui.Drawer("bottom-panel", a.panelView(c), a.agentFullView(c)).
+		work := ui.Drawer("bottom-panel", a.panelView(c), a.agentFullView(c)).
 			Open(a.panelOpen).
 			Edge(ui.EdgeBottom).
 			Push().
@@ -69,6 +75,12 @@ func (a *App) center(c *ui.Ctx) ui.View {
 			Resizable(true).
 			OnOpenChange(func(v bool) { a.panelOpen = v }).
 			Grow(1)
+		if !a.sideOpen {
+			return work
+		}
+		// Full screen, the agent's sidebar takes the explorer's place.
+		return ui.Splitter("agent-side-split", ui.Horizontal, a.agentSidebar(c), work).
+			Sizes(260, 0).MinSizes(180, 320).Grow(1)
 	}
 	work := ui.Drawer("bottom-panel", a.panelView(c), a.editorArea(c)).
 		Open(a.panelOpen).

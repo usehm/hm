@@ -25,6 +25,19 @@ type Config struct {
 	Completion  Completion          `yaml:"completion"`
 	Modes       map[string]Mode     `yaml:"modes"`
 	Tools       Tools               `yaml:"tools"`
+	Artifacts   Artifacts           `yaml:"artifacts"`
+}
+
+// Artifacts is where the agent's artifacts are kept.
+type Artifacts struct {
+	// Storage is none | gcs | s3 | git.
+	Storage string `yaml:"storage"`
+	// Bucket and Prefix place artifacts in a GCS or S3 bucket.
+	Bucket string `yaml:"bucket"`
+	Prefix string `yaml:"prefix"`
+	// Repo and Branch place them in a git repository.
+	Repo   string `yaml:"repo"`
+	Branch string `yaml:"branch"`
 }
 
 // Keybinding runs Command when Key is pressed while When holds. A Command
@@ -184,6 +197,15 @@ type Agent struct {
 	// panel docks it beside the editor.
 	Layout    string              `yaml:"layout"`
 	Providers map[string]Provider `yaml:"providers"`
+	Subagents Subagents           `yaml:"subagents"`
+}
+
+// Subagents bounds the agents an agent may start with the task tool.
+type Subagents struct {
+	// MaxDepth is how deep sub-agents may nest; 0 turns the task tool off.
+	MaxDepth int `yaml:"max_depth"`
+	// MaxConcurrent is how many sub-agents of one agent may run at once.
+	MaxConcurrent int `yaml:"max_concurrent"`
 }
 
 type Provider struct {

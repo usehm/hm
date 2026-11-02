@@ -151,10 +151,10 @@ agent:
 
 func runTask(t *testing.T, h *harness, text string) {
 	t.Helper()
-	h.app.agent.input = text
+	h.app.run().input = text
 	h.app.sendAgent()
-	if h.app.agent.errText != "" {
-		t.Fatal(h.app.agent.errText)
+	if h.app.run().errText != "" {
+		t.Fatal(h.app.run().errText)
 	}
 }
 
@@ -166,8 +166,8 @@ func TestSameTaskOnAnthropicAndOpenRouter(t *testing.T) {
 			main := filepath.Join(root, "main.go")
 			h.app.openFile(main) // the edit should land in the open buffer
 			runTask(t, h, "make main print 1 @main.go")
-			h.until("shell approval", 10*time.Second, func() bool { return h.app.agent.approval != nil })
-			p := h.app.agent.approval
+			h.until("shell approval", 10*time.Second, func() bool { return h.app.run().approval != nil })
+			p := h.app.run().approval
 			if p.req.Tool != "shell" || p.req.Plan.Summary != "echo checked" {
 				t.Fatalf("approval %+v", p.req)
 			}
@@ -178,9 +178,9 @@ func TestSameTaskOnAnthropicAndOpenRouter(t *testing.T) {
 			if got, _ := os.ReadFile(main); !strings.Contains(string(got), "println(1)") {
 				t.Fatalf("disk %q", got)
 			}
-			h.app.answerApproval(true, false)
-			h.until("turn end", 10*time.Second, func() bool { return !h.app.agent.running })
-			s := h.app.agent.session
+			h.app.answerApproval(h.app.run(), true, false)
+			h.until("turn end", 10*time.Second, func() bool { return !h.app.run().running })
+			s := h.app.run().session
 			if last := s.Messages[len(s.Messages)-1]; last.TextOf() != "Done: main prints 1." {
 				t.Fatalf("last message %+v", last)
 			}
@@ -195,7 +195,7 @@ func TestSameTaskOnAnthropicAndOpenRouter(t *testing.T) {
 				t.Fatal("shell output did not reach the model")
 			}
 			// One click undoes the turn's file changes.
-			h.app.undoAgentTurn()
+			h.app.undoAgentTurn(h.app.run())
 			if got := string(h.app.bufs.Get(main).Bytes()); strings.Contains(got, "println(1)") {
 				t.Fatalf("undo left %q", got)
 			}
@@ -214,11 +214,11 @@ func TestRubberDuckPanelCannotEdit(t *testing.T) {
 	}}
 	h, root := agentProject(t, "openai", model)
 	runTask(t, h, "/mode rubber-duck")
-	if h.app.agent.mode != "rubber-duck" {
-		t.Fatalf("mode %q", h.app.agent.mode)
+	if h.app.run().mode != "rubber-duck" {
+		t.Fatalf("mode %q", h.app.run().mode)
 	}
 	runTask(t, h, "fix main")
-	h.until("turn end", 10*time.Second, func() bool { return !h.app.agent.running })
+	h.until("turn end", 10*time.Second, func() bool { return !h.app.run().running })
 	if data, _ := os.ReadFile(filepath.Join(root, "main.go")); strings.Contains(string(data), "x") {
 		t.Fatal("rubber-duck edited a file")
 	}
@@ -238,15 +238,15 @@ func TestManualEditReviewPerHunk(t *testing.T) {
 	h, root := agentProject(t, "openai", model)
 	h.app.setSetting([]string{"modes", "auto", "approval", "edit"}, "ask")
 	runTask(t, h, "add A")
-	h.until("edit review", 10*time.Second, func() bool { return h.app.agent.approval != nil })
-	p := h.app.agent.approval
+	h.until("edit review", 10*time.Second, func() bool { return h.app.run().approval != nil })
+	p := h.app.run().approval
 	if len(p.files) != 1 || len(p.files[0].hunks) != 1 {
 		t.Fatalf("review %+v", p.files)
 	}
 	h.frame() // the review card renders
 	p.files[0].accepted[0] = false
-	h.app.answerApproval(true, false)
-	h.until("turn end", 10*time.Second, func() bool { return !h.app.agent.running })
+	h.app.answerApproval(h.app.run(), true, false)
+	h.until("turn end", 10*time.Second, func() bool { return !h.app.run().running })
 	if data, _ := os.ReadFile(filepath.Join(root, "util", "strings.go")); string(data) != "package util\n" {
 		t.Fatalf("rejected hunk was applied: %q", data)
 	}
@@ -272,7 +272,7 @@ func TestModelSettingFromProviderList(t *testing.T) {
 			item.OnChange("other-model")
 			h.until("config reload", 10*time.Second, func() bool { return h.app.modelOf("test") == "other-model" })
 			runTask(t, h, "hi")
-			h.until("turn end", 10*time.Second, func() bool { return !h.app.agent.running })
+			h.until("turn end", 10*time.Second, func() bool { return !h.app.run().running })
 			if got := model.requests[0]["model"]; got != "other-model" {
 				t.Fatalf("request model %v", got)
 			}
@@ -308,14 +308,14 @@ func TestComposerMovesDownAfterFirstMessage(t *testing.T) {
 	h.app.agentOpen = true
 	h.frame()
 	input := func() *ui.TextInput {
-		return h.c.Widget("agent-input", func() any { return nil }).(*ui.TextInput)
+		return h.c.Widget(h.app.run().wid("input"), func() any { return nil }).(*ui.TextInput)
 	}
 	fresh := input().FocusEl().Frame
 	if fresh.Y > 200 {
 		t.Fatalf("a new session's composer should sit at the top, y=%v", fresh.Y)
 	}
 
-	s := h.app.currentSession()
+	s := h.app.run().session
 	s.Messages = append(s.Messages, provider.Message{Role: provider.User,
 		Blocks: []provider.Block{{Type: provider.Text, Text: "hello"}}})
 	h.frame()
@@ -334,7 +334,7 @@ func TestOpeningAgentFocusesInput(t *testing.T) {
 	h.app.toggleAgent()
 	h.frame()
 	h.frame()
-	tf := h.c.Widget("agent-input", func() any { return nil }).(*ui.TextInput)
+	tf := h.c.Widget(h.app.run().wid("input"), func() any { return nil }).(*ui.TextInput)
 	if !tf.Focused() {
 		t.Fatal("opening the agent panel should focus the message box")
 	}

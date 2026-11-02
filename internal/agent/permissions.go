@@ -40,6 +40,7 @@ var defaultApproval = map[string]string{
 	tools.CatGitPush: "ask",
 	"mcp":            "ask",
 	tools.CatCommand: "auto",
+	tools.CatAgent:   "auto", // sub-agents ask for what they do themselves
 }
 
 // Policy decides which tool calls run, ask, or are refused.
