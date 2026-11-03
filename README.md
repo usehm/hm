@@ -31,7 +31,7 @@ Fast where it can be, and quiet when you need to think.
 - Tabs, split editor groups, back/forward navigation and session restore.
 - File explorer with file-type icons, git status colors, drag and drop, filter, and collapse all.
 - Syntax highlighting with Tree-sitter for Go, TypeScript/JavaScript, Python, Rust, Java, C, C++, C#, Zig, Lua, Ruby, PHP, Protobuf, YAML, TOML, JSON, Bash, Make, Dockerfile, CSS, HTML, Markdown, SQL and common config files.
-- Multiple cursors, find and replace with regex, soft wrap, indent guides, auto-closing brackets and quotes.
+- Multiple cursors and column selection, find and replace with regex, code folding, soft wrap, indent guides, auto-closing brackets and quotes.
 - Auto indent (`none`, `keep` or `advanced`), tabs or spaces, and trimming trailing whitespace on save.
 - Per-language settings: tab width, indentation, auto indent, soft wrap, format on save and trimming, set in YAML or from a language picker in Settings.
 - Markdown preview.
@@ -59,7 +59,7 @@ Fast where it can be, and quiet when you need to think.
 - Integrated terminal with multiple sessions, opened from the footer.
 
 ### AI agent
-- Chat with the agent beside the editor or full screen; ask about a selection with `cmd+shift+l`.
+- Chat with the agent beside the editor or full screen; ask about a selection with `cmd+alt+l`.
 - Sessions in tabs, several working at once: `cmd+t` opens one, `ctrl+tab` / `ctrl+shift+tab` switch, and a spinner or dot marks a tab that is working, waiting for you or was interrupted.
 - Full screen, a sidebar replaces the explorer: New chat, Projects, Artifacts, a filterable history of every session (across all your folders, with sub-agents nested under the session that started them) and Agent Settings.
 - Projects: a title, description and context that the agent is given before every task in the project's sessions. Pick one in the composer.
@@ -85,6 +85,71 @@ Fast where it can be, and quiet when you need to think.
 - Keyboard shortcuts in Settings or YAML, with two-chord sequences and VS Code-style `when` conditions.
 - In-app updates and notifications.
 - `hm .` shell command to open a folder from the terminal.
+
+## Keyboard shortcuts
+
+macOS keys; on Windows and Linux `cmd` is `ctrl`, except where a column says otherwise. Every key can be changed in **Settings → Keyboard Shortcuts** or in YAML.
+
+### Find and replace
+
+| Action | macOS | Windows/Linux |
+|---|---|---|
+| Find in file | `cmd+f` | `ctrl+f` |
+| Replace in file | `cmd+r` | `ctrl+r` |
+| Search in project | `cmd+shift+f` | `ctrl+shift+f` |
+| Next / previous match | `enter` / `shift+enter` | `enter` / `shift+enter` |
+| Replace (in the replace field) / replace all | `enter` / `cmd+enter` | `enter` / `ctrl+enter` |
+| Match case, whole word, regex | `cmd+alt+c`, `cmd+alt+w`, `cmd+alt+r` | `alt+c`, `alt+w`, `alt+r` |
+| Find in selection, preserve case | `cmd+alt+l`, `cmd+alt+p` | `alt+l`, `alt+p` |
+| Close find | `escape` | `escape` |
+
+### Cursor movement and selection
+
+| Action | macOS | Windows/Linux |
+|---|---|---|
+| Move by word | `alt+left` / `alt+right` | `ctrl+left` / `ctrl+right` |
+| Delete by word | `alt+backspace` / `alt+delete` | `ctrl+backspace` / `ctrl+delete` |
+| Start / end of line (first press goes to the first non-blank) | `cmd+left` / `cmd+right` | `home` / `end` |
+| Start / end of file | `cmd+up` / `cmd+down` | `ctrl+home` / `ctrl+end` |
+| Extend the selection | add `shift` to any of these | add `shift` to any of these |
+| Extend the selection to a click | `shift+click` | `shift+click` |
+| Add a cursor | `alt+click` | `alt+click` |
+| Column selection | `alt+shift+drag` | `alt+shift+drag` |
+| Add cursor above / below | `cmd+alt+up` / `cmd+alt+down` | `ctrl+alt+up` / `ctrl+alt+down` |
+| Add next occurrence | `cmd+d` | `ctrl+d` |
+| Select all occurrences | `cmd+shift+l` | `ctrl+shift+l` |
+| Back to one cursor | `escape` | `escape` |
+
+### Lines
+
+| Action | macOS | Windows/Linux |
+|---|---|---|
+| Duplicate lines down / up | `shift+alt+down` / `shift+alt+up` | `shift+alt+down` / `shift+alt+up` |
+| Move lines down / up | `alt+down` / `alt+up` | `alt+down` / `alt+up` |
+| Delete lines | `cmd+shift+k` | `ctrl+shift+k` |
+| Toggle line comment | `cmd+/` | `ctrl+/` |
+
+### Folding
+
+| Action | macOS | Windows/Linux |
+|---|---|---|
+| Fold / unfold at the cursor | `cmd+alt+[` / `cmd+alt+]` | `ctrl+alt+[` / `ctrl+alt+]` |
+| Fold all / unfold all | `cmd+alt+0` / `cmd+alt+shift+0` | `ctrl+alt+0` / `ctrl+alt+shift+0` |
+| Fold or unfold a block | click its chevron in the gutter | click its chevron in the gutter |
+
+### App
+
+| Action | macOS |
+|---|---|
+| Command palette | `cmd+shift+p` |
+| Go to file | `cmd+p` |
+| Go to symbol in file | `cmd+shift+o` |
+| Toggle sidebar | `cmd+b` |
+| Toggle agent | `cmd+l` |
+| Ask the agent about the selection | `cmd+alt+l` |
+| Terminal | `` ctrl+` `` |
+| Settings | `cmd+,` |
+| Zoom in / out / reset | `cmd+=` / `cmd+-` / `cmd+0` |
 
 ## Build and install
 
