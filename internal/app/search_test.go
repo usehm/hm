@@ -25,13 +25,13 @@ func waitSearch(t *testing.T, h *harness, total int) {
 	})
 }
 
-func TestCmdFOpensSearchAndRegexGroupsReplace(t *testing.T) {
+func TestCmdShiftFOpensSearchAndRegexGroupsReplace(t *testing.T) {
 	h, root := searchProject(t)
 	h.app.openFile(filepath.Join(root, "main.go"))
 	h.frame()
-	h.press(input.KeyF, input.ModSuper)
+	h.press(input.KeyF, input.ModSuper|input.ModShift)
 	if !h.app.search.open || !h.c.Dialogs().Open {
-		t.Fatal("⌘F should open the search dialog")
+		t.Fatal("⌘⇧F should open the search dialog")
 	}
 	s := &h.app.search
 	s.q.Pattern, s.q.Regex, s.replace = `call\((\d+), (\d+)\)`, true, "call($2, $1)"
@@ -152,5 +152,31 @@ func TestManySearchResultsKeepFramesFast(t *testing.T) {
 	d := time.Since(t0)
 	if d > 30*time.Millisecond { // building every row took ~90ms
 		t.Fatalf("a frame with 4000 results took %v", d)
+	}
+}
+
+// TestCmdFFindBarKeepsKeys opens the editor's find bar with ⌘F and checks
+// that ⌘A and ⌘D typed there act on the find field, not on the document.
+func TestCmdFFindBarKeepsKeys(t *testing.T) {
+	h, root := searchProject(t)
+	h.app.openFile(filepath.Join(root, "a.go"))
+	h.frame()
+	ed := h.app.curEditor()
+	h.press(input.KeyF, input.ModSuper)
+	if !ed.FindFocused() || h.app.search.open {
+		t.Fatal("⌘F should open the in-file find bar")
+	}
+	h.typeText("call")
+	h.press(input.KeyA, input.ModSuper)
+	h.press(input.KeyD, input.ModSuper)
+	if ed.Cursors() != 1 || ed.HasSelection() && ed.SelectedText() != "call" {
+		t.Fatalf("editor shortcuts reached the document: cursors %d, selection %q", ed.Cursors(), ed.SelectedText())
+	}
+	if ed.FindQuery() != "call" {
+		t.Fatalf("find query %q", ed.FindQuery())
+	}
+	h.press(input.KeyBackspace, 0) // replaces the ⌘A selection
+	if ed.FindQuery() != "" {
+		t.Fatalf("⌘A did not select the find field: query %q", ed.FindQuery())
 	}
 }

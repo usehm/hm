@@ -14,7 +14,7 @@ func TestDefaultsAreValid(t *testing.T) {
 	if len(ps) > 0 {
 		t.Fatalf("defaults have problems: %v", ps)
 	}
-	if cfg.Editor.Theme != "tokyo-night" || cfg.Keys["search.project"] != "cmd+f" {
+	if cfg.Editor.Theme != "tokyo-night" || cfg.Keys["search.project"] != "cmd+shift+f" {
 		t.Fatalf("defaults not decoded: %+v", cfg.Editor)
 	}
 	if got := cfg.Modes["auto"].Tools; len(got) != 1 || got[0] != "all" {

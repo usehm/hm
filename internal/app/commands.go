@@ -26,7 +26,8 @@ func (a *App) registerCommands(c *ui.Ctx) {
 	hasEd := ed != nil
 	// Language features run on the file's buffer, also for a split's mirror.
 	lspEd := func() *ui.Editor { return a.lspTarget() }
-	edFocused := hasEd && ed.Focused() // keys that mean something else in a text field
+	// Keys that mean something else in a text field, the editor's find bar included.
+	edFocused := hasEd && ed.Focused() && !ed.FindFocused()
 	cmds := []*ui.Command{
 		ui.Section("File"),
 		ui.Cmd("file.quickOpen").Title("Go to File…").Shortcut(a.key("file.quickOpen")).Icon(icons.Search).Run(a.showQuickOpen),

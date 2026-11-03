@@ -22,9 +22,9 @@ editor:
 
 keys:                         # command id -> chord; overrides built-ins
   palette: cmd+shift+p
-  search.project: cmd+f
-  editor.find: cmd+alt+f
-  editor.replace: cmd+alt+h
+  search.project: cmd+shift+f
+  editor.find: cmd+f
+  editor.replace: cmd+r
   file.quickOpen: cmd+p
   file.openFolder: cmd+o
   file.newFile: cmd+n
