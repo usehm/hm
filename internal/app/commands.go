@@ -92,6 +92,14 @@ func (a *App) registerCommands(c *ui.Ctx) {
 			Icon(icons.ArrowUp).Enabled(edFocused).Run(func() { ed.Run(ui.ActionMoveLinesUp) }),
 		ui.Cmd("editor.deleteLines").Title("Delete Lines").Shortcut(a.key("editor.deleteLines")).
 			Icon(icons.Trash2).Enabled(edFocused).Run(func() { ed.Run(ui.ActionDeleteLines) }),
+		ui.Cmd("editor.fold").Title("Fold").Shortcut(a.key("editor.fold")).
+			Icon(icons.ChevronRight).Enabled(edFocused).Run(func() { ed.Run(ui.ActionFold) }),
+		ui.Cmd("editor.unfold").Title("Unfold").Shortcut(a.key("editor.unfold")).
+			Icon(icons.ChevronDown).Enabled(edFocused).Run(func() { ed.Run(ui.ActionUnfold) }),
+		ui.Cmd("editor.foldAll").Title("Fold All").Shortcut(a.key("editor.foldAll")).
+			Icon(icons.ChevronsDownUp).Enabled(hasEd).Run(func() { ed.FoldAll() }),
+		ui.Cmd("editor.unfoldAll").Title("Unfold All").Shortcut(a.key("editor.unfoldAll")).
+			Icon(icons.ChevronsUpDown).Enabled(hasEd).Run(func() { ed.UnfoldAll() }),
 
 		ui.Cmd("nav.back").Title("Go Back").Shortcut(a.key("nav.back")).Icon(icons.ArrowLeft).
 			Enabled(len(a.nav.back) > 0).Run(a.navBack),

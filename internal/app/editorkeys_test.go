@@ -47,3 +47,27 @@ func TestCmdShiftLSelectsAllOccurrences(t *testing.T) {
 		t.Fatalf("⌘⇧L made %d selections, want 3", ed.Cursors())
 	}
 }
+
+func TestFoldShortcuts(t *testing.T) {
+	root := project(t)
+	writeFile(t, filepath.Join(root, "x.go"), "package x\n\nfunc a() {\n\tb()\n}\n\nfunc c() {\n\td()\n}\n")
+	h := newHarness(t, root, false)
+	h.app.openFile(filepath.Join(root, "x.go"))
+	h.frame()
+	ed := h.app.curEditor()
+	ed.Focus()
+	ed.SetSelection(ed.Offset(3, 1), ed.Offset(3, 1))
+	h.press(input.KeyLeftBracket, input.ModSuper|input.ModAlt)
+	if !ed.Folded(2) {
+		t.Fatalf("⌘⌥[ folds %v", ed.Folds())
+	}
+	h.press(input.KeyRightBracket, input.ModSuper|input.ModAlt)
+	h.press(input.Key0, input.ModSuper|input.ModAlt)
+	if len(ed.Folds()) != 2 {
+		t.Fatalf("⌘⌥0 folds %v", ed.Folds())
+	}
+	h.press(input.Key0, input.ModSuper|input.ModAlt|input.ModShift)
+	if len(ed.Folds()) != 0 {
+		t.Fatalf("⌘⌥⇧0 left %v", ed.Folds())
+	}
+}

@@ -59,6 +59,10 @@ keys:                         # command id -> chord; overrides built-ins
   editor.moveLinesDown: alt+down
   editor.moveLinesUp: alt+up
   editor.deleteLines: cmd+shift+k
+  editor.fold: cmd+alt+[
+  editor.unfold: cmd+alt+]
+  editor.foldAll: cmd+alt+0      # cmd+k is the theme picker, so not cmd+k cmd+0
+  editor.unfoldAll: cmd+alt+shift+0
   agent.askSelection: cmd+alt+l
   app.settings: cmd+,
   view.zoomIn: cmd+=
