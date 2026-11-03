@@ -50,7 +50,7 @@ keys:                         # command id -> chord; overrides built-ins
   editor.format: shift+alt+f
   editor.symbols: cmd+shift+o
   editor.addNextOccurrence: cmd+d
-  editor.selectAllOccurrences: cmd+alt+l   # cmd+shift+l asks the agent
+  editor.selectAllOccurrences: cmd+shift+l
   editor.addCursorAbove: cmd+alt+up
   editor.addCursorBelow: cmd+alt+down
   editor.toggleComment: cmd+/
@@ -59,7 +59,7 @@ keys:                         # command id -> chord; overrides built-ins
   editor.moveLinesDown: alt+down
   editor.moveLinesUp: alt+up
   editor.deleteLines: cmd+shift+k
-  agent.askSelection: cmd+shift+l
+  agent.askSelection: cmd+alt+l
   app.settings: cmd+,
   view.zoomIn: cmd+=
   view.zoomOut: cmd+-

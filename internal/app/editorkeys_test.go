@@ -31,3 +31,19 @@ func TestEditorLineShortcuts(t *testing.T) {
 		t.Fatalf("⌘⇧K: %q", got)
 	}
 }
+
+func TestCmdShiftLSelectsAllOccurrences(t *testing.T) {
+	root := project(t)
+	writeFile(t, filepath.Join(root, "x.go"), "package x\n\nvar foo, b = foo, foo\n")
+	h := newHarness(t, root, false)
+	h.app.openFile(filepath.Join(root, "x.go"))
+	h.frame()
+	ed := h.app.curEditor()
+	ed.Focus()
+	at := ed.Offset(2, 4)
+	ed.SetSelection(at, at+3)
+	h.press(input.KeyL, input.ModSuper|input.ModShift)
+	if ed.Cursors() != 3 {
+		t.Fatalf("⌘⇧L made %d selections, want 3", ed.Cursors())
+	}
+}
