@@ -340,7 +340,7 @@ func (a *App) footer(c *ui.Ctx) ui.View {
 			}).
 			Placement(ui.PlacementTop).
 			Width(380).
-			Height(300),
+			Height(420),
 	)
 	return ui.Row(items...).Gap(th.Spacing.XS).PaddingXY(th.Spacing.S, 0).Height(26).
 		Background(ui.TokenChrome).BorderTop(ui.TokenBorder, th.Stroke.Thin)

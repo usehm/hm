@@ -432,11 +432,11 @@ func (a *App) sessionRow(c *ui.Ctx, s agent.Summary, child bool) ui.View {
 	if t := a.activeAgentTab(); t != nil && t.kind == agentTabSession && t.id() == id {
 		active = true
 	}
-	// The menu button takes the row's height, so rows sit as close as the
-	// nav buttons above them.
-	h := th.Typography.Body.LineHeight + 2*th.Spacing.XXS
+	// The row and its menu button share one height, with room above and
+	// below the title so the rows are easy to tell apart.
+	h := th.Typography.Body.LineHeight + 2*th.Spacing.XS
 	row := ui.HoverGroup("agent-side-row-"+id, func(hovered bool) ui.View {
-		btn := ui.Button("agent-side-s-"+id, body).Ghost().HoverFill().Grow(1).Shrink(1).
+		btn := ui.Button("agent-side-s-"+id, body).Ghost().HoverFill().Height(h).Grow(1).Shrink(1).
 			Tooltip(sessionTitle(s.Title)).
 			OnClick(func() { a.resumeAgentSession(id) })
 		switch {

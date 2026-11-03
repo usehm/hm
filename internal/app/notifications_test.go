@@ -10,7 +10,7 @@ import (
 	"github.com/mirzakhany/hm/internal/agent/guard"
 )
 
-func TestNotificationOpensWithItsAction(t *testing.T) {
+func TestNotificationActionAndDismiss(t *testing.T) {
 	root := project(t)
 	h := newHarness(t, root, false)
 	path := filepath.Join(root, "main.go")
@@ -20,14 +20,13 @@ func TestNotificationOpensWithItsAction(t *testing.T) {
 	if n := len(h.app.notifs.items[1].actions); n != 0 {
 		t.Fatalf("non-file action kept: %d", n)
 	}
-	h.app.notifsOpen = true
-	h.app.notifs.open(h.c, h.app.notifs.items[0])
-	if h.app.notifsOpen || !h.c.Dialogs().Open {
-		t.Fatal("opening a notification must close the center and show a dialog")
-	}
 	h.app.notifs.items[0].actions[0].run()
 	if ed := h.app.ws.ActiveEditor(); ed == nil || ed.Path != path {
 		t.Fatal("Open File action did not open the file")
+	}
+	h.app.notifs.remove(h.app.notifs.items[0].at)
+	if len(h.app.notifs.items) != 1 || h.app.notifs.items[0].text != "plain" {
+		t.Fatalf("dismiss removed the wrong card: %+v", h.app.notifs.items)
 	}
 }
 

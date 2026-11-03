@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -8,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/mirzakhany/yoga/input"
 	"github.com/mirzakhany/yoga/ui"
 
 	"github.com/mirzakhany/hm/internal/config"
@@ -36,6 +38,8 @@ func (a *App) openFolder(root string) {
 	}
 	a.tree.OnMove = func(src, dst string) { a.ws.Renamed(src, dst); a.idx.refresh() }
 	a.tree.SetContextMenu(a.treeMenu)
+	a.tree.OnKey = a.treeKey
+	a.fileClip = fileClip{}
 	a.tree.SetLabelColor(a.treeLabelColor)
 	a.tree.SetIconFor(treeIcon)
 	a.treeQuery = ""
@@ -204,16 +208,91 @@ func (a *App) treeMenu(path string) []ui.MenuItem {
 	)
 	if path != a.ws.Root {
 		items = append(items,
+			ui.MenuItem{Label: "Cut", OnSelect: func() { a.clipFiles(path, true) }},
+			ui.MenuItem{Label: "Copy", OnSelect: func() { a.clipFiles(path, false) }},
 			ui.MenuItem{Label: "Rename…", OnSelect: func() { a.renameEntry(path) }},
 			ui.MenuItem{Label: "Move to Trash", OnSelect: func() { a.trashEntry(path) }},
 		)
 	}
 	items = append(items,
+		ui.MenuItem{Label: "Paste", Disabled: len(a.fileClip.paths) == 0, OnSelect: func() { a.pasteFiles(path) }},
 		ui.MenuItem{Label: "Copy Path", OnSelect: func() { a.copyText(path) }},
 		ui.MenuItem{Label: "Copy Relative Path", OnSelect: func() { a.copyText(a.ws.Rel(path)) }},
 		ui.MenuItem{Label: revealLabel(), OnSelect: func() { a.fail("Reveal failed", reveal(path)) }},
 	)
 	return items
+}
+
+// fileClip holds files copied or cut in the tree until they are pasted.
+type fileClip struct {
+	paths []string
+	cut   bool
+}
+
+func (a *App) clipFiles(path string, cut bool) {
+	a.fileClip = fileClip{paths: []string{path}, cut: cut}
+	a.copyText(path) // other apps get the path as text
+}
+
+// pasteFiles copies or moves the clipped files into path, or into its
+// folder when path is a file.
+func (a *App) pasteFiles(path string) {
+	if len(a.fileClip.paths) == 0 {
+		return
+	}
+	dir := path
+	if st, err := os.Stat(path); err != nil || !st.IsDir() {
+		dir = filepath.Dir(path)
+	}
+	var last string
+	for _, src := range a.fileClip.paths {
+		var dst string
+		var err error
+		if a.fileClip.cut {
+			dst, err = workspace.MoveInto(src, dir)
+		} else {
+			dst, err = workspace.CopyInto(src, dir)
+		}
+		if err != nil {
+			a.fail("Paste failed", err)
+			continue
+		}
+		if a.fileClip.cut && dst != src {
+			a.ws.Renamed(src, dst)
+			a.tree.Reload(filepath.Dir(src))
+		}
+		last = dst
+	}
+	if a.fileClip.cut {
+		a.fileClip = fileClip{} // a cut pastes once
+	}
+	a.tree.Reload(dir)
+	a.idx.refresh()
+	if last != "" {
+		a.tree.Reveal(last)
+	}
+}
+
+// treeKey handles copy, cut and paste of files while the tree has focus.
+func (a *App) treeKey(path string, ev input.KeyEvent) bool {
+	if !ev.Mods.Primary() || ev.Mods.Has(input.ModShift) || ev.Mods.Has(input.ModAlt) {
+		return false
+	}
+	switch ev.Key {
+	case input.KeyC, input.KeyX:
+		if path == "" || path == a.ws.Root {
+			return false
+		}
+		a.clipFiles(path, ev.Key == input.KeyX)
+	case input.KeyV:
+		if path == "" {
+			path = a.ws.Root
+		}
+		a.pasteFiles(path)
+	default:
+		return false
+	}
+	return true
 }
 
 func (a *App) copyText(s string) {
@@ -258,24 +337,62 @@ func (a *App) newEntry(dir string, folder bool) {
 }
 
 func (a *App) renameEntry(path string) {
-	a.ctx.Dialogs().ShowInput("Rename "+filepath.Base(path), filepath.Base(path), func(name string) {
-		name = strings.TrimSpace(name)
-		if name == "" || name == filepath.Base(path) {
-			return
+	base := filepath.Base(path)
+	dir := filepath.Dir(path)
+	// Select the name without its extension, the part usually renamed.
+	stem := len(base)
+	if st, err := os.Stat(path); err == nil && !st.IsDir() {
+		if n := len(base) - len(filepath.Ext(base)); n > 0 {
+			stem = n
 		}
-		dst := filepath.Join(filepath.Dir(path), name)
-		if _, err := os.Stat(dst); err == nil {
-			a.fail("Rename failed", fmt.Errorf("%s already exists", name))
-			return
-		}
-		if err := os.Rename(path, dst); err != nil {
-			a.fail("Rename failed", err)
-			return
-		}
-		a.ws.Renamed(path, dst)
-		a.tree.Reload(filepath.Dir(path))
-		a.idx.refresh()
-	}, nil)
+	}
+	a.ctx.Dialogs().ShowInputOpts(ui.InputOpts{
+		Title:     "Rename " + base,
+		Value:     base,
+		SelectEnd: stem,
+		Validate:  func(name string) string { return renameProblem(path, strings.TrimSpace(name)) },
+		OnOK: func(name string) {
+			name = strings.TrimSpace(name)
+			if name == "" || name == base {
+				return
+			}
+			dst := filepath.Join(dir, name)
+			if msg := renameProblem(path, name); msg != "" {
+				a.fail("Rename failed", errors.New(msg))
+				return
+			}
+			if err := os.Rename(path, dst); err != nil {
+				a.fail("Rename failed", err)
+				return
+			}
+			a.ws.Renamed(path, dst)
+			a.tree.Reload(dir)
+			a.idx.refresh()
+		},
+	})
+}
+
+// renameProblem says why path cannot be renamed to name, or "" when it can.
+// Keeping the name is fine; OK then does nothing.
+func renameProblem(path, name string) string {
+	switch {
+	case name == "":
+		return "A name is required"
+	case name == "." || name == ".." || strings.ContainsAny(name, `/\`):
+		return "Not a valid file name"
+	case name == filepath.Base(path):
+		return ""
+	}
+	dst := filepath.Join(filepath.Dir(path), name)
+	st, err := os.Stat(dst)
+	if err != nil {
+		return ""
+	}
+	// A case-only rename on a case-insensitive disk finds the file itself.
+	if src, err := os.Stat(path); err == nil && os.SameFile(src, st) {
+		return ""
+	}
+	return name + " already exists"
 }
 
 func (a *App) trashEntry(path string) {

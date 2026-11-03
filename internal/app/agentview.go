@@ -391,7 +391,7 @@ func (a *App) transcript(c *ui.Ctx, r *agentRun) ui.View {
 	for i, m := range msgs {
 		if m.Role == provider.User {
 			if t := m.TextOf(); t != "" {
-				rows = append(rows, ui.Column(ui.Paragraph(userShown(t))).
+				rows = append(rows, ui.Column(ui.Paragraph(userShown(t)).Selectable(r.wid(fmt.Sprintf("user-%d", i)))).
 					Padding(th.Spacing.S).Radius(th.Radius.Medium).Background(ui.TokenListActive))
 			}
 			continue
@@ -461,7 +461,8 @@ func (a *App) thinkingView(c *ui.Ctx, r *agentRun, id, text string) ui.View {
 	rows := []ui.View{ui.Button(r.wid(id), ui.Row(ui.Icon(icon, 12, th.ForegroundMuted), ui.Caption("Reasoning")).Gap(th.Spacing.XXS)).
 		Ghost().OnClick(func() { cv := r.calls[id]; cv.open = !cv.open; r.calls[id] = cv })}
 	if open {
-		rows = append(rows, ui.Paragraph(strings.TrimSpace(text)).Style(ui.Spec{}.TextColor(ui.TokenForegroundMuted)))
+		rows = append(rows, ui.Paragraph(strings.TrimSpace(text)).Style(ui.Spec{}.TextColor(ui.TokenForegroundMuted)).
+			Selectable(r.wid(id+"-text")))
 	}
 	return ui.Column(rows...).Gap(th.Spacing.XXS)
 }
@@ -493,7 +494,16 @@ func (a *App) toolCard(c *ui.Ctx, r *agentRun, call, res provider.Block, done bo
 		ui.Text(summary).Ellipsis(ui.EllipsisEnd).Grow(1),
 	).Gap(th.Spacing.XS).Grow(1)).Ghost().HoverFill().Grow(1).
 		OnClick(func() { cv := st.calls[call.ToolID]; cv.open = !cv.open; st.calls[call.ToolID] = cv })
-	rows := []ui.View{head}
+	copyBtn := ui.IconButton(id+"-copy", icons.Copy).Tooltip("Copy call and result").OnClick(func() {
+		text := call.ToolName + " " + string(call.Input)
+		if done {
+			text += "\n\n" + res.Text
+		}
+		if clip := c.Clipboard(); clip != nil {
+			clip.Set(text)
+		}
+	})
+	rows := []ui.View{ui.Row(head, copyBtn).Gap(th.Spacing.XXS).Align(ui.AlignCenter)}
 	if call.ToolName == "task" {
 		if v := a.subagentRow(c, r, call, res, done); v != nil {
 			rows = append(rows, v)
@@ -504,7 +514,8 @@ func (a *App) toolCard(c *ui.Ctx, r *agentRun, call, res provider.Block, done bo
 		if lines := strings.Split(text, "\n"); len(lines) > maxResultLines {
 			text = strings.Join(lines[:maxResultLines], "\n") + fmt.Sprintf("\n… %d more lines", len(lines)-maxResultLines)
 		}
-		rows = append(rows, ui.Column(ui.Paragraph(text).Style(ui.Spec{}.TextColor(ui.TokenForegroundMuted))).
+		rows = append(rows, ui.Column(ui.Paragraph(text).Style(ui.Spec{}.TextColor(ui.TokenForegroundMuted)).
+			Selectable(id+"-result")).
 			Padding(th.Spacing.S).Radius(th.Radius.Small).Background(ui.TokenSurface))
 	}
 	return ui.Column(rows...).Gap(th.Spacing.XXS).Radius(th.Radius.Medium).Border(ui.TokenBorder, th.Stroke.Thin).

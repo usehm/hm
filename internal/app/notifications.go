@@ -11,12 +11,12 @@ import (
 	"github.com/mirzakhany/yoga/ui"
 )
 
-// Notifications keeps recent messages for the footer's notification center.
-// Clicking one opens it in full, with the actions it was recorded with.
+// Notifications keeps recent messages for the footer's notification center,
+// each as a card with its actions.
 type Notifications struct {
 	items  []notification
 	unread int
-	// Close hides the notification center, before a picked one opens.
+	// Close hides the notification center, before an action runs.
 	Close func()
 }
 
@@ -27,7 +27,7 @@ type notification struct {
 	actions []notifAction
 }
 
-// notifAction is a button on an opened notification, such as "Open File".
+// notifAction is a button on a notification's card, such as "Open File".
 type notifAction struct {
 	label string
 	run   func()
@@ -35,7 +35,7 @@ type notifAction struct {
 
 const maxNotifications = 100
 
-// Add records a message, with optional actions to offer when it is opened.
+// Add records a message, with optional actions to offer on its card.
 func (n *Notifications) Add(text string, kind ui.ToastVariant, actions ...notifAction) {
 	var acts []notifAction
 	for _, act := range actions {
@@ -56,83 +56,79 @@ func (n *Notifications) MarkRead() { n.unread = 0 }
 // Unread is the number of messages since the center was last opened.
 func (n *Notifications) Unread() int { return n.unread }
 
+// remove drops the notification recorded at at.
+func (n *Notifications) remove(at time.Time) {
+	for i, it := range n.items {
+		if it.at.Equal(at) {
+			n.items = append(n.items[:i], n.items[i+1:]...)
+			return
+		}
+	}
+}
+
 func (n *Notifications) Layout(c *ui.Ctx) ui.View {
 	th := c.Theme()
-	rows := []ui.View{}
+	cards := []ui.View{}
 	for i := len(n.items) - 1; i >= 0; i-- {
-		item := n.items[i]
-		style := ui.Spec{}.TextColor(ui.TokenForegroundMuted)
-		switch item.kind {
-		case ui.ToastError:
-			style = ui.Spec{}.TextColor(ui.TokenError)
-		case ui.ToastWarning:
-			style = ui.Spec{}.TextColor(ui.TokenWarning)
-		}
-		line := ui.Row(
-			ui.Caption(item.at.Format(time.Kitchen)).Width(56),
-			ui.Paragraph(item.text).Style(style).Grow(1),
-		).Align(ui.AlignStart).Gap(th.Spacing.S).Grow(1)
-		if len(item.actions) > 0 {
-			line = ui.Row(line, ui.Icon(icons.ChevronRight, 14, th.ForegroundMuted)).Align(ui.AlignStart).Grow(1)
-		}
-		rows = append(rows, ui.Button("notif-"+strconv.FormatInt(item.at.UnixNano(), 36), line).
-			Ghost().HoverFill().
-			OnClick(func() { n.open(c, item) }))
+		cards = append(cards, n.card(c, n.items[i]))
 	}
-	if len(rows) == 0 {
-		rows = append(rows, ui.Muted("No notifications"))
+	if len(cards) == 0 {
+		cards = append(cards, ui.Muted("No notifications").Margin(th.Spacing.S))
 	}
 	return ui.Column(
 		ui.Row(
 			ui.Strong("Notifications"),
 			ui.Spacer(),
-			ui.IconButton("notif-clear", icons.Trash2).Tooltip("Clear").OnClick(func() {
-				n.items = nil
-				n.unread = 0
+			ui.Button("notif-clear", ui.Caption("Clear all")).Ghost().HoverFill().
+				Disabled(len(n.items) == 0).
+				OnClick(func() {
+					n.items = nil
+					n.unread = 0
+				}),
+			ui.IconButton("notif-close", icons.ChevronDown).Tooltip("Close").OnClick(func() {
+				if n.Close != nil {
+					n.Close()
+				}
 			}),
-		).Margin(th.Spacing.S),
-		ui.Scroll("notif-scroll", ui.Column(rows...).Gap(th.Spacing.XXS).PaddingXY(th.Spacing.XS, 0)).Grow(1),
-	).Gap(th.Spacing.S).Grow(1)
+		).Align(ui.AlignCenter).Gap(th.Spacing.XS).PaddingXY(th.Spacing.S, th.Spacing.XS).
+			BorderBottom(ui.TokenBorder, th.Stroke.Thin),
+		ui.Scroll("notif-scroll", ui.Column(cards...).Gap(th.Spacing.S).Padding(th.Spacing.S)).Grow(1),
+	).Grow(1)
 }
 
-// open shows item in full in a dialog, with Copy and the item's actions.
-func (n *Notifications) open(c *ui.Ctx, item notification) {
-	if n.Close != nil {
-		n.Close()
+// card shows one notification: its icon, text and dismiss button, and a row
+// of its actions when it has any.
+func (n *Notifications) card(c *ui.Ctx, item notification) ui.View {
+	th := c.Theme()
+	key := strconv.FormatInt(item.at.UnixNano(), 36)
+	icon, tok := item.kind.Icon()
+	kids := []ui.View{
+		ui.Row(
+			ui.Icon(icon, th.Metrics.IconSizeMD, tok.Resolve(th)),
+			ui.Column(
+				ui.Paragraph(item.text).Selectable("notif-text-"+key),
+				ui.Caption(item.at.Format(time.Kitchen)).Style(ui.Spec{}.TextColor(ui.TokenForegroundMuted)),
+			).Gap(th.Spacing.XXS).Grow(1),
+			ui.IconButton("notif-x-"+key, icons.X).Tooltip("Dismiss").OnClick(func() { n.remove(item.at) }),
+		).Align(ui.AlignStart).Gap(th.Spacing.S),
 	}
-	title, sev := "Notification", ui.DialogSeverityInfo
-	switch item.kind {
-	case ui.ToastError:
-		title, sev = "Error", ui.DialogSeverityError
-	case ui.ToastWarning:
-		title, sev = "Warning", ui.DialogSeverityWarning
-	case ui.ToastSuccess:
-		title = "Done"
-	}
-	actions := []ui.DialogAction{
-		{Label: "Copy", OnClick: func() {
-			if clip := c.Clipboard(); clip != nil {
-				clip.Set(item.text)
+	if len(item.actions) > 0 {
+		buttons := []ui.View{ui.Spacer()}
+		for i, act := range item.actions {
+			btn := ui.Button("notif-act-"+key+"-"+strconv.Itoa(i), ui.Text(act.label))
+			if i == len(item.actions)-1 {
+				btn = btn.Primary()
 			}
-		}},
+			buttons = append(buttons, btn.OnClick(func() {
+				if n.Close != nil {
+					n.Close()
+				}
+				act.run()
+			}))
+		}
+		kids = append(kids, ui.Row(buttons...).Gap(th.Spacing.S))
 	}
-	for i, act := range item.actions {
-		actions = append(actions, ui.DialogAction{Label: act.label, Primary: i == len(item.actions)-1, OnClick: act.run})
-	}
-	if len(item.actions) == 0 {
-		actions = append(actions, ui.DialogAction{Label: "Close", Primary: true})
-	}
-	c.Dialogs().Show(ui.DialogOpts{
-		Title:      title,
-		Width:      480,
-		FitContent: true,
-		Severity:   sev,
-		Body: func(*ui.Ctx) ui.View {
-			return ui.Column(
-				ui.Caption(item.at.Format("Jan 2, 15:04:05")),
-				ui.Paragraph(item.text),
-			).Gap(c.Theme().Spacing.S)
-		},
-		Actions: actions,
-	})
+	return ui.Column(kids...).Gap(th.Spacing.S).Padding(th.Spacing.M).
+		Background(ui.TokenChrome).
+		Style(ui.Spec{}.Radius(th.Radius.Large).Border(ui.TokenBorder, th.Stroke.Thin))
 }

@@ -43,6 +43,7 @@ type App struct {
 	panelOpen   bool
 	agentOpen   bool
 	treeQuery   string
+	fileClip    fileClip          // files copied or cut in the tree
 	mdDocs      map[string]*mdDoc // preview state per Markdown file
 	noSession   bool
 	noUpdates   bool
