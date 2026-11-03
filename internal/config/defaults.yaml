@@ -53,6 +53,12 @@ keys:                         # command id -> chord; overrides built-ins
   editor.selectAllOccurrences: cmd+alt+l   # cmd+shift+l asks the agent
   editor.addCursorAbove: cmd+alt+up
   editor.addCursorBelow: cmd+alt+down
+  editor.toggleComment: cmd+/
+  editor.duplicateLinesDown: shift+alt+down
+  editor.duplicateLinesUp: shift+alt+up
+  editor.moveLinesDown: alt+down
+  editor.moveLinesUp: alt+up
+  editor.deleteLines: cmd+shift+k
   agent.askSelection: cmd+shift+l
   app.settings: cmd+,
   view.zoomIn: cmd+=

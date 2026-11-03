@@ -80,6 +80,18 @@ func (a *App) registerCommands(c *ui.Ctx) {
 			Icon(icons.TextCursorInput).Enabled(edFocused).Run(func() { ed.AddCursorLine(-1) }),
 		ui.Cmd("editor.addCursorBelow").Title("Add Cursor Below").Shortcut(a.key("editor.addCursorBelow")).
 			Icon(icons.TextCursorInput).Enabled(edFocused).Run(func() { ed.AddCursorLine(1) }),
+		ui.Cmd("editor.toggleComment").Title("Toggle Line Comment").Shortcut(a.key("editor.toggleComment")).
+			Icon(icons.MessageSquareCode).Enabled(edFocused).Run(func() { ed.Run(ui.ActionToggleComment) }),
+		ui.Cmd("editor.duplicateLinesDown").Title("Duplicate Lines Down").Shortcut(a.key("editor.duplicateLinesDown")).
+			Icon(icons.Copy).Enabled(edFocused).Run(func() { ed.Run(ui.ActionDuplicateLinesDown) }),
+		ui.Cmd("editor.duplicateLinesUp").Title("Duplicate Lines Up").Shortcut(a.key("editor.duplicateLinesUp")).
+			Icon(icons.Copy).Enabled(edFocused).Run(func() { ed.Run(ui.ActionDuplicateLinesUp) }),
+		ui.Cmd("editor.moveLinesDown").Title("Move Lines Down").Shortcut(a.key("editor.moveLinesDown")).
+			Icon(icons.ArrowDown).Enabled(edFocused).Run(func() { ed.Run(ui.ActionMoveLinesDown) }),
+		ui.Cmd("editor.moveLinesUp").Title("Move Lines Up").Shortcut(a.key("editor.moveLinesUp")).
+			Icon(icons.ArrowUp).Enabled(edFocused).Run(func() { ed.Run(ui.ActionMoveLinesUp) }),
+		ui.Cmd("editor.deleteLines").Title("Delete Lines").Shortcut(a.key("editor.deleteLines")).
+			Icon(icons.Trash2).Enabled(edFocused).Run(func() { ed.Run(ui.ActionDeleteLines) }),
 
 		ui.Cmd("nav.back").Title("Go Back").Shortcut(a.key("nav.back")).Icon(icons.ArrowLeft).
 			Enabled(len(a.nav.back) > 0).Run(a.navBack),
