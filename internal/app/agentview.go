@@ -387,15 +387,7 @@ func (a *App) agentStatus(c *ui.Ctx) []ui.View {
 }
 
 // tokens is a count, short: 950, 1.2k, 200k, 1M.
-func tokens(n int64) string {
-	switch {
-	case n >= 1_000_000:
-		return strings.TrimSuffix(fmt.Sprintf("%.1f", float64(n)/1e6), ".0") + "M"
-	case n >= 1000:
-		return strings.TrimSuffix(fmt.Sprintf("%.1f", float64(n)/1e3), ".0") + "k"
-	}
-	return fmt.Sprint(n)
-}
+func tokens(n int64) string { return agent.Tokens(n) }
 
 // ago says how long ago t was, coarsely.
 func ago(t time.Time) string {
@@ -430,7 +422,14 @@ func (a *App) transcript(c *ui.Ctx, r *agentRun) ui.View {
 			}
 		}
 	}
+	compactions := map[int][]agent.Compaction{}
+	for _, cp := range r.session.CompactionsNow() {
+		compactions[cp.At] = append(compactions[cp.At], cp)
+	}
 	for i, m := range msgs {
+		for k, cp := range compactions[i] {
+			rows = append(rows, a.compactionView(c, r, fmt.Sprintf("compact-%d-%d", i, k), cp))
+		}
 		if m.Role == provider.User {
 			if t := m.TextOf(); t != "" {
 				body := []ui.View{ui.Paragraph(userShown(t)).Selectable(r.wid(fmt.Sprintf("user-%d", i)))}
@@ -471,6 +470,9 @@ func (a *App) transcript(c *ui.Ctx, r *agentRun) ui.View {
 		}
 		if st.retry != "" {
 			status = st.retry
+		}
+		if st.compacting {
+			status = "Compacting the conversation…"
 		}
 		if st.approval != nil {
 			status = "Waiting for you"
@@ -514,6 +516,26 @@ func (a *App) thinkingView(c *ui.Ctx, r *agentRun, id, text string) ui.View {
 			Selectable(r.wid(id+"-text")))
 	}
 	return ui.Column(rows...).Gap(th.Spacing.XXS)
+}
+
+// compactionView is the divider where a compaction's summary took over
+// from the messages before it; it opens to show the summary.
+func (a *App) compactionView(c *ui.Ctx, r *agentRun, id string, cp agent.Compaction) ui.View {
+	th := c.Theme()
+	open := r.calls[id].open
+	icon := icons.ChevronRight
+	if open {
+		icon = icons.ChevronDown
+	}
+	label := "Compacted " + tokens(cp.TokensBefore) + " → " + tokens(cp.TokensAfter) + " tokens"
+	rows := []ui.View{ui.Button(r.wid(id), ui.Row(ui.Icon(icon, 12, th.ForegroundMuted), ui.Caption(label)).Gap(th.Spacing.XXS)).
+		Ghost().Tooltip("Older messages were summarised for the model; the chat keeps them all").
+		OnClick(func() { cv := r.calls[id]; cv.open = !cv.open; r.calls[id] = cv })}
+	if open {
+		rows = append(rows, ui.Column(a.agentMarkdown(r.wid(id+"-text"), cp.Summary)).
+			Padding(th.Spacing.S).Radius(th.Radius.Medium).Background(ui.TokenSurface))
+	}
+	return ui.Column(rows...).Gap(th.Spacing.XXS).PaddingXY(0, th.Spacing.XS).BorderTop(ui.TokenBorder, th.Stroke.Thin)
 }
 
 func (a *App) toolCard(c *ui.Ctx, r *agentRun, call, res provider.Block, done bool) ui.View {
@@ -593,6 +615,8 @@ func (a *App) subagentRow(c *ui.Ctx, r *agentRun, call, res provider.Block, done
 		switch {
 		case ch.approval != nil || ch.question != nil:
 			status = "Waiting for you"
+		case ch.compacting:
+			status = "Compacting the conversation…"
 		case ch.retry != "":
 			status = ch.retry
 		case ch.streamTool != "":
@@ -934,7 +958,7 @@ func (a *App) agentSuggest(value string, caret int) ([]ui.Suggestion, int, int) 
 			}
 		}
 	case start == 0 && strings.HasPrefix(word, "/"):
-		for _, cmd := range []string{"/mode ", "/provider ", "/context", "/new"} {
+		for _, cmd := range []string{"/mode ", "/provider ", "/context", "/compact ", "/new"} {
 			if strings.HasPrefix(cmd, word) {
 				out = append(out, ui.Suggestion{Label: cmd})
 			}

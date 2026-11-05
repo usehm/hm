@@ -352,3 +352,29 @@ func TestAgentPromptsSettings(t *testing.T) {
 		t.Errorf("problems %v", ps)
 	}
 }
+
+func TestAgentCompactionSettings(t *testing.T) {
+	cfg, _ := Load()
+	c := cfg.Agent.Compaction
+	if !c.Enabled || c.Threshold != 0.85 || c.ReserveTokens != 16384 || c.KeepTokens != 20000 || c.Provider != "" || c.Model != "" {
+		t.Fatalf("defaults %+v", c)
+	}
+	tests := []struct {
+		yaml, key string
+	}{
+		{"threshold: 1.5", "agent.compaction.threshold"},
+		{"threshold: 0", "agent.compaction.threshold"},
+		{"reserve_tokens: -1", "agent.compaction.reserve_tokens"},
+		{"keep_tokens: 10", "agent.compaction.keep_tokens"},
+		{"threshold: 0.7", ""},
+	}
+	for _, tt := range tests {
+		_, ps := Load(Layer{Name: "u.yaml", Data: []byte("agent:\n  compaction:\n    " + tt.yaml + "\n")})
+		switch {
+		case tt.key == "" && len(ps) > 0:
+			t.Errorf("%s: problems %v", tt.yaml, ps)
+		case tt.key != "" && (len(ps) != 1 || ps[0].Key != tt.key):
+			t.Errorf("%s: problems %v, want one at %s", tt.yaml, ps, tt.key)
+		}
+	}
+}

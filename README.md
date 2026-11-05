@@ -70,6 +70,7 @@ Fast where it can be, and quiet when you need to think.
 - Replay a session one message at a time, with when each one happened.
 - Rate limits, an overloaded API and dropped connections don't end the turn: the call is retried with growing waits (or as long as the API asks), and the chat says so ("Rate limited, retrying in 8s (2/5)"). `Esc` stops the wait. A call is never retried once its answer has started to stream.
 - A context meter in the composer shows how much of the model's window the conversation fills ("42k / 200k"), in the warning colour from 80%.
+- Long sessions keep working: when the conversation nears 85% of the model's window, or the API says the prompt is too long, older messages are summarised (goal, decisions, files touched, open tasks, unsolved errors, next step) and the model sees the summary plus the latest messages. `/compact [focus]` does it by hand, keeping what you name. A divider in the chat ("Compacted 148k → 12k tokens") opens to show the summary; the saved session and replay keep every message.
 - Sub-agents: the `task` tool hands work to an agent in a session of its own, in the foreground or the background, read-only unless allowed to write. Several run at once. Agents message each other with `send_message`, `wait_message` and `list_agents`.
 - Modes, switched with `/mode`:
   - **lazy** changes only what is necessary;
@@ -192,6 +193,13 @@ agent:
     openrouter: { type: openai, base_url: "https://openrouter.ai/api/v1", api_key: "${OPENROUTER_API_KEY}" }
     ollama: { type: openai, base_url: "http://localhost:11434/v1", model: qwen3, context_window: 32768 } # for models hm doesn't know
   retry: { max_attempts: 5 }                       # retries after a failed model call; 0 = off
+  compaction:                                      # summarise older messages near the window's limit
+    enabled: true                                  # by itself; /compact works either way
+    threshold: 0.85                                # fraction of the window that starts it
+    reserve_tokens: 16384                          # room kept for the answer
+    keep_tokens: 20000                             # latest history kept as it is
+    provider: ""                                   # agent.providers entry that summarises; "" = the session's
+    model: ""                                      # e.g. a smaller, cheaper model; "" = the provider's
   subagents: { max_depth: 1, max_concurrent: 4 }   # max_depth: 0 turns the task tool off
   context:                                         # AGENTS.md and friends in the system prompt
     enabled: true

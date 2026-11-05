@@ -408,6 +408,16 @@ agent:
   # 60s, or as long as the API asks. Esc stops the wait.
   retry:
     max_attempts: 5           # retries after the first failure; 0 = off
+  # When a session nears the model's context window, its older messages are
+  # summarised and the model sees the summary plus the latest messages. The
+  # session file keeps every message. /compact [focus] compacts by hand.
+  compaction:
+    enabled: true             # compact by itself, and once when a prompt is too long
+    threshold: 0.85           # fraction of the window that starts a compaction
+    reserve_tokens: 16384     # room kept for the answer
+    keep_tokens: 20000        # latest history kept as it is; at most a quarter of the window
+    provider: ""              # agent.providers entry that summarises; "" = the session's
+    model: ""                 # model that summarises; "" = the provider's
 
 # Where the agent keeps artifacts. Storage backends are not wired up yet.
 artifacts:

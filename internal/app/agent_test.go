@@ -539,3 +539,47 @@ func TestRateLimitRetriesAndContinues(t *testing.T) {
 		})
 	}
 }
+
+func TestCompactCommand(t *testing.T) {
+	model := &fakeModel{}
+	h, _ := agentProject(t, "anthropic", model)
+	r := h.app.run()
+	runTask(t, h, "/compact")
+	h.until("compaction end", 10*time.Second, func() bool { return !r.running })
+	if r.info != "Nothing to compact yet" || len(model.requests) != 0 {
+		t.Fatalf("empty session: info %q, %d requests", r.info, len(model.requests))
+	}
+
+	for _, msg := range []string{"hello", "again"} {
+		runTask(t, h, msg)
+		h.until("turn end", 10*time.Second, func() bool { return !r.running })
+	}
+	r.running = true
+	h.app.slashCommand(r, "/compact")
+	if r.errText == "" {
+		t.Fatal("/compact ran during a turn")
+	}
+	r.running, r.errText = false, ""
+
+	runTask(t, h, "/compact focus on the parser bug")
+	h.until("compaction end", 10*time.Second, func() bool { return !r.running })
+	cs := r.session.CompactionsNow()
+	if r.errText != "" || len(cs) != 1 || cs[0].Summary != "Done: main prints 1." || cs[0].At != 1 {
+		t.Fatalf("error %q, compactions %+v", r.errText, cs)
+	}
+	req := fmt.Sprint(model.requests[len(model.requests)-1])
+	if !strings.Contains(req, "## Next step") || !strings.Contains(req, "focus on: focus on the parser bug") {
+		t.Fatalf("summary request %s", req)
+	}
+	if len(r.session.Messages) != 4 {
+		t.Fatalf("history has %d messages", len(r.session.Messages))
+	}
+	h.frame() // the divider draws
+
+	runTask(t, h, "next")
+	h.until("turn end", 10*time.Second, func() bool { return !r.running })
+	msgs, _ := json.Marshal(model.requests[len(model.requests)-1]["messages"])
+	if !strings.Contains(string(msgs), "\\u003csummary\\u003e") && !strings.Contains(string(msgs), "<summary>") {
+		t.Fatalf("the next request lacks the summary: %s", msgs)
+	}
+}

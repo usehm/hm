@@ -195,12 +195,31 @@ type Agent struct {
 	DefaultMode     string `yaml:"default_mode"`
 	// Layout is where the agent shows: fullscreen swaps it with the editor,
 	// panel docks it beside the editor.
-	Layout    string              `yaml:"layout"`
-	Providers map[string]Provider `yaml:"providers"`
-	Subagents Subagents           `yaml:"subagents"`
-	Context   AgentContext        `yaml:"context"`
-	Prompts   AgentPrompts        `yaml:"prompts"`
-	Retry     AgentRetry          `yaml:"retry"`
+	Layout     string              `yaml:"layout"`
+	Providers  map[string]Provider `yaml:"providers"`
+	Subagents  Subagents           `yaml:"subagents"`
+	Context    AgentContext        `yaml:"context"`
+	Prompts    AgentPrompts        `yaml:"prompts"`
+	Retry      AgentRetry          `yaml:"retry"`
+	Compaction AgentCompaction     `yaml:"compaction"`
+}
+
+// AgentCompaction summarises a session's older messages when it nears the
+// model's context window. The session file keeps every message.
+type AgentCompaction struct {
+	// Enabled compacts by itself; /compact works either way.
+	Enabled bool `yaml:"enabled"`
+	// Threshold is the fraction of the window that starts a compaction.
+	Threshold float64 `yaml:"threshold"`
+	// ReserveTokens are kept free for the model's answer.
+	ReserveTokens int `yaml:"reserve_tokens"`
+	// KeepTokens of the latest messages are kept as they are.
+	KeepTokens int `yaml:"keep_tokens"`
+	// Provider names an entry under agent.providers to write summaries;
+	// empty uses the session's.
+	Provider string `yaml:"provider"`
+	// Model writes summaries; empty uses the provider's model.
+	Model string `yaml:"model"`
 }
 
 // AgentRetry retries model calls that fail for a passing reason, such as

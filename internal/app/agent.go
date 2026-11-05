@@ -91,9 +91,12 @@ type agentRun struct {
 	// progress; it is cleared when the message joins the session.
 	stream, thinking string
 	streamTool       string
-	retry            string              // a failed model call waiting to be retried
-	calls            map[string]callView // by tool call id
-	errText          string
+	retry            string // a failed model call waiting to be retried
+	compacting       bool   // older messages are being summarised
+	// manualCompact says the work running is /compact, not a turn.
+	manualCompact bool
+	calls         map[string]callView // by tool call id
+	errText       string
 	// info is a notice for the user, such as /context's answer.
 	info string
 
@@ -449,6 +452,10 @@ func (a *App) agentFor(r *agentRun) (*agent.Agent, error) {
 		label = "sub-agent \"" + s.Title + "\""
 		extra = subagentPrompt(r) + "\n" + extra
 	}
+	compaction, err := a.compaction(r.provider, prov)
+	if err != nil {
+		return nil, err
+	}
 	ctx := a.agentContext(r)
 	if !r.ctxWarned {
 		r.ctxWarned = true
@@ -459,8 +466,9 @@ func (a *App) agentFor(r *agentRun) (*agent.Agent, error) {
 	return &agent.Agent{
 		Provider: provider.WithRetry(prov, a.cfg.Current().Agent.Retry.MaxAttempts),
 		Model:    pc.Model, Effort: pc.Effort, ContextWindow: a.contextWindow(r.provider),
-		System: agent.System(mode, a.ws.Root, s.Created, project, ctx, extra),
-		Tools:  ts.reg, Policy: policy, Guard: grd, Env: agentEnv{a},
+		Compaction: compaction,
+		System:     agent.System(mode, a.ws.Root, s.Created, project, ctx, extra),
+		Tools:      ts.reg, Policy: policy, Guard: grd, Env: agentEnv{a},
 		Parallel: map[string]bool{"task": true},
 		Hooks: agent.Hooks{
 			Event: func(e agent.Event) { a.onUI(func() { a.agentEvent(r, e) }) },
@@ -495,6 +503,28 @@ func (a *App) agentFor(r *agentRun) (*agent.Agent, error) {
 	}, nil
 }
 
+// compaction is how agents of the session's provider prov compact: the
+// summary is written by agent.compaction.provider and model when set.
+func (a *App) compaction(name string, prov provider.Provider) (*agent.CompactConfig, error) {
+	cc := a.cfg.Current().Agent.Compaction
+	sumName, sumProv := name, prov
+	if cc.Provider != "" && cc.Provider != name {
+		p, _, err := a.newProvider(cc.Provider)
+		if err != nil {
+			return nil, errors.New("agent.compaction.provider: " + err.Error())
+		}
+		sumName, sumProv = cc.Provider, p
+	}
+	model := cc.Model
+	if model == "" {
+		model = a.modelOf(sumName)
+	}
+	return &agent.CompactConfig{
+		Auto: cc.Enabled, Threshold: cc.Threshold, Reserve: cc.ReserveTokens, KeepTokens: cc.KeepTokens,
+		Compactor: agent.ModelCompactor{Provider: provider.WithRetry(sumProv, a.cfg.Current().Agent.Retry.MaxAttempts), Model: model},
+	}, nil
+}
+
 // startTurn runs the agent on prompt in the background.
 func (a *App) startTurn(r *agentRun, prompt string) error {
 	ag, err := a.agentFor(r)
@@ -508,19 +538,50 @@ func (a *App) startTurn(r *agentRun, prompt string) error {
 			return nil
 		}
 	}
+	a.launch(r, func(ctx context.Context) error { return ag.Run(ctx, r.session, prompt) })
+	return nil
+}
+
+// compactNow runs /compact: it summarises r's older messages in the
+// background, keeping what focus names.
+func (a *App) compactNow(r *agentRun, focus string) {
+	if r.running {
+		r.errText = "Wait for the turn to finish, then /compact"
+		return
+	}
+	ag, err := a.agentFor(r)
+	if err != nil {
+		r.errText = err.Error()
+		return
+	}
+	r.manualCompact = true
+	a.launch(r, func(ctx context.Context) error {
+		err := ag.Compact(ctx, r.session, focus)
+		if errors.Is(err, agent.ErrNothingToCompact) {
+			a.onUI(func() { r.info = "Nothing to compact yet" })
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("Could not compact the conversation: %w", err)
+		}
+		return nil
+	})
+}
+
+// launch runs work, a turn of r, in the background.
+func (a *App) launch(r *agentRun, work func(ctx context.Context) error) {
 	s := r.session
 	ctx, cancel := context.WithCancel(context.Background())
 	r.running, r.cancel, r.errText = true, cancel, ""
-	r.stream, r.thinking, r.streamTool, r.retry = "", "", "", ""
+	r.stream, r.thinking, r.streamTool, r.retry, r.compacting = "", "", "", "", false
 	r.turnCheckpoint = checkpoint{}
 	s.SetStatus(agent.StatusRunning)
 	a.track(r)
 	a.agent.bus.SetRunning(s.ID, true)
 	go func() {
-		err := ag.Run(ctx, s, prompt)
+		err := work(ctx)
 		a.onUI(func() { a.turnEnded(r, err) })
 	}()
-	return nil
 }
 
 // turnEnded settles r after its turn, and starts the next one when
@@ -528,7 +589,7 @@ func (a *App) startTurn(r *agentRun, prompt string) error {
 func (a *App) turnEnded(r *agentRun, err error) {
 	s := r.session
 	r.running, r.cancel = false, nil
-	r.stream, r.thinking, r.streamTool, r.retry = "", "", "", ""
+	r.stream, r.thinking, r.streamTool, r.retry, r.compacting = "", "", "", "", false
 	r.approval, r.question = nil, nil
 	if !a.anyRunning() {
 		a.releaseAgentBuffers()
@@ -550,7 +611,9 @@ func (a *App) turnEnded(r *agentRun, err error) {
 	if r.parent != nil {
 		return // the parent reports the sub-agent's work
 	}
-	if err == nil {
+	manual := r.manualCompact
+	r.manualCompact = false
+	if err == nil && !manual {
 		a.notifs.Add("Agent finished: "+s.Title, ui.ToastSuccess,
 			notifAction{label: "Open Agent", run: func() { a.focusRun(r) }})
 	}
@@ -654,6 +717,10 @@ func (a *App) agentEvent(r *agentRun, e agent.Event) {
 		r.streamTool, r.retry = e.Tool, ""
 	case agent.EvRetry:
 		r.retry = e.Text
+	case agent.EvCompacting:
+		r.compacting, r.retry = true, ""
+	case agent.EvCompacted:
+		r.compacting = false
 	case agent.EvMessage:
 		r.stream, r.thinking, r.streamTool, r.retry = "", "", "", ""
 	case agent.EvToolCall:
@@ -743,7 +810,7 @@ func (a *App) agentAsk(ctx context.Context, r *agentRun, question string) (strin
 	}
 }
 
-// slashCommand runs /mode, /provider, /context and /new, or else the
+// slashCommand runs /mode, /provider, /context, /compact and /new, or else the
 // prompt template of that name.
 func (a *App) slashCommand(r *agentRun, text string) {
 	f := strings.Fields(text)
@@ -774,11 +841,13 @@ func (a *App) slashCommand(r *agentRun, text string) {
 		a.newAgentSession()
 	case "/context":
 		r.errText, r.info = "", contextInfo(a.agentContext(r))
+	case "/compact":
+		a.compactNow(r, strings.TrimSpace(text[len(f[0]):]))
 	default:
 		if a.runTemplate(r, f[0], strings.TrimSpace(text[len(f[0]):])) {
 			return
 		}
-		r.errText = "Unknown command " + f[0] + ". Try /mode, /provider, /context or /new, or add a prompt template."
+		r.errText = "Unknown command " + f[0] + ". Try /mode, /provider, /context, /compact or /new, or add a prompt template."
 	}
 }
 

@@ -29,6 +29,8 @@ const (
 	EvUsage                       // Usage: this call's tokens
 	EvError                       // Text: what went wrong
 	EvRetry                       // Text: a model call failed and is retried soon
+	EvCompacting                  // older messages are being summarised
+	EvCompacted                   // Text: how much it saved; empty when it failed
 )
 
 // Event is one report.
@@ -98,6 +100,9 @@ type Agent struct {
 	Parallel map[string]bool
 	// ContextWindow is the model's window in tokens; 0 when unknown.
 	ContextWindow int
+	// Compaction summarises older messages when the window fills; nil
+	// never compacts.
+	Compaction *CompactConfig
 }
 
 func (a *Agent) emit(e Event) {
@@ -129,9 +134,20 @@ func (a *Agent) inbox() []provider.Block {
 func (a *Agent) Run(ctx context.Context, s *Session, input string) error {
 	s.addUserText(input)
 	a.emit(Event{Kind: EvMessage})
+	// overflowed is set once a request was too long and the session was
+	// compacted for it; a second overflow ends the turn.
+	overflowed := false
 	for step := 0; step < maxSteps; step++ {
+		if !overflowed && a.needsCompaction(s) {
+			if err := a.Compact(ctx, s, ""); err != nil && !errors.Is(err, ErrNothingToCompact) {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				a.emit(Event{Kind: EvRetry, Text: "Could not compact the conversation: " + err.Error()})
+			}
+		}
 		req := provider.Request{
-			Model: a.Model, System: a.System, Messages: s.Snapshot(),
+			Model: a.Model, System: a.System, Messages: s.ForModel(),
 			Tools: a.Tools.Specs(), Effort: a.Effort,
 		}
 		resp, err := a.Provider.Stream(ctx, req, func(e provider.Event) {
@@ -150,6 +166,18 @@ func (a *Agent) Run(ctx context.Context, s *Session, input string) error {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
+			if errors.Is(err, provider.ErrContextOverflow) && !overflowed && a.autoCompact() {
+				overflowed = true
+				cerr := a.Compact(ctx, s, "")
+				if cerr == nil {
+					step-- // the same request again, shorter
+					continue
+				}
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				err = fmt.Errorf("%w; compacting did not help: %v", err, cerr)
+			}
 			msg := err.Error()
 			if errors.Is(err, provider.ErrContextOverflow) {
 				msg = "The conversation is too long for this model's context window (" + msg + ")"
@@ -157,6 +185,7 @@ func (a *Agent) Run(ctx context.Context, s *Session, input string) error {
 			a.emit(Event{Kind: EvError, Text: msg})
 			return err
 		}
+		overflowed = false
 		s.AddUsage(resp.Usage)
 		s.append(resp.Message)
 		a.emit(Event{Kind: EvUsage, Usage: resp.Usage})

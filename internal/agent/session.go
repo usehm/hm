@@ -49,8 +49,24 @@ type Session struct {
 	// the next one sends.
 	Context int64        `json:"context,omitempty"`
 	Todos   []tools.Todo `json:"todos,omitempty"`
+	// Compactions are the summaries that stand in for older messages when
+	// the model is called; the last one applies. Messages keep everything.
+	Compactions []Compaction `json:"compactions,omitempty"`
 
 	mu sync.Mutex
+}
+
+// Compaction replaces the messages before At with a summary in what the
+// model sees.
+type Compaction struct {
+	At      int    `json:"at"` // index of the first message kept
+	Summary string `json:"summary"`
+	// TokensBefore is the context used before; TokensAfter is an estimate
+	// until the next model call measures it.
+	TokensBefore int64     `json:"tokens_before"`
+	TokensAfter  int64     `json:"tokens_after"`
+	Model        string    `json:"model,omitempty"`
+	Time         time.Time `json:"time"`
 }
 
 // NewSession starts an empty session.
@@ -126,11 +142,48 @@ func (s *Session) UsageNow() provider.Usage {
 	return s.Usage
 }
 
-// Snapshot copies the messages for display.
+// Snapshot copies every message, for display and replay.
 func (s *Session) Snapshot() []provider.Message {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return append([]provider.Message(nil), s.Messages...)
+}
+
+// ForModel is the conversation as the model sees it: after a compaction,
+// its summary followed by the messages it kept.
+func (s *Session) ForModel() []provider.Message {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	n := len(s.Compactions)
+	if n == 0 {
+		return append([]provider.Message(nil), s.Messages...)
+	}
+	c := s.Compactions[n-1]
+	return withSummary(c.Summary, s.Messages[min(c.At, len(s.Messages)):])
+}
+
+// CompactionsNow copies the session's compactions.
+func (s *Session) CompactionsNow() []Compaction {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]Compaction(nil), s.Compactions...)
+}
+
+// addCompaction records c; the context used becomes its estimate.
+func (s *Session) addCompaction(c Compaction) {
+	s.mu.Lock()
+	s.Compactions = append(s.Compactions, c)
+	s.Context = c.TokensAfter
+	s.Updated = now()
+	s.mu.Unlock()
+}
+
+// addCost counts a call that is not part of the conversation, such as a
+// summary, in the totals but not in the context used.
+func (s *Session) addCost(u provider.Usage) {
+	s.mu.Lock()
+	s.Usage.Add(u)
+	s.mu.Unlock()
 }
 
 // TimesNow copies when each message joined; zero for unknown.
