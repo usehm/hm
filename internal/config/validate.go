@@ -231,6 +231,8 @@ var rules = func() []rule {
 			return ""
 		}},
 		{"agent.prompts.paths.*", nonEmpty},
+		{"agent.retry.max_attempts", intRange(0, 20)},
+		{"agent.providers.*.context_window", intRange(0, 100_000_000)},
 		{"keys.*", shortcutRule},
 		{"keybindings.*.key", shortcutRule},
 		{"keybindings.*.command", nonEmpty},

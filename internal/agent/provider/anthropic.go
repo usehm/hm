@@ -3,6 +3,8 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"net/http"
 	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -28,7 +30,9 @@ type Anthropic struct {
 // NewAnthropic builds the adapter. An empty key lets the SDK find
 // credentials itself (ANTHROPIC_API_KEY, an `ant auth login` profile).
 func NewAnthropic(cfg Config) *Anthropic {
-	var opts []option.RequestOption
+	// Retry wraps the provider and retries itself, telling the user; the
+	// SDK's own silent retries would stack on top.
+	opts := []option.RequestOption{option.WithMaxRetries(0)}
 	if cfg.APIKey != "" {
 		opts = append(opts, option.WithAPIKey(cfg.APIKey))
 	}
@@ -194,7 +198,7 @@ func (a *Anthropic) Stream(ctx context.Context, req Request, onEvent func(Event)
 	for stream.Next() {
 		ev := stream.Current()
 		if err := acc.Accumulate(ev); err != nil {
-			return Response{}, err
+			return Response{}, anthropicError(err)
 		}
 		if onEvent == nil {
 			continue
@@ -216,9 +220,41 @@ func (a *Anthropic) Stream(ctx context.Context, req Request, onEvent func(Event)
 		}
 	}
 	if err := stream.Err(); err != nil {
-		return Response{}, err
+		return Response{}, anthropicError(err)
+	}
+	if acc.StopReason == "" && ctx.Err() == nil {
+		return Response{}, errEarlyEnd
 	}
 	return a.response(acc, modelOr(req.Model))
+}
+
+// anthropicError turns an API failure, before the stream or inside it,
+// into an *APIError. Network failures pass through as they are.
+func anthropicError(err error) error {
+	var ae *anthropic.Error
+	if errors.As(err, &ae) {
+		status := ae.StatusCode
+		var h http.Header
+		if ae.Response != nil {
+			h = ae.Response.Header
+			if status == 0 {
+				status = ae.Response.StatusCode
+			}
+		}
+		if status == http.StatusOK {
+			status = 0 // an error event inside a stream that started fine
+		}
+		return classify(status, h, string(ae.Type()), err.Error())
+	}
+	// Older streams report an error event as plain text.
+	if msg := err.Error(); strings.HasPrefix(msg, "received error while streaming") {
+		var body struct {
+			Error struct{ Type string } `json:"error"`
+		}
+		_ = json.Unmarshal([]byte(strings.TrimSpace(strings.TrimPrefix(msg, "received error while streaming:"))), &body)
+		return classify(0, nil, body.Error.Type, msg)
+	}
+	return err
 }
 
 func (a *Anthropic) response(acc anthropic.BetaMessage, model string) (Response, error) {

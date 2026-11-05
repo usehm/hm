@@ -139,6 +139,7 @@ const (
 	EventThinking                   // Text holds new reasoning text
 	EventToolStart                  // ToolName is being called
 	EventToolInput                  // Text holds more of the tool input JSON
+	EventRetry                      // Text says the call failed and when it is retried; not output
 )
 
 // Event is a piece of a streaming response.

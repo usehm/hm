@@ -36,16 +36,19 @@ type Session struct {
 	// ProjectID is the project whose context the session starts with.
 	ProjectID string `json:"project,omitempty"`
 	// ParentID is the session that started this one as a sub-agent.
-	ParentID string    `json:"parent,omitempty"`
-	Status   string    `json:"status,omitempty"`
-	Created  time.Time `json:"created"`
-	Updated  time.Time `json:"updated"`
+	ParentID string             `json:"parent,omitempty"`
+	Status   string             `json:"status,omitempty"`
+	Created  time.Time          `json:"created"`
+	Updated  time.Time          `json:"updated"`
 	Messages []provider.Message `json:"messages"`
 	// Times holds when each message joined, for replay. Sessions saved
 	// before it existed have none.
 	Times []time.Time    `json:"times,omitempty"`
 	Usage provider.Usage `json:"usage"`
-	Todos []tools.Todo   `json:"todos,omitempty"`
+	// Context is the tokens the last model call read and wrote, about what
+	// the next one sends.
+	Context int64        `json:"context,omitempty"`
+	Todos   []tools.Todo `json:"todos,omitempty"`
 
 	mu sync.Mutex
 }
@@ -102,7 +105,18 @@ func (s *Session) titleFrom(m provider.Message) {
 func (s *Session) AddUsage(u provider.Usage) {
 	s.mu.Lock()
 	s.Usage.Add(u)
+	if n := u.Input + u.CacheRead + u.CacheWrite + u.Output; n > 0 {
+		s.Context = n
+	}
 	s.mu.Unlock()
+}
+
+// ContextUsed is how much of the model's window the conversation fills,
+// as of the last model call; 0 before the first.
+func (s *Session) ContextUsed() int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.Context
 }
 
 // UsageNow returns the session's token totals.

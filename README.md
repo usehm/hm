@@ -68,6 +68,8 @@ Fast where it can be, and quiet when you need to think.
 - Type while the agent works: your message waits in a queue and reaches the agent after its current step.
 - Sessions are saved after every step. If hm stops mid-task, the session reopens marked as interrupted, with a **Resume** button.
 - Replay a session one message at a time, with when each one happened.
+- Rate limits, an overloaded API and dropped connections don't end the turn: the call is retried with growing waits (or as long as the API asks), and the chat says so ("Rate limited, retrying in 8s (2/5)"). `Esc` stops the wait. A call is never retried once its answer has started to stream.
+- A context meter in the composer shows how much of the model's window the conversation fills ("42k / 200k"), in the warning colour from 80%.
 - Sub-agents: the `task` tool hands work to an agent in a session of its own, in the foreground or the background, read-only unless allowed to write. Several run at once. Agents message each other with `send_message`, `wait_message` and `list_agents`.
 - Modes, switched with `/mode`:
   - **lazy** changes only what is necessary;
@@ -188,6 +190,8 @@ agent:
   default_provider: anthropic
   providers:
     openrouter: { type: openai, base_url: "https://openrouter.ai/api/v1", api_key: "${OPENROUTER_API_KEY}" }
+    ollama: { type: openai, base_url: "http://localhost:11434/v1", model: qwen3, context_window: 32768 } # for models hm doesn't know
+  retry: { max_attempts: 5 }                       # retries after a failed model call; 0 = off
   subagents: { max_depth: 1, max_concurrent: 4 }   # max_depth: 0 turns the task tool off
   context:                                         # AGENTS.md and friends in the system prompt
     enabled: true

@@ -91,6 +91,7 @@ type agentRun struct {
 	// progress; it is cleared when the message joins the session.
 	stream, thinking string
 	streamTool       string
+	retry            string              // a failed model call waiting to be retried
 	calls            map[string]callView // by tool call id
 	errText          string
 	// info is a notice for the user, such as /context's answer.
@@ -456,7 +457,8 @@ func (a *App) agentFor(r *agentRun) (*agent.Agent, error) {
 		}
 	}
 	return &agent.Agent{
-		Provider: prov, Model: pc.Model, Effort: pc.Effort,
+		Provider: provider.WithRetry(prov, a.cfg.Current().Agent.Retry.MaxAttempts),
+		Model:    pc.Model, Effort: pc.Effort, ContextWindow: a.contextWindow(r.provider),
 		System: agent.System(mode, a.ws.Root, s.Created, project, ctx, extra),
 		Tools:  ts.reg, Policy: policy, Guard: grd, Env: agentEnv{a},
 		Parallel: map[string]bool{"task": true},
@@ -509,7 +511,7 @@ func (a *App) startTurn(r *agentRun, prompt string) error {
 	s := r.session
 	ctx, cancel := context.WithCancel(context.Background())
 	r.running, r.cancel, r.errText = true, cancel, ""
-	r.stream, r.thinking, r.streamTool = "", "", ""
+	r.stream, r.thinking, r.streamTool, r.retry = "", "", "", ""
 	r.turnCheckpoint = checkpoint{}
 	s.SetStatus(agent.StatusRunning)
 	a.track(r)
@@ -526,7 +528,7 @@ func (a *App) startTurn(r *agentRun, prompt string) error {
 func (a *App) turnEnded(r *agentRun, err error) {
 	s := r.session
 	r.running, r.cancel = false, nil
-	r.stream, r.thinking, r.streamTool = "", "", ""
+	r.stream, r.thinking, r.streamTool, r.retry = "", "", "", ""
 	r.approval, r.question = nil, nil
 	if !a.anyRunning() {
 		a.releaseAgentBuffers()
@@ -644,12 +646,16 @@ func (a *App) agentEvent(r *agentRun, e agent.Event) {
 	switch e.Kind {
 	case agent.EvText:
 		r.stream += e.Text
+		r.retry = ""
 	case agent.EvThinking:
 		r.thinking += e.Text
+		r.retry = ""
 	case agent.EvToolStart:
-		r.streamTool = e.Tool
+		r.streamTool, r.retry = e.Tool, ""
+	case agent.EvRetry:
+		r.retry = e.Text
 	case agent.EvMessage:
-		r.stream, r.thinking, r.streamTool = "", "", ""
+		r.stream, r.thinking, r.streamTool, r.retry = "", "", "", ""
 	case agent.EvToolCall:
 		r.calls[e.CallID] = callView{summary: e.Summary}
 	case agent.EvToolResult:

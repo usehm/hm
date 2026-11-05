@@ -28,6 +28,7 @@ const (
 	EvMessage                     // a message joined the session (Session is up to date)
 	EvUsage                       // Usage: this call's tokens
 	EvError                       // Text: what went wrong
+	EvRetry                       // Text: a model call failed and is retried soon
 )
 
 // Event is one report.
@@ -95,6 +96,8 @@ type Agent struct {
 	Hooks Hooks
 	// Parallel names tools whose calls in one message run at once.
 	Parallel map[string]bool
+	// ContextWindow is the model's window in tokens; 0 when unknown.
+	ContextWindow int
 }
 
 func (a *Agent) emit(e Event) {
@@ -139,13 +142,19 @@ func (a *Agent) Run(ctx context.Context, s *Session, input string) error {
 				a.emit(Event{Kind: EvThinking, Text: e.Text})
 			case provider.EventToolStart:
 				a.emit(Event{Kind: EvToolStart, Tool: e.ToolName})
+			case provider.EventRetry:
+				a.emit(Event{Kind: EvRetry, Text: e.Text})
 			}
 		})
 		if err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			a.emit(Event{Kind: EvError, Text: err.Error()})
+			msg := err.Error()
+			if errors.Is(err, provider.ErrContextOverflow) {
+				msg = "The conversation is too long for this model's context window (" + msg + ")"
+			}
+			a.emit(Event{Kind: EvError, Text: msg})
 			return err
 		}
 		s.AddUsage(resp.Usage)

@@ -386,12 +386,13 @@ func (a *App) agentStatus(c *ui.Ctx) []ui.View {
 	return out
 }
 
+// tokens is a count, short: 950, 1.2k, 200k, 1M.
 func tokens(n int64) string {
 	switch {
 	case n >= 1_000_000:
-		return fmt.Sprintf("%.1fM", float64(n)/1e6)
+		return strings.TrimSuffix(fmt.Sprintf("%.1f", float64(n)/1e6), ".0") + "M"
 	case n >= 1000:
-		return fmt.Sprintf("%.1fk", float64(n)/1e3)
+		return strings.TrimSuffix(fmt.Sprintf("%.1f", float64(n)/1e3), ".0") + "k"
 	}
 	return fmt.Sprint(n)
 }
@@ -467,6 +468,9 @@ func (a *App) transcript(c *ui.Ctx, r *agentRun) ui.View {
 		status := "Thinking…"
 		if st.streamTool != "" {
 			status = "Calling " + st.streamTool + "…"
+		}
+		if st.retry != "" {
+			status = st.retry
 		}
 		if st.approval != nil {
 			status = "Waiting for you"
@@ -589,6 +593,8 @@ func (a *App) subagentRow(c *ui.Ctx, r *agentRun, call, res provider.Block, done
 		switch {
 		case ch.approval != nil || ch.question != nil:
 			status = "Waiting for you"
+		case ch.retry != "":
+			status = ch.retry
 		case ch.streamTool != "":
 			status = "Calling " + ch.streamTool + "…"
 		case ch.stream != "":
@@ -804,6 +810,9 @@ func (a *App) composer(c *ui.Ctx, r *agentRun, fresh bool) ui.View {
 	send := ui.Button(r.wid("send"), ui.Icon(icons.ArrowUp, th.Metrics.IconSizeSM, th.AccentForeground)).Primary().
 		Tooltip("Send (Enter)").Disabled(strings.TrimSpace(r.input) == "").OnClick(func() { a.sendRun(r) })
 	controls := []ui.View{a.modePicker(r), a.composerModel(r), a.projectPicker(r), ui.Spacer()}
+	if m := a.contextMeter(r); m != nil {
+		controls = append(controls, m)
+	}
 	if r.running {
 		send = send.Tooltip("Queue for the agent (Enter)")
 		controls = append(controls, ui.IconButton(r.wid("stop"), icons.Square).Tooltip("Stop").OnClick(func() { a.stopRun(r) }))
@@ -814,6 +823,25 @@ func (a *App) composer(c *ui.Ctx, r *agentRun, fresh bool) ui.View {
 		ui.Row(controls...).Gap(th.Spacing.XS).PaddingXY(th.Spacing.XS, 0),
 	).Gap(th.Spacing.XXS).PaddingXY(0, th.Spacing.XS).Radius(th.Radius.XLarge).
 		Border(border, th.Stroke.Thin).Background(ui.TokenSurface)
+}
+
+// contextMeter is how much of the model's window the conversation fills,
+// "42k / 200k"; nil before the first model call.
+func (a *App) contextMeter(r *agentRun) ui.View {
+	used := r.session.ContextUsed()
+	if used == 0 {
+		return nil
+	}
+	text, tip := tokens(used), "Context used by the last request; the model's window is unknown"
+	color := ui.TokenForegroundMuted
+	if w := int64(a.contextWindow(r.provider)); w > 0 {
+		text += " / " + tokens(w)
+		tip = "Context used by the last request / the model's window"
+		if used*10 >= w*8 {
+			color = ui.TokenWarning
+		}
+	}
+	return ui.Caption(text).Style(ui.Spec{}.TextColor(color)).Shrink(0).Tooltip(tip)
 }
 
 // modeIcons marks the built-in modes in the mode picker.

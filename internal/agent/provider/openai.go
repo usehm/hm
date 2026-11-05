@@ -150,9 +150,22 @@ type oaChunk struct {
 			CachedTokens int64 `json:"cached_tokens"`
 		} `json:"prompt_tokens_details"`
 	} `json:"usage"`
-	Error *struct {
-		Message string `json:"message"`
-	} `json:"error"`
+	Error *oaError `json:"error"`
+}
+
+// oaError is the {"error": {...}} object, in a response body or a chunk.
+type oaError struct {
+	Message string `json:"message"`
+	Type    string `json:"type"`
+	Code    any    `json:"code"` // a string, or a number on some servers
+}
+
+// kind is the error's code, else its type, for classify.
+func (e oaError) kind() string {
+	if c, ok := e.Code.(string); ok && c != "" {
+		return c
+	}
+	return e.Type
 }
 
 // Models lists the endpoint's models from GET /models, sorted.
@@ -171,7 +184,7 @@ func (o *OpenAI) Models(ctx context.Context) ([]string, error) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<10))
-		return nil, apiError(resp.Status, b)
+		return nil, apiError(resp, b)
 	}
 	var body struct {
 		Data []struct {
@@ -217,7 +230,7 @@ func (o *OpenAI) Stream(ctx context.Context, req Request, onEvent func(Event)) (
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<10))
-		return Response{}, apiError(resp.Status, b)
+		return Response{}, apiError(resp, b)
 	}
 
 	type call struct{ id, name, args string }
@@ -225,6 +238,7 @@ func (o *OpenAI) Stream(ctx context.Context, req Request, onEvent func(Event)) (
 	var text, reasoning strings.Builder
 	var out Response
 	out.StopReason = StopEnd
+	done := false // [DONE] or a finish reason arrived
 	sc := bufio.NewScanner(resp.Body)
 	sc.Buffer(make([]byte, 1<<20), 16<<20)
 	for sc.Scan() {
@@ -234,6 +248,7 @@ func (o *OpenAI) Stream(ctx context.Context, req Request, onEvent func(Event)) (
 		}
 		payload := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
 		if payload == "[DONE]" {
+			done = true
 			break
 		}
 		var ch oaChunk
@@ -241,7 +256,7 @@ func (o *OpenAI) Stream(ctx context.Context, req Request, onEvent func(Event)) (
 			continue
 		}
 		if ch.Error != nil {
-			return Response{}, errors.New(ch.Error.Message)
+			return Response{}, classify(0, nil, ch.Error.kind(), ch.Error.Message)
 		}
 		if u := ch.Usage; u != nil {
 			cached := u.PromptTokensDetails.CachedTokens
@@ -276,6 +291,7 @@ func (o *OpenAI) Stream(ctx context.Context, req Request, onEvent func(Event)) (
 				}
 			}
 			if c.FinishReason != "" {
+				done = true
 				out.StopReason = mapStop(c.FinishReason)
 			}
 		}
@@ -285,6 +301,9 @@ func (o *OpenAI) Stream(ctx context.Context, req Request, onEvent func(Event)) (
 	}
 	if err := ctx.Err(); err != nil {
 		return Response{}, err
+	}
+	if !done {
+		return Response{}, errEarlyEnd
 	}
 	msg := Message{Role: Assistant}
 	if reasoning.Len() > 0 {
@@ -323,14 +342,13 @@ func emit(fn func(Event), e Event) {
 }
 
 // apiError reads an error body in the common {"error": {"message"}} shape.
-func apiError(status string, body []byte) error {
+func apiError(resp *http.Response, body []byte) error {
 	var e struct {
-		Error struct {
-			Message string `json:"message"`
-		} `json:"error"`
+		Error oaError `json:"error"`
 	}
+	msg := fmt.Sprintf("%s: %s", resp.Status, strings.TrimSpace(string(body)))
 	if json.Unmarshal(body, &e) == nil && e.Error.Message != "" {
-		return fmt.Errorf("%s: %s", status, e.Error.Message)
+		msg = fmt.Sprintf("%s: %s", resp.Status, e.Error.Message)
 	}
-	return fmt.Errorf("%s: %s", status, strings.TrimSpace(string(body)))
+	return classify(resp.StatusCode, resp.Header, e.Error.kind(), msg)
 }

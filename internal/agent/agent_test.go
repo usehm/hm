@@ -347,3 +347,48 @@ func TestGuardBlocksBeforeAskingAndAsksEveryTime(t *testing.T) {
 		t.Fatalf("asked %+v", h.asked)
 	}
 }
+
+// failing reports a retry, then fails with err.
+type failing struct {
+	script
+	err error
+}
+
+func (f *failing) Stream(_ context.Context, _ provider.Request, on func(provider.Event)) (provider.Response, error) {
+	on(provider.Event{Kind: provider.EventRetry, Text: "Rate limited, retrying in 1s (1/5)"})
+	return provider.Response{}, f.err
+}
+
+func TestContextUsedAndOverflow(t *testing.T) {
+	h := newAgent(t, "auto", []provider.Block{say("hi")})
+	if h.session.ContextUsed() != 0 {
+		t.Fatal("context before the first call")
+	}
+	h.run(t, "hello")
+	if got := h.session.ContextUsed(); got != 15 {
+		t.Fatalf("context used %d, want 15", got)
+	}
+
+	overflow := &provider.APIError{Kind: provider.ErrContextOverflow, Status: 400, Msg: "prompt is too long"}
+	h.agent.Provider = &failing{err: overflow}
+	h.events = nil
+	err := h.agent.Run(context.Background(), h.session, "more")
+	if !errors.Is(err, provider.ErrContextOverflow) {
+		t.Fatalf("err %v", err)
+	}
+	var retry, msg string
+	for _, e := range h.events {
+		switch e.Kind {
+		case EvRetry:
+			retry = e.Text
+		case EvError:
+			msg = e.Text
+		}
+	}
+	if retry != "Rate limited, retrying in 1s (1/5)" || !strings.Contains(msg, "too long for this model's context window") {
+		t.Fatalf("retry %q, error %q", retry, msg)
+	}
+	if h.session.ContextUsed() != 15 {
+		t.Fatal("a failed call changed the context used")
+	}
+}

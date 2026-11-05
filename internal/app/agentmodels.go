@@ -46,6 +46,16 @@ func (a *App) modelOf(name string) string {
 	return pc.Model
 }
 
+// contextWindow is the window of the provider's model in tokens: the
+// provider's context_window, else hm's table; 0 when unknown.
+func (a *App) contextWindow(name string) int {
+	if w := a.cfg.Current().Agent.Providers[name].ContextWindow; w > 0 {
+		return w
+	}
+	l, _ := provider.LimitsOf(a.modelOf(name))
+	return l.ContextWindow
+}
+
 // setModel makes model the provider's model. It goes to the user config,
 // or to the project config when that one pins the provider's model.
 func (a *App) setModel(name, model string) {

@@ -374,7 +374,8 @@ agent:
   layout: fullscreen          # fullscreen (toggles with the editor) | panel (beside it)
   # Keys live in the OS keychain: "keychain:<name>" (Settings → Agent → Add key)
   # or an environment variable: "${OPENAI_API_KEY}". Pick the model in
-  # Settings → Agent once a key is set.
+  # Settings → Agent once a key is set. hm knows the context window of
+  # common models; set context_window: <tokens> on a provider for others.
   providers:
     anthropic: { type: anthropic, api_key: "keychain:anthropic", model: claude-opus-5-5, effort: high }
     # Any OpenAI-compatible endpoint: OpenAI, OpenRouter
@@ -402,6 +403,11 @@ agent:
   # wins on a name; built-in commands win over all of them.
   prompts:
     paths: [~/.config/hm/prompts, .hm/prompts, .claude/commands, .pi/prompts]
+  # Model calls that fail for a passing reason (rate limit, overloaded API,
+  # dropped connection) are retried with growing waits, 1s, 2s, 4s ... up to
+  # 60s, or as long as the API asks. Esc stops the wait.
+  retry:
+    max_attempts: 5           # retries after the first failure; 0 = off
 
 # Where the agent keeps artifacts. Storage backends are not wired up yet.
 artifacts:

@@ -29,6 +29,23 @@ type fakeModel struct {
 	mu       sync.Mutex
 	turns    [][]toolCall // a turn with no calls answers "done"
 	requests []map[string]any
+	// limited is how many more requests get a 429 asking for a 1s wait.
+	limited int
+}
+
+// rateLimit answers a 429 while f.limited lasts.
+func (f *fakeModel) rateLimit(w http.ResponseWriter) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.limited == 0 {
+		return false
+	}
+	f.limited--
+	w.Header().Set("Retry-After", "1")
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusTooManyRequests)
+	fmt.Fprint(w, `{"type":"error","error":{"type":"rate_limit_error","message":"slow down"}}`)
+	return true
 }
 
 func (f *fakeModel) next(body map[string]any) []toolCall {
@@ -120,6 +137,9 @@ func agentProject(t *testing.T, kind string, model *fakeModel) (*harness, string
 			fmt.Fprint(w, `{"data":[{"id":"test-model"},{"id":"other-model"}]}`)
 			return
 		}
+		if model.rateLimit(w) {
+			return
+		}
 		if kind == "anthropic" {
 			model.anthropic(w, r)
 		} else {
@@ -187,6 +207,9 @@ func TestSameTaskOnAnthropicAndOpenRouter(t *testing.T) {
 			}
 			if u := s.UsageNow(); u.Input == 0 || u.Output == 0 {
 				t.Fatalf("usage %+v", s.Usage)
+			}
+			if s.ContextUsed() == 0 || h.app.contextMeter(h.app.run()) == nil {
+				t.Fatal("no context meter after a model call")
 			}
 			// The model saw the shell output, and the @main.go context.
 			if first := fmt.Sprint(model.requests[0]["messages"]); !strings.Contains(first, "<file path=") {
@@ -466,5 +489,53 @@ func TestPromptTemplateIncludeFollowsGuard(t *testing.T) {
 		if (err == nil) != tc.ok {
 			t.Errorf("%s: %q %v", tc.path, got, err)
 		}
+	}
+}
+
+func TestContextWindow(t *testing.T) {
+	root := project(t)
+	writeFile(t, filepath.Join(root, ".hm", "config.yaml"), `
+agent:
+  providers:
+    haiku: { type: anthropic, model: claude-haiku-4-5 }
+    local: { type: openai, base_url: "http://localhost:11434/v1", model: llama3.2 }
+    sized: { type: openai, base_url: "http://localhost:11434/v1", model: llama3.2, context_window: 32768 }
+`)
+	h := newHarness(t, root, false)
+	for name, want := range map[string]int{"haiku": 200_000, "local": 0, "sized": 32768} {
+		if got := h.app.contextWindow(name); got != want {
+			t.Errorf("contextWindow(%s) = %d, want %d", name, got, want)
+		}
+	}
+	for n, want := range map[int64]string{950: "950", 1234: "1.2k", 42_000: "42k", 200_000: "200k", 1_000_000: "1M", 1_500_000: "1.5M"} {
+		if got := tokens(n); got != want {
+			t.Errorf("tokens(%d) = %q, want %q", n, got, want)
+		}
+	}
+}
+
+func TestRateLimitRetriesAndContinues(t *testing.T) {
+	for _, kind := range []string{"anthropic", "openai"} {
+		t.Run(kind, func(t *testing.T) {
+			model := &fakeModel{limited: 1}
+			h, _ := agentProject(t, kind, model)
+			start := time.Now()
+			runTask(t, h, "hello")
+			h.until("retry notice", 5*time.Second, func() bool {
+				return strings.HasPrefix(h.app.run().retry, "Rate limited, retrying in 1s (1/5)")
+			})
+			h.until("turn end", 10*time.Second, func() bool { return !h.app.run().running })
+			if d := time.Since(start); d < 800*time.Millisecond {
+				t.Fatalf("finished after %v; Retry-After was 1s", d)
+			}
+			r := h.app.run()
+			if r.errText != "" || r.retry != "" {
+				t.Fatalf("error %q, retry %q", r.errText, r.retry)
+			}
+			s := r.session
+			if last := s.Messages[len(s.Messages)-1]; last.TextOf() != "Done: main prints 1." {
+				t.Fatalf("last message %+v", last)
+			}
+		})
 	}
 }

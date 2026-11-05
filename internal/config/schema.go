@@ -200,6 +200,15 @@ type Agent struct {
 	Subagents Subagents           `yaml:"subagents"`
 	Context   AgentContext        `yaml:"context"`
 	Prompts   AgentPrompts        `yaml:"prompts"`
+	Retry     AgentRetry          `yaml:"retry"`
+}
+
+// AgentRetry retries model calls that fail for a passing reason, such as
+// a rate limit or an overloaded API.
+type AgentRetry struct {
+	// MaxAttempts is how many retries follow the first failure; 0 turns
+	// retrying off.
+	MaxAttempts int `yaml:"max_attempts"`
 }
 
 // AgentPrompts finds the prompt templates typed as /name in the message box.
@@ -235,6 +244,9 @@ type Provider struct {
 	MaxTokens int    `yaml:"max_tokens"`
 	// Effort sets how hard the model thinks: low | medium | high | xhigh | max.
 	Effort string `yaml:"effort"`
+	// ContextWindow is the model's window in tokens, for models hm does
+	// not know; 0 uses hm's table.
+	ContextWindow int `yaml:"context_window"`
 }
 
 // Completion configures AI inline completions in the editor.
