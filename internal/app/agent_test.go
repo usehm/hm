@@ -374,3 +374,97 @@ func TestInstructionFilesInSystemPrompt(t *testing.T) {
 		t.Fatalf("/context said %q", r.info)
 	}
 }
+
+func TestPromptTemplates(t *testing.T) {
+	model := &fakeModel{}
+	h, root := agentProject(t, "anthropic", model)
+	writeFile(t, filepath.Join(root, "notes.txt"), "Check error handling.")
+	writeFile(t, filepath.Join(root, ".hm", "prompts", "review.md"),
+		"---\ndescription: Review a file\nargument-hint: <file>\nmode: lazy\n---\nReview $1 for $2.\n@notes.txt\n@../outside.txt\n")
+	writeFile(t, filepath.Join(root, ".claude", "commands", "fix.md"),
+		"---\nallowed-tools: Bash(go test:*)\ndescription: Fix a bug\n---\nFix this: $ARGUMENTS")
+	writeFile(t, filepath.Join(root, ".hm", "prompts", "context.md"), "never sent")
+	r := h.app.run()
+
+	sugg, _, _ := h.app.agentSuggest("/", 1)
+	found := map[string]ui.Suggestion{}
+	for _, s := range sugg {
+		found[s.Label] = s
+	}
+	if s := found["/review <file>"]; s.Detail != "Review a file" || s.Insert != "/review " {
+		t.Fatalf("no /review suggestion: %+v", sugg)
+	}
+	if _, ok := found["/fix"]; !ok {
+		t.Fatalf("no /fix suggestion: %+v", sugg)
+	}
+	if n := len(h.app.agent.shadowWarned); n != 1 {
+		t.Errorf("context.md should be warned about once, got %d", n)
+	}
+
+	runTask(t, h, `/review main.go "nil checks"`)
+	h.until("turn end", 10*time.Second, func() bool { return !r.running })
+	first := r.session.Messages[0]
+	want := "Review main.go for nil checks.\nCheck error handling.\n@../outside.txt"
+	if first.TextOf() != want {
+		t.Fatalf("expanded to %q, want %q", first.TextOf(), want)
+	}
+	if r.mode != "lazy" {
+		t.Errorf("mode %q, want lazy", r.mode)
+	}
+	if got := r.templateOf(first); got != "/review" {
+		t.Errorf("label %q", got)
+	}
+	if !strings.Contains(fmt.Sprint(model.requests[0]["messages"]), "Review main.go for nil checks.") {
+		t.Fatal("the model did not get the expanded template")
+	}
+
+	// A .claude/commands file works as it is.
+	runTask(t, h, "/fix the failing test @main.go")
+	h.until("turn end", 10*time.Second, func() bool { return !r.running })
+	if got := fmt.Sprint(model.requests[1]["messages"]); !strings.Contains(got, "Fix this: the failing test @main.go") || !strings.Contains(got, "<file path=") {
+		t.Fatalf("second request %s", got)
+	}
+
+	// Built-ins win: /context answers and sends nothing.
+	runTask(t, h, "/context")
+	if r.info == "" || len(model.requests) != 2 {
+		t.Fatalf("/context ran the template: info %q, %d requests", r.info, len(model.requests))
+	}
+
+	// A new template shows once its folder changes.
+	late := filepath.Join(root, ".hm", "prompts", "late.md")
+	writeFile(t, late, "late")
+	h.app.promptsChanged(workspace.Changes{Files: map[string]bool{late: true}})
+	if _, ok := h.app.templateFor("/late"); !ok {
+		t.Fatal("/late not found after the change")
+	}
+
+	r.input = "/nope"
+	h.app.sendAgent()
+	if !strings.Contains(r.errText, "Unknown command /nope") {
+		t.Fatalf("errText %q", r.errText)
+	}
+}
+
+func TestPromptTemplateIncludeFollowsGuard(t *testing.T) {
+	h, root := agentProject(t, "anthropic", &fakeModel{})
+	writeFile(t, filepath.Join(root, ".env"), "SECRET=1")
+	writeFile(t, filepath.Join(root, "ok.txt"), "fine")
+	writeFile(t, filepath.Join(root, ".hm", "guard.yaml"), "paths:\n  deny: [\".env\"]\n")
+	for _, tc := range []struct {
+		path string
+		ok   bool
+	}{
+		{"ok.txt", true},
+		{".env", false},
+		{"../x", false},
+		{"/etc/hosts", false},
+		{"missing.txt", false},
+		{".hm", false},
+	} {
+		got, err := h.app.promptInclude(tc.path)
+		if (err == nil) != tc.ok {
+			t.Errorf("%s: %q %v", tc.path, got, err)
+		}
+	}
+}

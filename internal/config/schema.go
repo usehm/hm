@@ -199,6 +199,13 @@ type Agent struct {
 	Providers map[string]Provider `yaml:"providers"`
 	Subagents Subagents           `yaml:"subagents"`
 	Context   AgentContext        `yaml:"context"`
+	Prompts   AgentPrompts        `yaml:"prompts"`
+}
+
+// AgentPrompts finds the prompt templates typed as /name in the message box.
+type AgentPrompts struct {
+	// Paths are folders of .md templates; a later folder wins on a name.
+	Paths []string `yaml:"paths"`
 }
 
 // AgentContext picks the instruction files, such as AGENTS.md, that go

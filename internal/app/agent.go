@@ -8,12 +8,14 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/mirzakhany/yoga/ui"
 
 	"github.com/mirzakhany/hm/internal/agent"
 	"github.com/mirzakhany/hm/internal/agent/guard"
 	"github.com/mirzakhany/hm/internal/agent/mcp"
+	"github.com/mirzakhany/hm/internal/agent/prompts"
 	"github.com/mirzakhany/hm/internal/agent/provider"
 	"github.com/mirzakhany/hm/internal/agent/skills"
 	"github.com/mirzakhany/hm/internal/agent/tools"
@@ -65,6 +67,13 @@ type agentState struct {
 	models        map[string][]string
 	modelsErr     map[string]string
 	modelsLoading map[string]bool
+
+	// prompts caches the prompt templates, read at promptsAt; a zero
+	// promptsAt reads them again. shadowWarned holds the built-in names
+	// already warned about.
+	prompts      []prompts.Template
+	promptsAt    time.Time
+	shadowWarned map[string]bool
 }
 
 // agentRun is one session open in a tab: its conversation and the turn in
@@ -91,6 +100,10 @@ type agentRun struct {
 	// system prompt stays the same and caches; nil until first needed.
 	ctx       *agent.Context
 	ctxWarned bool
+
+	// from names the prompt template each message sent from one was
+	// expanded from, by its text, for the chat's "from /name" label.
+	from map[string]string
 
 	approval *pendingApproval
 	question *pendingQuestion
@@ -373,14 +386,19 @@ func (a *App) sendRun(r *agentRun) {
 		a.slashCommand(r, text)
 		return
 	}
+	a.sendText(r, a.expandContext(text))
+}
+
+// sendText starts a turn with text, or queues it while a turn runs.
+func (a *App) sendText(r *agentRun, text string) {
 	if r.running {
 		r.input = ""
 		r.queueMu.Lock()
-		r.queue = append(r.queue, a.expandContext(text))
+		r.queue = append(r.queue, text)
 		r.queueMu.Unlock()
 		return
 	}
-	if err := a.startTurn(r, a.expandContext(text)); err != nil {
+	if err := a.startTurn(r, text); err != nil {
 		r.errText = err.Error()
 		return
 	}
@@ -719,7 +737,8 @@ func (a *App) agentAsk(ctx context.Context, r *agentRun, question string) (strin
 	}
 }
 
-// slashCommand runs /mode, /new and /provider.
+// slashCommand runs /mode, /provider, /context and /new, or else the
+// prompt template of that name.
 func (a *App) slashCommand(r *agentRun, text string) {
 	f := strings.Fields(text)
 	switch f[0] {
@@ -750,7 +769,10 @@ func (a *App) slashCommand(r *agentRun, text string) {
 	case "/context":
 		r.errText, r.info = "", contextInfo(a.agentContext(r))
 	default:
-		r.errText = "Unknown command " + f[0] + ". Try /mode, /provider, /context or /new."
+		if a.runTemplate(r, f[0], strings.TrimSpace(text[len(f[0]):])) {
+			return
+		}
+		r.errText = "Unknown command " + f[0] + ". Try /mode, /provider, /context or /new, or add a prompt template."
 	}
 }
 

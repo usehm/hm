@@ -432,7 +432,11 @@ func (a *App) transcript(c *ui.Ctx, r *agentRun) ui.View {
 	for i, m := range msgs {
 		if m.Role == provider.User {
 			if t := m.TextOf(); t != "" {
-				rows = append(rows, ui.Column(ui.Paragraph(userShown(t)).Selectable(r.wid(fmt.Sprintf("user-%d", i)))).
+				body := []ui.View{ui.Paragraph(userShown(t)).Selectable(r.wid(fmt.Sprintf("user-%d", i)))}
+				if cmd := r.templateOf(m); cmd != "" {
+					body = append([]ui.View{ui.Caption("from " + cmd)}, body...)
+				}
+				rows = append(rows, ui.Column(body...).Gap(th.Spacing.XXS).
 					Padding(th.Spacing.S).Radius(th.Radius.Medium).Background(ui.TokenListActive))
 			}
 			continue
@@ -907,6 +911,7 @@ func (a *App) agentSuggest(value string, caret int) ([]ui.Suggestion, int, int) 
 				out = append(out, ui.Suggestion{Label: cmd})
 			}
 		}
+		out = append(out, a.templateSuggestions(word)...)
 	case strings.HasPrefix(word, "@"):
 		q := strings.ToLower(word[1:])
 		for _, s := range []string{"selection", "diagnostics", "git-diff"} {

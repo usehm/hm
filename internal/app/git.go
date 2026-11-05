@@ -238,6 +238,7 @@ func (a *App) diskChanged(ch workspace.Changes) {
 		a.reloadFromDisk()
 	}
 	a.contextChanged(ch)
+	a.promptsChanged(ch)
 }
 
 // reloadFromDisk refreshes every open file after git rewrote files.

@@ -394,6 +394,14 @@ agent:
     enabled: true
     files: [AGENTS.md, CLAUDE.md] # first one found per folder wins
     max_bytes: 65536          # larger files are skipped with a warning
+  # Prompt templates: each .md file is a /name command in the agent's message
+  # box (file name without .md). Optional front matter: description,
+  # argument-hint, mode (switch to it first) and model (a provider's name or
+  # the model it runs). $ARGUMENTS, $1, $2 ... are filled from what follows
+  # the command, and a line @path inlines a workspace file. A later folder
+  # wins on a name; built-in commands win over all of them.
+  prompts:
+    paths: [~/.config/hm/prompts, .hm/prompts, .claude/commands, .pi/prompts]
 
 # Where the agent keeps artifacts. Storage backends are not wired up yet.
 artifacts:

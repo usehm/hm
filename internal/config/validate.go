@@ -230,6 +230,7 @@ var rules = func() []rule {
 			}
 			return ""
 		}},
+		{"agent.prompts.paths.*", nonEmpty},
 		{"keys.*", shortcutRule},
 		{"keybindings.*.key", shortcutRule},
 		{"keybindings.*.command", nonEmpty},

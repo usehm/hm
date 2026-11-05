@@ -64,6 +64,7 @@ Fast where it can be, and quiet when you need to think.
 - Full screen, a sidebar replaces the explorer: New chat, Projects, Artifacts, a filterable history of every session (across all your folders, with sub-agents nested under the session that started them) and Agent Settings.
 - Projects: a title, description and context that the agent is given before every task in the project's sessions. Pick one in the composer.
 - Reads the instruction files other agents use: `AGENTS.md`, or `CLAUDE.md` when there is none, from `~/.config/hm` and from each folder between your home folder and the workspace, outer folders first. A `SYSTEM.md` (`.hm/SYSTEM.md`, else `~/.config/hm/SYSTEM.md`) replaces the base prompt, or adds to it when its first line is `<!-- append -->`. The book icon in the session header and `/context` list the files a session uses. A session reads them once when it starts, so its prompt stays cached.
+- Prompt templates: each `.md` file in `~/.config/hm/prompts`, `.hm/prompts`, `.claude/commands` or `.pi/prompts` is a `/name` command in the message box, listed in its completions with its description. `$ARGUMENTS` is what you type after the command, `$1`, `$2` … its words (quotes group them), and a line `@path` inlines a workspace file (guard.yaml rules apply). Front matter can set `description`, `argument-hint`, `mode` and `model` (a provider's name or the model it runs). Claude Code commands work as they are. Built-in commands win over a template of the same name.
 - Type while the agent works: your message waits in a queue and reaches the agent after its current step.
 - Sessions are saved after every step. If hm stops mid-task, the session reopens marked as interrupted, with a **Resume** button.
 - Replay a session one message at a time, with when each one happened.
@@ -192,6 +193,8 @@ agent:
     enabled: true
     files: [AGENTS.md, CLAUDE.md]                  # first one found per folder wins
     max_bytes: 65536                               # larger files are skipped with a warning
+  prompts:                                         # /name prompt templates; a later folder wins
+    paths: [~/.config/hm/prompts, .hm/prompts, .claude/commands, .pi/prompts]
 
 artifacts:
   storage: none   # none | gcs | s3 | git (not wired up yet)

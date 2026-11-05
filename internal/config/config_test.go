@@ -340,3 +340,15 @@ func TestAgentContextSettings(t *testing.T) {
 		t.Errorf("AGENTS.md flagged: %v", ps)
 	}
 }
+
+func TestAgentPromptsSettings(t *testing.T) {
+	cfg, _ := Load()
+	want := []string{"~/.config/hm/prompts", ".hm/prompts", ".claude/commands", ".pi/prompts"}
+	if strings.Join(cfg.Agent.Prompts.Paths, ",") != strings.Join(want, ",") {
+		t.Fatalf("defaults %v", cfg.Agent.Prompts.Paths)
+	}
+	_, ps := Load(Layer{Name: "u.yaml", Data: []byte("agent:\n  prompts:\n    paths: [.hm/prompts, \"\"]\n")})
+	if len(ps) != 1 || ps[0].Key != "agent.prompts.paths.1" {
+		t.Errorf("problems %v", ps)
+	}
+}
