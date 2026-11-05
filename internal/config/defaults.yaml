@@ -385,6 +385,15 @@ agent:
   subagents:
     max_depth: 1              # how deep sub-agents nest; 0 turns the task tool off
     max_concurrent: 4         # sub-agents of one agent running at once
+  # Instruction files other agents use too. hm reads the first name found in
+  # ~/.config/hm, then in each folder from your home folder down to the
+  # workspace, outer folders first. A SYSTEM.md (.hm/SYSTEM.md, else
+  # ~/.config/hm/SYSTEM.md) replaces hm's base prompt; starting it with the
+  # line <!-- append --> adds to it instead. Read when a session starts.
+  context:
+    enabled: true
+    files: [AGENTS.md, CLAUDE.md] # first one found per folder wins
+    max_bytes: 65536          # larger files are skipped with a warning
 
 # Where the agent keeps artifacts. Storage backends are not wired up yet.
 artifacts:

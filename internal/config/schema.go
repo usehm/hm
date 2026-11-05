@@ -198,6 +198,18 @@ type Agent struct {
 	Layout    string              `yaml:"layout"`
 	Providers map[string]Provider `yaml:"providers"`
 	Subagents Subagents           `yaml:"subagents"`
+	Context   AgentContext        `yaml:"context"`
+}
+
+// AgentContext picks the instruction files, such as AGENTS.md, that go
+// into the agent's system prompt.
+type AgentContext struct {
+	// Enabled off skips the files and SYSTEM.md.
+	Enabled bool `yaml:"enabled"`
+	// Files are the names looked for in each folder; the first found wins.
+	Files []string `yaml:"files"`
+	// MaxBytes skips larger files.
+	MaxBytes int `yaml:"max_bytes"`
 }
 
 // Subagents bounds the agents an agent may start with the task tool.

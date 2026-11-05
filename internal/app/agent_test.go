@@ -15,6 +15,7 @@ import (
 	"github.com/mirzakhany/yoga/ui"
 
 	"github.com/mirzakhany/hm/internal/agent/provider"
+	"github.com/mirzakhany/hm/internal/workspace"
 )
 
 // toolCall is a scripted call the fake model makes.
@@ -337,5 +338,39 @@ func TestOpeningAgentFocusesInput(t *testing.T) {
 	tf := h.c.Widget(h.app.run().wid("input"), func() any { return nil }).(*ui.TextInput)
 	if !tf.Focused() {
 		t.Fatal("opening the agent panel should focus the message box")
+	}
+}
+
+func TestInstructionFilesInSystemPrompt(t *testing.T) {
+	model := &fakeModel{}
+	h, root := agentProject(t, "anthropic", model)
+	agents := filepath.Join(root, "AGENTS.md")
+	writeFile(t, agents, "Run make test before you finish.")
+	h.app.contextChanged(workspace.Changes{Files: map[string]bool{agents: true}})
+	h.frame()
+	r := h.app.run()
+	if got := r.ctx.Loaded(); len(got) != 1 || got[0].Rel != "AGENTS.md" {
+		t.Fatalf("loaded %+v", got)
+	}
+
+	system := func(i int) string { return fmt.Sprint(model.requests[i]["system"]) }
+	runTask(t, h, "hello")
+	h.until("turn end", 10*time.Second, func() bool { return !r.running })
+	if s := system(0); !strings.Contains(s, "## AGENTS.md\nRun make test before you finish.") {
+		t.Fatalf("system prompt lacks AGENTS.md:\n%s", s)
+	}
+
+	// A session under way keeps its system prompt, so it stays cached.
+	writeFile(t, agents, "Changed.")
+	h.app.contextChanged(workspace.Changes{Files: map[string]bool{agents: true}})
+	runTask(t, h, "again")
+	h.until("turn end", 10*time.Second, func() bool { return !r.running })
+	if system(1) != system(0) {
+		t.Fatalf("system prompt changed mid-session:\n%s", system(1))
+	}
+
+	runTask(t, h, "/context")
+	if !strings.Contains(r.info, "• AGENTS.md") {
+		t.Fatalf("/context said %q", r.info)
 	}
 }

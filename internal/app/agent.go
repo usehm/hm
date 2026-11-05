@@ -84,6 +84,13 @@ type agentRun struct {
 	streamTool       string
 	calls            map[string]callView // by tool call id
 	errText          string
+	// info is a notice for the user, such as /context's answer.
+	info string
+
+	// ctx is the instruction files, read once for the session so its
+	// system prompt stays the same and caches; nil until first needed.
+	ctx       *agent.Context
+	ctxWarned bool
 
 	approval *pendingApproval
 	question *pendingQuestion
@@ -360,6 +367,7 @@ func (a *App) sendRun(r *agentRun) {
 	if text == "" {
 		return
 	}
+	r.info = ""
 	if strings.HasPrefix(text, "/") {
 		r.input = ""
 		a.slashCommand(r, text)
@@ -422,9 +430,16 @@ func (a *App) agentFor(r *agentRun) (*agent.Agent, error) {
 		label = "sub-agent \"" + s.Title + "\""
 		extra = subagentPrompt(r) + "\n" + extra
 	}
+	ctx := a.agentContext(r)
+	if !r.ctxWarned {
+		r.ctxWarned = true
+		for _, w := range ctx.Warnings {
+			a.notifs.Add("Agent instructions: "+w, ui.ToastWarning)
+		}
+	}
 	return &agent.Agent{
 		Provider: prov, Model: pc.Model, Effort: pc.Effort,
-		System: agent.System(mode, a.ws.Root, s.Created, project, extra),
+		System: agent.System(mode, a.ws.Root, s.Created, project, ctx, extra),
 		Tools:  ts.reg, Policy: policy, Guard: grd, Env: agentEnv{a},
 		Parallel: map[string]bool{"task": true},
 		Hooks: agent.Hooks{
@@ -732,9 +747,86 @@ func (a *App) slashCommand(r *agentRun, text string) {
 		r.provider, r.errText = f[1], ""
 	case "/new", "/clear":
 		a.newAgentSession()
+	case "/context":
+		r.errText, r.info = "", contextInfo(a.agentContext(r))
 	default:
-		r.errText = "Unknown command " + f[0] + ". Try /mode, /provider or /new."
+		r.errText = "Unknown command " + f[0] + ". Try /mode, /provider, /context or /new."
 	}
+}
+
+// agentContext is r's instruction files, read the first time they are
+// needed. A sub-agent shares its parent's.
+func (a *App) agentContext(r *agentRun) *agent.Context {
+	if r.parent != nil {
+		return a.agentContext(r.parent)
+	}
+	if r.ctx != nil {
+		return r.ctx
+	}
+	r.ctx = &agent.Context{}
+	if cfg := a.cfg.Current().Agent.Context; cfg.Enabled {
+		home, _ := os.UserHomeDir()
+		*r.ctx = agent.LoadContext(a.ws.Root, home, config.UserDir(),
+			agent.ContextOptions{Names: cfg.Files, MaxBytes: cfg.MaxBytes})
+	}
+	return r.ctx
+}
+
+// contextChanged drops the instruction files of sessions with nothing in
+// them yet, so they read the files again; a session under way keeps its
+// own. A new file shows only as its folder changing, and reading the
+// files again is cheap, so any folder change counts.
+func (a *App) contextChanged(ch workspace.Changes) {
+	names := map[string]bool{"SYSTEM.md": true}
+	for _, n := range a.cfg.Current().Agent.Context.Files {
+		names[n] = true
+	}
+	hit := len(ch.Dirs) > 0
+	for p := range ch.Files {
+		if names[filepath.Base(p)] {
+			hit = true
+			break
+		}
+	}
+	if !hit {
+		return
+	}
+	for _, t := range a.agent.tabs {
+		if r := t.run; r != nil && r.parent == nil && !r.running && len(r.session.Snapshot()) == 0 {
+			r.ctx, r.ctxWarned = nil, false
+		}
+	}
+}
+
+// contextInfo is /context's answer.
+func contextInfo(c *agent.Context) string {
+	files := c.Loaded()
+	if len(files) == 0 && len(c.Warnings) == 0 {
+		return "No instruction files loaded. The agent reads AGENTS.md or CLAUDE.md (agent.context.files) from ~/.config/hm and from each folder down to the workspace, and SYSTEM.md from .hm or ~/.config/hm."
+	}
+	var b strings.Builder
+	b.WriteString("Instruction files in this session's system prompt:")
+	for _, f := range files {
+		b.WriteString("\n• " + f.Rel)
+		if f.Path == pathOf(c.System) {
+			if c.Append {
+				b.WriteString(" (added to the base prompt)")
+			} else {
+				b.WriteString(" (replaces the base prompt)")
+			}
+		}
+	}
+	for _, w := range c.Warnings {
+		b.WriteString("\n⚠ " + w)
+	}
+	return b.String()
+}
+
+func pathOf(f *agent.ContextFile) string {
+	if f == nil {
+		return ""
+	}
+	return f.Path
 }
 
 // newAgentSession opens a new session in a tab.

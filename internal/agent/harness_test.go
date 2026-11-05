@@ -85,11 +85,11 @@ func TestProjectsRoundTripAndPrompt(t *testing.T) {
 	if !ok || got.Context != "Use cents, never floats." {
 		t.Fatalf("get %+v %v", got, ok)
 	}
-	sys := System(Mode{Name: "auto"}, "/r", now(), &got, "")
+	sys := System(Mode{Name: "auto"}, "/r", now(), &got, nil, "")
 	if !strings.Contains(sys, "# Project context") || !strings.Contains(sys, "Use cents, never floats.") {
 		t.Fatalf("system prompt lacks the project:\n%s", sys)
 	}
-	if strings.Contains(System(Mode{Name: "auto"}, "/r", now(), nil, ""), "Project context") {
+	if strings.Contains(System(Mode{Name: "auto"}, "/r", now(), nil, nil, ""), "Project context") {
 		t.Fatal("no project, no project context")
 	}
 	if err := again.Delete(p.ID); err != nil || len(again.List()) != 0 {

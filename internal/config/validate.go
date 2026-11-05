@@ -220,6 +220,16 @@ var rules = func() []rule {
 		{"languages.*.editor.tab_width", intRange(1, 16)},
 		{"terminal.font_size", intRange(6, 72)},
 		{"search.max_results", intRange(1, 1000000)},
+		{"agent.context.max_bytes", intRange(1, 16<<20)},
+		{"agent.context.files.*", func(n *yaml.Node) string {
+			if msg := nonEmpty(n); msg != "" {
+				return msg
+			}
+			if strings.ContainsAny(n.Value, `/\`) {
+				return "must be a file name, not a path"
+			}
+			return ""
+		}},
 		{"keys.*", shortcutRule},
 		{"keybindings.*.key", shortcutRule},
 		{"keybindings.*.command", nonEmpty},

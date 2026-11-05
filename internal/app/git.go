@@ -237,6 +237,7 @@ func (a *App) diskChanged(ch workspace.Changes) {
 	if ch.Git {
 		a.reloadFromDisk()
 	}
+	a.contextChanged(ch)
 }
 
 // reloadFromDisk refreshes every open file after git rewrote files.

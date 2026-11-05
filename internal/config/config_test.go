@@ -314,3 +314,29 @@ languages:
 		}
 	}
 }
+
+func TestAgentContextSettings(t *testing.T) {
+	cfg, _ := Load()
+	c := cfg.Agent.Context
+	if !c.Enabled || c.MaxBytes != 64<<10 || len(c.Files) != 2 || c.Files[0] != "AGENTS.md" || c.Files[1] != "CLAUDE.md" {
+		t.Fatalf("defaults %+v", c)
+	}
+	data := `agent:
+  context:
+    files: [AGENTS.md, docs/AGENTS.md, ""]
+    max_bytes: 0
+`
+	_, ps := Load(Layer{Name: "u.yaml", Data: []byte(data)})
+	got := map[string]bool{}
+	for _, p := range ps {
+		got[p.Key] = true
+	}
+	for _, k := range []string{"agent.context.files.1", "agent.context.files.2", "agent.context.max_bytes"} {
+		if !got[k] {
+			t.Errorf("no problem at %s: %v", k, ps)
+		}
+	}
+	if got["agent.context.files.0"] {
+		t.Errorf("AGENTS.md flagged: %v", ps)
+	}
+}

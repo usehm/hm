@@ -48,6 +48,9 @@ func (a *App) sessionPanel(c *ui.Ctx, r *agentRun) ui.View {
 		if r.errText != "" {
 			body = append(body, a.agentError(c, r))
 		}
+		if r.info != "" {
+			body = append(body, a.agentInfo(c, r))
+		}
 		body = append(body, ui.Spacer())
 		return ui.Column(body...).Grow(1)
 	}
@@ -82,6 +85,9 @@ func (a *App) sessionFooter(c *ui.Ctx, r *agentRun) []ui.View {
 	if r.errText != "" {
 		out = append(out, a.agentError(c, r))
 	}
+	if r.info != "" {
+		out = append(out, a.agentInfo(c, r))
+	}
 	if v := a.queueView(c, r); v != nil {
 		out = append(out, v)
 	}
@@ -99,6 +105,38 @@ func (a *App) agentError(c *ui.Ctx, r *agentRun) ui.View {
 		ui.Paragraph(r.errText).Style(ui.Spec{}.TextColor(ui.TokenError)).Grow(1),
 		ui.IconButton(r.wid("err-close"), icons.X).OnClick(func() { r.errText = "" }),
 	).Gap(th.Spacing.XS).PaddingXY(th.Spacing.M, th.Spacing.XXS)
+}
+
+// agentInfo is a notice for the user, such as /context's answer.
+func (a *App) agentInfo(c *ui.Ctx, r *agentRun) ui.View {
+	th := c.Theme()
+	return ui.Row(
+		ui.Paragraph(r.info).Style(ui.Spec{}.TextColor(ui.TokenForegroundMuted)).Grow(1),
+		ui.IconButton(r.wid("info-close"), icons.X).OnClick(func() { r.info = "" }),
+	).Gap(th.Spacing.XS).PaddingXY(th.Spacing.M, th.Spacing.XXS)
+}
+
+// contextButton lists the session's instruction files; nil when there are
+// none.
+func (a *App) contextButton(r *agentRun) ui.View {
+	ctx := a.agentContext(r)
+	files := ctx.Loaded()
+	if len(files) == 0 && len(ctx.Warnings) == 0 {
+		return nil
+	}
+	var items []ui.MenuItem
+	for _, f := range files {
+		path := f.Path
+		items = append(items, ui.MenuItem{Label: f.Rel, Icon: icons.FileText, OnSelect: func() { a.openFile(path) }})
+	}
+	for _, w := range ctx.Warnings {
+		items = append(items, ui.MenuItem{Label: w, Icon: icons.TriangleAlert, Disabled: true})
+	}
+	tip := fmt.Sprintf("%d instruction files in the system prompt", len(files))
+	if len(files) == 1 {
+		tip = "1 instruction file in the system prompt"
+	}
+	return ui.IconButton(r.wid("context"), icons.BookText).Tooltip(tip).Menu(items)
 }
 
 // wid is a widget id unique to r, so tabs keep their own scroll, focus and
@@ -196,6 +234,9 @@ func (a *App) agentHeader(c *ui.Ctx, r *agentRun, full bool) ui.View {
 		items = append(items, ui.Badge(p.Title))
 	}
 	items = append(items, ui.Spacer())
+	if v := a.contextButton(r); v != nil {
+		items = append(items, v)
+	}
 	if !full {
 		// A narrow panel cuts the usage along with the title; the buttons stay.
 		items = append(items, ui.Caption(a.agentUsage(r)).Ellipsis(ui.EllipsisEnd).Shrink(1).
@@ -861,7 +902,7 @@ func (a *App) agentSuggest(value string, caret int) ([]ui.Suggestion, int, int) 
 			}
 		}
 	case start == 0 && strings.HasPrefix(word, "/"):
-		for _, cmd := range []string{"/mode ", "/provider ", "/new"} {
+		for _, cmd := range []string{"/mode ", "/provider ", "/context", "/new"} {
 			if strings.HasPrefix(cmd, word) {
 				out = append(out, ui.Suggestion{Label: cmd})
 			}

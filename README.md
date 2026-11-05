@@ -63,6 +63,7 @@ Fast where it can be, and quiet when you need to think.
 - Sessions in tabs, several working at once: `cmd+t` opens one, `ctrl+tab` / `ctrl+shift+tab` switch, and a spinner or dot marks a tab that is working, waiting for you or was interrupted.
 - Full screen, a sidebar replaces the explorer: New chat, Projects, Artifacts, a filterable history of every session (across all your folders, with sub-agents nested under the session that started them) and Agent Settings.
 - Projects: a title, description and context that the agent is given before every task in the project's sessions. Pick one in the composer.
+- Reads the instruction files other agents use: `AGENTS.md`, or `CLAUDE.md` when there is none, from `~/.config/hm` and from each folder between your home folder and the workspace, outer folders first. A `SYSTEM.md` (`.hm/SYSTEM.md`, else `~/.config/hm/SYSTEM.md`) replaces the base prompt, or adds to it when its first line is `<!-- append -->`. The book icon in the session header and `/context` list the files a session uses. A session reads them once when it starts, so its prompt stays cached.
 - Type while the agent works: your message waits in a queue and reaches the agent after its current step.
 - Sessions are saved after every step. If hm stops mid-task, the session reopens marked as interrupted, with a **Resume** button.
 - Replay a session one message at a time, with when each one happened.
@@ -187,6 +188,10 @@ agent:
   providers:
     openrouter: { type: openai, base_url: "https://openrouter.ai/api/v1", api_key: "${OPENROUTER_API_KEY}" }
   subagents: { max_depth: 1, max_concurrent: 4 }   # max_depth: 0 turns the task tool off
+  context:                                         # AGENTS.md and friends in the system prompt
+    enabled: true
+    files: [AGENTS.md, CLAUDE.md]                  # first one found per folder wins
+    max_bytes: 65536                               # larger files are skipped with a warning
 
 artifacts:
   storage: none   # none | gcs | s3 | git (not wired up yet)

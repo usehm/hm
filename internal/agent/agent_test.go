@@ -91,7 +91,7 @@ func newAgent(t *testing.T, mode string, turns ...[]provider.Block) *harness {
 	h := &harness{prov: &script{turns: turns}, root: root, answer: func(Approval) Answer { return Answer{Allow: true} }}
 	reg := tools.NewRegistry(tools.Builtin(tools.NewShells(), &tools.Todos{})...).Filter(m.Tools)
 	h.agent = &Agent{
-		Provider: h.prov, Model: "m", System: System(m, root, now(), nil, ""), Tools: reg,
+		Provider: h.prov, Model: "m", System: System(m, root, now(), nil, nil, ""), Tools: reg,
 		Policy: NewPolicy(root, m.Approval), Env: diskEnv{root},
 		Hooks: Hooks{
 			Event: func(e Event) { h.events = append(h.events, e) },
