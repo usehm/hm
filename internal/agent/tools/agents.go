@@ -42,8 +42,9 @@ type Agents interface {
 	// task call's ID, for showing the sub-agent's progress under it.
 	Spawn(ctx context.Context, callID string, t Task) Result
 	// Send delivers text to the agent named to: an ID, a name, or
-	// "parent".
-	Send(to, text string) error
+	// "parent". A follow-up waits for the receiver to end its turn;
+	// otherwise the text steers it, skipping its calls not yet started.
+	Send(to, text string, followUp bool) error
 	// Wait returns the next message for the caller, from anyone when from
 	// is empty; ok is false after timeout.
 	Wait(ctx context.Context, from string, timeout time.Duration) (sender, text string, ok bool)
@@ -124,15 +125,20 @@ type sendTool struct{ ag Agents }
 func (sendTool) Spec() provider.Tool {
 	return provider.Tool{Name: "send_message", Description: "Send a message to another running agent: your parent, " +
 		"a sub-agent you started, or a sibling (list_agents shows who is there). The receiver reads it after " +
-		"its current step. For a request and reply, send, then wait_message for the answer.",
+		"its current tool call and skips the calls it has not started, unless follow_up is set. For a request " +
+		"and reply, send, then wait_message for the answer.",
 		Schema: schema(map[string]any{
-			"to":   str("The agent's ID or name, or \"parent\""),
-			"text": str("The message"),
+			"to":        str("The agent's ID or name, or \"parent\""),
+			"text":      str("The message"),
+			"follow_up": boolean("Deliver after the receiver ends its turn instead of interrupting its tool calls"),
 		}, "to", "text")}
 }
 
 func (t sendTool) Prepare(_ Env, input json.RawMessage) (Plan, error) {
-	var in struct{ To, Text string }
+	var in struct {
+		To, Text string
+		FollowUp bool `json:"follow_up"`
+	}
 	if err := decode(input, &in); err != nil {
 		return Plan{}, err
 	}
@@ -140,7 +146,7 @@ func (t sendTool) Prepare(_ Env, input json.RawMessage) (Plan, error) {
 		return Plan{}, errors.New("to and text are required")
 	}
 	return Plan{Category: CatAgent, Summary: "to " + in.To + ": " + firstLine(in.Text), Run: func(context.Context) Result {
-		if err := t.ag.Send(in.To, in.Text); err != nil {
+		if err := t.ag.Send(in.To, in.Text, in.FollowUp); err != nil {
 			return Result{Text: err.Error(), IsError: true}
 		}
 		return ok("Sent to %s", in.To)

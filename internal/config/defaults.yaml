@@ -44,6 +44,7 @@ keys:                         # command id -> chord; overrides built-ins
   agent.newTab: cmd+t         # while the agent shows; cmd+w closes its tab full screen
   agent.nextTab: ctrl+tab
   agent.prevTab: ctrl+shift+tab
+  agent.followUp: alt+enter   # in the message box: send after the running turn (Enter steers it)
   editor.definition: f12
   editor.references: shift+f12
   editor.rename: f2
@@ -78,13 +79,17 @@ keys:                         # command id -> chord; overrides built-ins
 # Shortcuts that apply in a context, VS Code style. A key is one chord or
 # two in a row ("cmd+k cmd+s"); mouse3/4/5 are the middle and back/forward
 # buttons. when tests: editorFocus, hasSelection, multiCursor, terminalFocus,
-# agentFocus, agentView, panelOpen, searchOpen, gitTab, settingsTab, and
-# vimNormal/vimInsert/vimVisual, with !, &&, || and parentheses. A command
-# of "-id" removes id's shortcut from keys.
+# agentFocus, agentRunning, agentView, panelOpen, searchOpen, gitTab,
+# settingsTab, and vimNormal/vimInsert/vimVisual, with !, &&, || and
+# parentheses. A command of "-id" removes id's shortcut from keys.
 keybindings:
   - { key: cmd+shift+=, command: view.zoomIn }   # cmd++ on US layouts
 #  - { key: "cmd+k cmd+s", command: file.saveAll }
 #  - { key: "ctrl+r", command: agent.toggle, when: "!terminalFocus" }
+#  Swap them: Enter waits for the running turn to end, alt+enter steers.
+#  - { key: enter, command: agent.followUp, when: "agentFocus && agentRunning" }
+#  - { command: -agent.followUp }
+#  - { key: alt+enter, command: agent.steer, when: agentFocus }
 
 search:
   engine: auto                # auto | ripgrep | builtin

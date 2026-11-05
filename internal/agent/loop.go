@@ -74,10 +74,15 @@ type Hooks struct {
 	Apply func(ctx context.Context, edits []tools.FileEdit) error
 	// Blocked is told when the guard refuses a call.
 	Blocked func(tool, reason string)
-	// Inbox returns, and forgets, messages sent while the turn runs: from
-	// the user or from other agents. They join the conversation after the
-	// next tool results, or start another step when the model is done.
-	Inbox func() []string
+	// Steer returns, and forgets, steering messages sent while the turn
+	// runs: from the user or from other agents. One arriving during a batch
+	// of tool calls skips the calls not yet started; it joins the
+	// conversation after the tool results, or starts another step when the
+	// model is done.
+	Steer func() []string
+	// FollowUp returns, and forgets, messages that wait for the model to
+	// end its turn; they then start another step.
+	FollowUp func() []string
 	// Persist is called each time a message joins the session, so a crash
 	// loses at most the step in progress.
 	Persist func()
@@ -114,13 +119,16 @@ func (a *Agent) emit(e Event) {
 	}
 }
 
-// inbox returns the waiting messages as text blocks.
-func (a *Agent) inbox() []provider.Block {
-	if a.Hooks.Inbox == nil {
+// skippedText is the result of a call skipped for a steering message.
+const skippedText = "Skipped: the user sent a new message"
+
+// take returns the messages hook gives as text blocks.
+func take(hook func() []string) []provider.Block {
+	if hook == nil {
 		return nil
 	}
 	var out []provider.Block
-	for _, m := range a.Hooks.Inbox() {
+	for _, m := range hook() {
 		if m = strings.TrimSpace(m); m != "" {
 			out = append(out, provider.Block{Type: provider.Text, Text: m})
 		}
@@ -201,7 +209,7 @@ func (a *Agent) Run(ctx context.Context, s *Session, input string) error {
 			return nil
 		case provider.StopToolUse, provider.StopMaxTokens:
 		default:
-			if a.continueWithInbox(s) {
+			if a.continueWithQueued(s) {
 				continue
 			}
 			return nil
@@ -211,14 +219,25 @@ func (a *Agent) Run(ctx context.Context, s *Session, input string) error {
 			if resp.StopReason == provider.StopMaxTokens {
 				a.emit(Event{Kind: EvError, Text: "The response hit the token limit"})
 			}
-			if a.continueWithInbox(s) {
+			if a.continueWithQueued(s) {
 				continue
 			}
 			return nil
 		}
-		// Every tool result goes back in one user message.
+		// Every tool result goes back in one user message. A steering
+		// message skips the calls not yet started; the running ones finish.
 		results := make([]provider.Block, 0, len(calls))
+		var steer []provider.Block
 		for i := 0; i < len(calls); {
+			if steer = take(a.Hooks.Steer); len(steer) > 0 {
+				for _, call := range calls[i:] {
+					r := tools.Result{Text: skippedText, IsError: true}
+					results = append(results, provider.Block{Type: provider.ToolResult, ToolID: call.ToolID,
+						ToolName: call.ToolName, Text: r.Text, IsError: r.IsError})
+					a.emit(Event{Kind: EvToolResult, Tool: call.ToolName, CallID: call.ToolID, Result: r})
+				}
+				break
+			}
 			// Calls of tools that may run side by side, one after another
 			// in the message, run at once: several sub-agents, say.
 			j := i + 1
@@ -242,7 +261,10 @@ func (a *Agent) Run(ctx context.Context, s *Session, input string) error {
 			}
 			i = j
 		}
-		results = append(results, a.inbox()...)
+		if len(steer) == 0 {
+			steer = take(a.Hooks.Steer)
+		}
+		results = append(results, steer...)
 		s.append(provider.Message{Role: provider.User, Blocks: results})
 		a.emit(Event{Kind: EvMessage})
 		if ctx.Err() != nil {
@@ -253,10 +275,11 @@ func (a *Agent) Run(ctx context.Context, s *Session, input string) error {
 	return nil
 }
 
-// continueWithInbox starts another step with the waiting messages when the
-// model ended its turn while they arrived.
-func (a *Agent) continueWithInbox(s *Session) bool {
-	msgs := a.inbox()
+// continueWithQueued starts another step with the waiting messages,
+// steering then follow-ups, when the model ended its turn while they
+// arrived.
+func (a *Agent) continueWithQueued(s *Session) bool {
+	msgs := append(take(a.Hooks.Steer), take(a.Hooks.FollowUp)...)
 	if len(msgs) == 0 {
 		return false
 	}

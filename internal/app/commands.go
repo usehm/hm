@@ -24,6 +24,7 @@ func (a *App) registerCommands(c *ui.Ctx) {
 	c.Commands().ToggleChord(a.key("palette"))
 	ed := a.curEditor()
 	hasEd := ed != nil
+	agentTyping := a.run() != nil && agentInput(c, a.run()).Focused()
 	// Language features run on the file's buffer, also for a split's mirror.
 	lspEd := func() *ui.Editor { return a.lspTarget() }
 	// Keys that mean something else in a text field, the editor's find bar included.
@@ -186,6 +187,12 @@ func (a *App) registerCommands(c *ui.Ctx) {
 				a.undoAgentTurn(r)
 			}
 		}),
+		// Enter in the message box steers; these send it either way, so
+		// keybindings can swap them.
+		ui.Cmd("agent.steer").Title("Agent: Send, Steering the Running Turn").Shortcut(a.key("agent.steer")).Icon(icons.CornerDownLeft).
+			Enabled(agentTyping).Run(func() { a.sendRunAs(a.run(), false) }),
+		ui.Cmd("agent.followUp").Title("Agent: Send After the Running Turn").Shortcut(a.key("agent.followUp")).Icon(icons.Clock).
+			Enabled(agentTyping).Run(func() { a.sendRunAs(a.run(), true) }),
 		ui.Cmd("agent.stop").Title("Agent: Stop").Icon(icons.Square).Enabled(a.run() != nil && a.run().running).Run(a.stopAgent),
 		ui.Cmd("agent.askSelection").Title("Ask Agent About Selection").Shortcut(a.key("agent.askSelection")).Icon(icons.Bot).
 			Enabled(hasEd && ed.HasSelection()).Run(a.askAboutSelection),

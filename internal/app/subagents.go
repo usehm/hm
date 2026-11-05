@@ -49,7 +49,7 @@ func (l agentLink) Spawn(ctx context.Context, callID string, t tools.Task) tools
 	if t.Background {
 		go func() {
 			report := l.work(context.Background(), child, ag, t.Prompt)
-			_ = a.agent.bus.Send(id, parent.session.ID, "Report of the background task \""+t.Description+"\":\n"+report.Text)
+			_ = a.agent.bus.Send(id, parent.session.ID, "Report of the background task \""+t.Description+"\":\n"+report.Text, true)
 		}()
 		return tools.Result{Text: fmt.Sprintf("Started sub-agent %s (%q) in the background. Its report will arrive as a message; "+
 			"wait_message from %s waits for it.", id, t.Description, id)}
@@ -128,8 +128,8 @@ func (a *App) newChildRun(parent *agentRun, callID string, t tools.Task) *agentR
 	return child
 }
 
-func (l agentLink) Send(to, text string) error {
-	return l.a.agent.bus.Send(l.r.session.ID, to, text)
+func (l agentLink) Send(to, text string, followUp bool) error {
+	return l.a.agent.bus.Send(l.r.session.ID, to, text, followUp)
 }
 
 func (l agentLink) Wait(ctx context.Context, from string, timeout time.Duration) (string, string, bool) {

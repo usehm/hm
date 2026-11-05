@@ -20,8 +20,8 @@ func TestQueuedMessageReachesRunningAgent(t *testing.T) {
 	h.until("shell approval", 10*time.Second, func() bool { return r.approval != nil })
 	r.input = "also check the tests"
 	h.app.sendRun(r)
-	if q := r.queued(); len(q) != 1 || r.input != "" {
-		t.Fatalf("queue %q, input %q", q, r.input)
+	if q := r.queued(); len(q) != 1 || q[0].FollowUp || r.input != "" {
+		t.Fatalf("queue %+v, input %q", q, r.input)
 	}
 	h.frame() // the queue renders
 	h.app.answerApproval(r, true, false)
@@ -31,6 +31,62 @@ func TestQueuedMessageReachesRunningAgent(t *testing.T) {
 	}
 	if second := fmt.Sprint(model.requests[1]["messages"]); !strings.Contains(second, "also check the tests") {
 		t.Fatal("the queued message did not reach the model")
+	}
+	if len(r.queued()) != 0 {
+		t.Fatal("the queue should be empty")
+	}
+}
+
+// A follow-up sent while the agent works waits for the turn to end, then
+// starts another step.
+func TestFollowUpWaitsForTurnEnd(t *testing.T) {
+	model := &fakeModel{turns: [][]toolCall{{{"shell", `{"command":"echo hi"}`}}, nil, nil}}
+	h, _ := agentProject(t, "openai", model)
+	runTask(t, h, "say hi")
+	r := h.app.run()
+	h.until("shell approval", 10*time.Second, func() bool { return r.approval != nil })
+	r.input = "then update the docs"
+	h.app.sendRunAs(r, true)
+	h.frame()
+	h.app.answerApproval(r, true, false)
+	h.until("turn end", 10*time.Second, func() bool { return !r.running })
+	if len(model.requests) != 3 {
+		t.Fatalf("requests %d", len(model.requests))
+	}
+	if second := fmt.Sprint(model.requests[1]["messages"]); strings.Contains(second, "then update the docs") {
+		t.Fatal("the follow-up joined the tool results")
+	}
+	if third := fmt.Sprint(model.requests[2]["messages"]); !strings.Contains(third, "then update the docs") {
+		t.Fatal("the follow-up did not reach the model")
+	}
+}
+
+// Queued messages keep their kind, and one taken back to edit leaves the
+// queue for the message box.
+func TestQueuedMessagesEditAndKinds(t *testing.T) {
+	r := &agentRun{running: true}
+	a := &App{}
+	tests := []struct {
+		text     string
+		followUp bool
+	}{{"steer one", false}, {"after one", true}, {"steer two", false}}
+	for _, tt := range tests {
+		a.sendText(r, tt.text, tt.followUp)
+	}
+	q := r.queued()
+	if len(q) != 3 || q[1].Text != "after one" || !q[1].FollowUp || q[2].FollowUp {
+		t.Fatalf("queue %+v", q)
+	}
+	r.input = "draft"
+	r.editQueued(2)
+	if r.input != "draft\n\nsteer two" || !r.focusInput {
+		t.Fatalf("input %q", r.input)
+	}
+	if got := r.takeQueue(false); len(got) != 1 || got[0] != "steer one" {
+		t.Fatalf("steering %q", got)
+	}
+	if got := r.takeQueue(true); len(got) != 1 || got[0] != "after one" {
+		t.Fatalf("follow-ups %q", got)
 	}
 	if len(r.queued()) != 0 {
 		t.Fatal("the queue should be empty")

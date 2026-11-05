@@ -130,7 +130,7 @@ func (a *App) runTemplate(r *agentRun, cmd, args string) bool {
 		r.from = map[string]string{}
 	}
 	r.from[text] = cmd
-	a.sendText(r, text)
+	a.sendText(r, text, false)
 	return true
 }
 

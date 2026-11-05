@@ -121,7 +121,7 @@ type agentRun struct {
 	// queueMu guards queue: messages typed while the turn runs, taken by
 	// the agent's goroutine between steps.
 	queueMu sync.Mutex
-	queue   []string
+	queue   []queuedMsg
 
 	// replay, when on, shows the transcript up to replayStep messages.
 	replay     bool
@@ -369,6 +369,14 @@ func buildProvider(name string, pc config.Provider) (provider.Provider, error) {
 	return provider.New(provider.Config{Type: pc.Type, BaseURL: pc.BaseURL, APIKey: key})
 }
 
+// queuedMsg is a message waiting for the running agent. A follow-up waits
+// for the turn to end; otherwise it steers, skipping the tool calls not yet
+// started.
+type queuedMsg struct {
+	Text     string
+	FollowUp bool
+}
+
 // sendAgent sends the active session's message box.
 func (a *App) sendAgent() {
 	if r := a.run(); r != nil {
@@ -377,9 +385,13 @@ func (a *App) sendAgent() {
 }
 
 // sendRun starts a turn with r's message box, or runs a slash command.
-// While a turn runs the message waits in the queue and reaches the agent
-// after its next step.
-func (a *App) sendRun(r *agentRun) {
+// While a turn runs the message steers the agent after its current tool
+// call.
+func (a *App) sendRun(r *agentRun) { a.sendRunAs(r, false) }
+
+// sendRunAs is sendRun; while a turn runs, a follow-up waits for the turn
+// to end instead of steering.
+func (a *App) sendRunAs(r *agentRun, followUp bool) {
 	text := strings.TrimSpace(r.input)
 	if text == "" {
 		return
@@ -390,15 +402,15 @@ func (a *App) sendRun(r *agentRun) {
 		a.slashCommand(r, text)
 		return
 	}
-	a.sendText(r, a.expandContext(text))
+	a.sendText(r, a.expandContext(text), followUp)
 }
 
 // sendText starts a turn with text, or queues it while a turn runs.
-func (a *App) sendText(r *agentRun, text string) {
+func (a *App) sendText(r *agentRun, text string, followUp bool) {
 	if r.running {
 		r.input = ""
 		r.queueMu.Lock()
-		r.queue = append(r.queue, text)
+		r.queue = append(r.queue, queuedMsg{Text: text, FollowUp: followUp})
 		r.queueMu.Unlock()
 		return
 	}
@@ -497,8 +509,9 @@ func (a *App) agentFor(r *agentRun) (*agent.Agent, error) {
 				}
 				return err
 			},
-			Inbox:   func() []string { return a.inboxOf(r) },
-			Persist: func() { _ = store.Save(s) },
+			Steer:    func() []string { return a.inboxOf(r, false) },
+			FollowUp: func() []string { return a.inboxOf(r, true) },
+			Persist:  func() { _ = store.Save(s) },
 		},
 	}, nil
 }
@@ -533,7 +546,7 @@ func (a *App) startTurn(r *agentRun, prompt string) error {
 	}
 	if prompt == "" {
 		// Woken by mail: the mail is the message.
-		prompt = strings.Join(a.inboxOf(r), "\n\n")
+		prompt = strings.Join(a.allQueued(r), "\n\n")
 		if prompt == "" {
 			return nil
 		}
@@ -617,43 +630,75 @@ func (a *App) turnEnded(r *agentRun, err error) {
 		a.notifs.Add("Agent finished: "+s.Title, ui.ToastSuccess,
 			notifAction{label: "Open Agent", run: func() { a.focusRun(r) }})
 	}
-	if q := a.inboxOf(r); len(q) > 0 && !errors.Is(err, context.Canceled) {
+	if q := a.allQueued(r); len(q) > 0 && !errors.Is(err, context.Canceled) {
 		if serr := a.startTurn(r, strings.Join(q, "\n\n")); serr != nil {
 			r.errText = serr.Error()
 		}
 	}
 }
 
-// inboxOf is what reaches r's agent between steps: the user's queued
-// messages, then other agents' mail.
-func (a *App) inboxOf(r *agentRun) []string {
-	out := r.takeQueue()
+// inboxOf is what reaches r's agent between steps, the follow-ups or the
+// steering messages: the user's queued messages, then other agents' mail.
+func (a *App) inboxOf(r *agentRun, followUp bool) []string {
+	out := r.takeQueue(followUp)
 	if a.agent.bus != nil {
-		for _, m := range a.agent.bus.Take(r.session.ID) {
+		for _, m := range a.agent.bus.Take(r.session.ID, followUp) {
 			out = append(out, mailText(m))
 		}
 	}
 	return out
 }
 
+// allQueued takes every waiting message, steering then follow-ups, for a
+// new turn.
+func (a *App) allQueued(r *agentRun) []string {
+	return append(a.inboxOf(r, false), a.inboxOf(r, true)...)
+}
+
 func mailText(m agent.Mail) string {
 	return fmt.Sprintf("<agent_message from=%q name=%q>\n%s\n</agent_message>", m.From, m.FromName, m.Text)
 }
 
-// takeQueue returns and clears the messages waiting for the agent.
-func (r *agentRun) takeQueue() []string {
+// takeQueue returns and removes the follow-ups, or the steering messages,
+// waiting for the agent.
+func (r *agentRun) takeQueue(followUp bool) []string {
 	r.queueMu.Lock()
 	defer r.queueMu.Unlock()
-	q := r.queue
-	r.queue = nil
-	return q
+	var out []string
+	kept := r.queue[:0]
+	for _, m := range r.queue {
+		if m.FollowUp == followUp {
+			out = append(out, m.Text)
+		} else {
+			kept = append(kept, m)
+		}
+	}
+	r.queue = kept
+	return out
 }
 
 // queued copies the waiting messages for display.
-func (r *agentRun) queued() []string {
+func (r *agentRun) queued() []queuedMsg {
 	r.queueMu.Lock()
 	defer r.queueMu.Unlock()
-	return append([]string(nil), r.queue...)
+	return append([]queuedMsg(nil), r.queue...)
+}
+
+// editQueued takes waiting message i back into the message box, after
+// what is already there, to be changed and sent again.
+func (r *agentRun) editQueued(i int) {
+	r.queueMu.Lock()
+	if i < 0 || i >= len(r.queue) {
+		r.queueMu.Unlock()
+		return
+	}
+	text := r.queue[i].Text
+	r.queue = append(r.queue[:i], r.queue[i+1:]...)
+	r.queueMu.Unlock()
+	if strings.TrimSpace(r.input) != "" {
+		text = strings.TrimRight(r.input, "\n") + "\n\n" + text
+	}
+	r.input, r.focusInput = text, true
 }
 
 // unqueue drops waiting message i.
@@ -687,7 +732,9 @@ func (a *App) stopAllAgents() {
 
 // stopRun cancels r's turn in progress; waiting messages are dropped.
 func (a *App) stopRun(r *agentRun) {
-	r.takeQueue()
+	r.queueMu.Lock()
+	r.queue = nil
+	r.queueMu.Unlock()
 	for _, ch := range r.children {
 		a.stopRun(ch)
 	}

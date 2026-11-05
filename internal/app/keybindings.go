@@ -59,6 +59,7 @@ func (a *App) whenContext(c *ui.Ctx) map[string]bool {
 		"settingsTab":   tab != nil && tab.Kind == workspace.KindSettings,
 		"terminalFocus": false,
 		"agentFocus":    false,
+		"agentRunning":  false,
 	}
 	if st := a.vimState(); st != nil {
 		ctx["vimNormal"] = st.Mode() == vim.Normal
@@ -70,6 +71,7 @@ func (a *App) whenContext(c *ui.Ctx) map[string]bool {
 	}
 	if r := a.run(); r != nil {
 		ctx["agentFocus"] = agentInput(c, r).Focused()
+		ctx["agentRunning"] = r.running
 	}
 	return ctx
 }

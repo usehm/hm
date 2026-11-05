@@ -169,19 +169,26 @@ func (a *App) interruptedNotice(c *ui.Ctx, r *agentRun) ui.View {
 		BorderTop(ui.TokenWarning, th.Stroke.Thick).Background(ui.TokenChromeMuted)
 }
 
-// queueView lists messages waiting for the running agent, each removable.
+// queueView lists messages waiting for the running agent with their kind,
+// each editable and removable.
 func (a *App) queueView(c *ui.Ctx, r *agentRun) ui.View {
 	q := r.queued()
 	if len(q) == 0 {
 		return nil
 	}
 	th := c.Theme()
-	rows := []ui.View{ui.Caption("Queued; the agent reads these after its current step")}
+	rows := []ui.View{ui.Caption("Queued; steering runs after the current tool call, follow-ups when the turn ends")}
 	for i, m := range q {
 		i := i
+		icon, kind := icons.CornerDownLeft, "Steer"
+		if m.FollowUp {
+			icon, kind = icons.Clock, "After turn"
+		}
 		rows = append(rows, ui.Row(
-			ui.Icon(icons.Clock, 12, th.ForegroundMuted),
-			ui.Text(firstLineOf(userShown(m))).Ellipsis(ui.EllipsisEnd).Grow(1),
+			ui.Icon(icon, 12, th.ForegroundMuted),
+			ui.Badge(kind),
+			ui.Text(firstLineOf(userShown(m.Text))).Ellipsis(ui.EllipsisEnd).Grow(1),
+			ui.IconButton(r.wid(fmt.Sprintf("editqueued-%d", i)), icons.Pencil).Tooltip("Edit").OnClick(func() { r.editQueued(i) }),
 			ui.IconButton(r.wid(fmt.Sprintf("unqueue-%d", i)), icons.X).Tooltip("Remove").OnClick(func() { r.unqueue(i) }),
 		).Gap(th.Spacing.XS).Align(ui.AlignCenter))
 	}
@@ -822,7 +829,10 @@ func (a *App) composer(c *ui.Ctx, r *agentRun, fresh bool) ui.View {
 	}
 	placeholder := "Plan, build, / for commands, @ for context"
 	if r.running {
-		placeholder = "Add guidance; the agent reads it after its current step"
+		placeholder = "Enter steers after the current tool call"
+		if seq, err := ui.ParseKeySeq(a.key("agent.followUp")); err == nil && seq.Valid() {
+			placeholder += " · " + seq.Label() + " waits for the turn to end"
+		}
 	}
 	field := ui.TextArea(r.wid("input"), r.input).Rows(minRows, maxRows).
 		Placeholder(placeholder).
@@ -838,7 +848,7 @@ func (a *App) composer(c *ui.Ctx, r *agentRun, fresh bool) ui.View {
 		controls = append(controls, m)
 	}
 	if r.running {
-		send = send.Tooltip("Queue for the agent (Enter)")
+		send = send.Tooltip("Steer the agent (Enter)")
 		controls = append(controls, ui.IconButton(r.wid("stop"), icons.Square).Tooltip("Stop").OnClick(func() { a.stopRun(r) }))
 	}
 	controls = append(controls, send)

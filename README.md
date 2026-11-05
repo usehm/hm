@@ -65,13 +65,13 @@ Fast where it can be, and quiet when you need to think.
 - Projects: a title, description and context that the agent is given before every task in the project's sessions. Pick one in the composer.
 - Reads the instruction files other agents use: `AGENTS.md`, or `CLAUDE.md` when there is none, from `~/.config/hm` and from each folder between your home folder and the workspace, outer folders first. A `SYSTEM.md` (`.hm/SYSTEM.md`, else `~/.config/hm/SYSTEM.md`) replaces the base prompt, or adds to it when its first line is `<!-- append -->`. The book icon in the session header and `/context` list the files a session uses. A session reads them once when it starts, so its prompt stays cached.
 - Prompt templates: each `.md` file in `~/.config/hm/prompts`, `.hm/prompts`, `.claude/commands` or `.pi/prompts` is a `/name` command in the message box, listed in its completions with its description. `$ARGUMENTS` is what you type after the command, `$1`, `$2` … its words (quotes group them), and a line `@path` inlines a workspace file (guard.yaml rules apply). Front matter can set `description`, `argument-hint`, `mode` and `model` (a provider's name or the model it runs). Claude Code commands work as they are. Built-in commands win over a template of the same name.
-- Type while the agent works: your message waits in a queue and reaches the agent after its current step.
+- Type while the agent works. Enter steers: the running tool call finishes, the rest of the batch is skipped and the model reads your message. Alt+Enter sends a follow-up that waits for the turn to end. Queued messages show above the message box with their kind, and can be edited or removed before they are sent.
 - Sessions are saved after every step. If hm stops mid-task, the session reopens marked as interrupted, with a **Resume** button.
 - Replay a session one message at a time, with when each one happened.
 - Rate limits, an overloaded API and dropped connections don't end the turn: the call is retried with growing waits (or as long as the API asks), and the chat says so ("Rate limited, retrying in 8s (2/5)"). `Esc` stops the wait. A call is never retried once its answer has started to stream.
 - A context meter in the composer shows how much of the model's window the conversation fills ("42k / 200k"), in the warning colour from 80%.
 - Long sessions keep working: when the conversation nears 85% of the model's window, or the API says the prompt is too long, older messages are summarised (goal, decisions, files touched, open tasks, unsolved errors, next step) and the model sees the summary plus the latest messages. `/compact [focus]` does it by hand, keeping what you name. A divider in the chat ("Compacted 148k → 12k tokens") opens to show the summary; the saved session and replay keep every message.
-- Sub-agents: the `task` tool hands work to an agent in a session of its own, in the foreground or the background, read-only unless allowed to write. Several run at once. Agents message each other with `send_message`, `wait_message` and `list_agents`.
+- Sub-agents: the `task` tool hands work to an agent in a session of its own, in the foreground or the background, read-only unless allowed to write. Several run at once. Agents message each other with `send_message`, `wait_message` and `list_agents`; a message steers the receiver unless `follow_up` is set, and a background task's report arrives as a follow-up.
 - Modes, switched with `/mode`:
   - **lazy** changes only what is necessary;
   - **rubber-duck** plans and pushes back before touching code;
@@ -152,6 +152,7 @@ macOS keys; on Windows and Linux `cmd` is `ctrl`, except where a column says oth
 | Toggle sidebar | `cmd+b` |
 | Toggle agent | `cmd+l` |
 | Ask the agent about the selection | `cmd+alt+l` |
+| While the agent works: steer / send after the turn | `enter` / `alt+enter` |
 | Terminal | `` ctrl+` `` |
 | Settings | `cmd+,` |
 | Zoom in / out / reset | `cmd+=` / `cmd+-` / `cmd+0` |
@@ -207,6 +208,11 @@ agent:
     max_bytes: 65536                               # larger files are skipped with a warning
   prompts:                                         # /name prompt templates; a later folder wins
     paths: [~/.config/hm/prompts, .hm/prompts, .claude/commands, .pi/prompts]
+
+keybindings:   # swap Enter and Alt+Enter while the agent works
+  - { key: enter, command: agent.followUp, when: "agentFocus && agentRunning" }
+  - { command: -agent.followUp }
+  - { key: alt+enter, command: agent.steer, when: agentFocus }
 
 artifacts:
   storage: none   # none | gcs | s3 | git (not wired up yet)

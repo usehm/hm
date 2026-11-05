@@ -9,9 +9,12 @@ import (
 	"time"
 )
 
-// Mail is a message between agents.
+// Mail is a message between agents. A follow-up waits for the receiver to
+// end its turn; other mail steers it, skipping the tool calls it has not
+// started yet.
 type Mail struct {
 	From, FromName, Text string
+	FollowUp             bool
 }
 
 // Bus carries messages between the agents running in this window. Each
@@ -96,8 +99,8 @@ func (b *Bus) resolve(from, to string) (string, error) {
 	return "", errors.New("several agents are named " + to + "; use an ID from list_agents")
 }
 
-// Send puts text in to's mailbox.
-func (b *Bus) Send(from, to, text string) error {
+// Send puts text in to's mailbox, as a follow-up or a steering message.
+func (b *Bus) Send(from, to, text string, followUp bool) error {
 	b.mu.Lock()
 	id, err := b.resolve(from, to)
 	if err != nil {
@@ -113,7 +116,7 @@ func (b *Bus) Send(from, to, text string) error {
 		name = m.name
 	}
 	m := b.boxes[id]
-	m.mail = append(m.mail, Mail{From: from, FromName: name, Text: text})
+	m.mail = append(m.mail, Mail{From: from, FromName: name, Text: text, FollowUp: followUp})
 	close(m.wake)
 	m.wake = make(chan struct{})
 	b.mu.Unlock()
@@ -123,16 +126,24 @@ func (b *Bus) Send(from, to, text string) error {
 	return nil
 }
 
-// Take returns and removes id's mail.
-func (b *Bus) Take(id string) []Mail {
+// Take returns and removes id's follow-ups, or its steering mail.
+func (b *Bus) Take(id string, followUp bool) []Mail {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	m, ok := b.boxes[id]
 	if !ok {
 		return nil
 	}
-	out := m.mail
-	m.mail = nil
+	var out []Mail
+	kept := m.mail[:0]
+	for _, mail := range m.mail {
+		if mail.FollowUp == followUp {
+			out = append(out, mail)
+		} else {
+			kept = append(kept, mail)
+		}
+	}
+	m.mail = kept
 	return out
 }
 

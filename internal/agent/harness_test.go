@@ -97,7 +97,7 @@ func TestProjectsRoundTripAndPrompt(t *testing.T) {
 	}
 }
 
-func TestInboxJoinsAfterToolResults(t *testing.T) {
+func TestSteeringJoinsAfterToolResults(t *testing.T) {
 	h := newAgent(t, "auto",
 		[]provider.Block{call("c1", "read", `{"path":"a.go"}`)},
 		[]provider.Block{say("got it")},
@@ -105,14 +105,18 @@ func TestInboxJoinsAfterToolResults(t *testing.T) {
 	)
 	queue := []string{"also check b.go"}
 	saves := 0
-	h.agent.Hooks.Inbox = func() []string { q := queue; queue = nil; return q }
+	h.agent.Hooks.Steer = func() []string { q := queue; queue = nil; return q }
 	h.agent.Hooks.Persist = func() { saves++ }
 	h.run(t, "read a")
-	// The note joined the tool results of the first step.
+	// The note was waiting before the call started, so the call was
+	// skipped and the note joined its result.
 	second := h.prov.requests[1].Messages
 	last := second[len(second)-1]
 	if last.Blocks[len(last.Blocks)-1].Text != "also check b.go" {
 		t.Fatalf("note not after the tool results: %+v", last)
+	}
+	if r := last.Blocks[0]; r.Type != provider.ToolResult || !r.IsError || r.Text != skippedText {
+		t.Fatalf("call not skipped: %+v", r)
 	}
 	if len(h.prov.requests) != 2 {
 		t.Fatalf("requests %d", len(h.prov.requests))
@@ -123,15 +127,88 @@ func TestInboxJoinsAfterToolResults(t *testing.T) {
 
 	// A note arriving as the model ends its turn starts another step.
 	queue = []string{"one more thing"}
-	h.agent.Hooks.Inbox = func() []string {
-		q := queue
-		queue = nil
-		return q
-	}
 	h.prov.turns = [][]provider.Block{{say("ok")}, {say("done too")}}
 	h.run(t, "thanks")
 	if got := h.session.Messages[len(h.session.Messages)-1].TextOf(); got != "done too" {
 		t.Fatalf("last %q", got)
+	}
+}
+
+// A steering message sent during the first of three calls lets that call
+// finish and skips the other two; a follow-up waits for the turn to end.
+func TestSteerSkipsRestFollowUpWaits(t *testing.T) {
+	tests := []struct {
+		name     string
+		followUp bool
+		real     int // calls that ran
+		requests int // model calls in the turn
+		joinsAt  int // request whose last message ends with the text
+	}{
+		{name: "steer", real: 1, requests: 2, joinsAt: 1},
+		{name: "follow-up", followUp: true, real: 3, requests: 3, joinsAt: 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newAgent(t, "auto",
+				[]provider.Block{
+					call("c1", "read", `{"path":"a.go"}`),
+					call("c2", "read", `{"path":"a.go"}`),
+					call("c3", "read", `{"path":"a.go"}`),
+				},
+				[]provider.Block{say("done")},
+				[]provider.Block{say("done after the note")},
+			)
+			var steer, follow []string
+			send := func(m string) {
+				if tt.followUp {
+					follow = append(follow, m)
+				} else {
+					steer = append(steer, m)
+				}
+			}
+			event := h.agent.Hooks.Event
+			h.agent.Hooks.Event = func(e Event) {
+				if e.Kind == EvToolResult && e.CallID == "c1" {
+					send("stop, look at b.go")
+				}
+				if event != nil {
+					event(e)
+				}
+			}
+			h.agent.Hooks.Steer = func() []string { q := steer; steer = nil; return q }
+			h.agent.Hooks.FollowUp = func() []string { q := follow; follow = nil; return q }
+			h.run(t, "read a three times")
+
+			res := h.results()
+			if len(res) != 3 {
+				t.Fatalf("results %d, want one per call", len(res))
+			}
+			real := 0
+			for _, r := range res {
+				if r.Text != skippedText {
+					real++
+				} else if !r.IsError {
+					t.Fatalf("a skipped result should be an error: %+v", r)
+				}
+			}
+			if real != tt.real {
+				t.Fatalf("%d calls ran, want %d", real, tt.real)
+			}
+			if len(h.prov.requests) != tt.requests {
+				t.Fatalf("requests %d, want %d", len(h.prov.requests), tt.requests)
+			}
+			msgs := h.prov.requests[tt.joinsAt].Messages
+			last := msgs[len(msgs)-1]
+			if got := last.Blocks[len(last.Blocks)-1].Text; got != "stop, look at b.go" {
+				t.Fatalf("request %d ends with %q", tt.joinsAt, got)
+			}
+			if tt.followUp {
+				// The follow-up came after the model's answer, alone.
+				if prev := msgs[len(msgs)-2]; prev.Role != provider.Assistant || prev.TextOf() != "done" {
+					t.Fatalf("follow-up did not wait for the turn to end: %+v", prev)
+				}
+			}
+		})
 	}
 }
 
@@ -141,20 +218,27 @@ func TestBusSendWaitAndPeers(t *testing.T) {
 	b.Register("p", "parent task", "")
 	b.Register("c1", "finder", "p")
 	b.Register("c2", "fixer", "p")
-	if err := b.Send("c1", "parent", "found it"); err != nil {
+	if err := b.Send("c1", "parent", "found it", false); err != nil {
 		t.Fatal(err)
 	}
-	if err := b.Send("p", "fixer", "go"); err != nil {
+	if err := b.Send("c2", "parent", "report", true); err != nil {
 		t.Fatal(err)
 	}
-	if err := b.Send("c1", "nobody", "x"); err == nil {
+	if err := b.Send("p", "fixer", "go", false); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Send("c1", "nobody", "x", false); err == nil {
 		t.Fatal("unknown names should fail")
 	}
-	if len(woke) != 2 || woke[0] != "p" || woke[1] != "c2" {
+	if len(woke) != 3 || woke[0] != "p" || woke[2] != "c2" {
 		t.Fatalf("notified %v", woke)
 	}
-	if m := b.Take("p"); len(m) != 1 || m[0].FromName != "finder" {
-		t.Fatalf("take %+v", m)
+	// Take takes one kind and leaves the other.
+	if m := b.Take("p", false); len(m) != 1 || m[0].FromName != "finder" {
+		t.Fatalf("take steering %+v", m)
+	}
+	if m := b.Take("p", true); len(m) != 1 || m[0].Text != "report" || !m[0].FollowUp {
+		t.Fatalf("take follow-ups %+v", m)
 	}
 	m, ok := b.Wait(context.Background(), "c2", "parent task", time.Second)
 	if !ok || m.Text != "go" {
@@ -165,7 +249,7 @@ func TestBusSendWaitAndPeers(t *testing.T) {
 	}
 	go func() {
 		time.Sleep(10 * time.Millisecond)
-		_ = b.Send("c2", "c1", "ping")
+		_ = b.Send("c2", "c1", "ping", true)
 	}()
 	if m, ok := b.Wait(context.Background(), "c1", "", time.Second); !ok || m.Text != "ping" {
 		t.Fatalf("wait for a later message %+v %v", m, ok)
