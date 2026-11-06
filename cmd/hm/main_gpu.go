@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/mirzakhany/hm/internal/app"
+	"github.com/mirzakhany/hm/internal/cli/agentcmd"
 	"github.com/mirzakhany/hm/internal/gitx"
 )
 
@@ -16,6 +17,10 @@ func main() {
 	// git runs hm as its askpass helper to get a remote's credentials.
 	if os.Getenv(gitx.AskPassEnv) == "1" {
 		os.Exit(gitx.AskPass(os.Args[1:], os.Stdout))
+	}
+	// hm agent runs the agent on the command line, with no window.
+	if len(os.Args) > 1 && os.Args[1] == "agent" {
+		os.Exit(agentcmd.Main(os.Args[2:]))
 	}
 	installCLI := flag.Bool("install-cli", false, "install the `hm` shell command and exit")
 	flag.Parse()

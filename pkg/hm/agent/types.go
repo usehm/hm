@@ -14,6 +14,9 @@ var ErrBusy = errors.New("a turn is running; steer it or queue a follow-up")
 // ErrClosed is returned once the Runner is closed.
 var ErrClosed = errors.New("the runner is closed")
 
+// ErrMaxSteps ends a turn that used up Options.MaxSteps model calls.
+var ErrMaxSteps = agent.ErrMaxSteps
+
 // ErrNothingToCompact is returned by Compact when the session is too short
 // to summarise.
 var ErrNothingToCompact = agent.ErrNothingToCompact

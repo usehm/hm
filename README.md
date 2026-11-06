@@ -93,7 +93,15 @@ Fast where it can be, and quiet when you need to think.
   fmt.Println(r.Answer())
   ```
 
-  Without an Approver, calls that need approval are refused and the model is told why. A command-line `hm agent` comes next.
+  Without an Approver, calls that need approval are refused and the model is told why.
+- Headless on the command line, with no window or display: `hm agent -p "prompt"` runs the agent in the current folder and prints its final answer. Piped input is added to the prompt, or is the prompt: `git diff | hm agent -p "review this"`, `echo 'list the packages' | hm agent -p`. Flags, before or after the prompt:
+  - `--mode`, `--provider`, `--model` pick what runs; `--cwd DIR` the workspace.
+  - `--session ID` or `--continue` resume a saved session (the newest of the folder); `--no-session` saves nothing.
+  - `--max-steps N` bounds the model calls of a turn (default 80).
+  - `--approve never|edits|all` decides the calls the mode would ask you about, since nobody is there to ask: `never` (the default) refuses them and tells the model how to rerun, `edits` allows file edits only, `all` allows them all. `guard.yaml` deny rules always apply.
+  - `-v` shows tool calls and retries on standard error. Warnings always go there; standard output gets only the answer.
+
+  Exit codes: `0` done, `1` the agent failed (a model call, a missing key, out of steps), `2` bad usage, `3` a call was refused for want of approval (the answer is still printed), `130` interrupted.
 - AI inline completions: ghost text at the caret, `Tab` to accept.
 - API keys live in the OS keychain or come from environment variables.
 

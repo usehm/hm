@@ -48,6 +48,9 @@ type Options struct {
 	Continue  bool
 	// NoSession keeps the session in memory only.
 	NoSession bool
+	// MaxSteps bounds the model calls of one turn, sub-agents' each; 0 is
+	// 80. A turn that uses them up ends with ErrMaxSteps.
+	MaxSteps int
 	// Approver decides the calls that need approval; nil refuses them.
 	Approver Approver
 	// Logger gets warnings, such as a config problem or a skill that does
@@ -320,7 +323,7 @@ func (r *Runner) build() (*agent.Agent, error) {
 	r.mu.Unlock()
 	s := r.session
 	return r.h.Build(host.Turn{
-		Session: s, Mode: mode, Provider: prov, Model: model, Grants: r.grants,
+		Session: s, Mode: mode, Provider: prov, Model: model, Grants: r.grants, MaxSteps: r.opts.MaxSteps,
 		Env: diskEnv{root: r.h.Root, search: r.h.Config.Search}, Context: r.top.ictx,
 		Tools: host.ToolsetOptions{Shells: r.shells, Todos: r.todos, Agents: link{r},
 			Spawn: r.depth < r.h.Config.Agent.Subagents.MaxDepth, Subagent: r.parent != nil, Write: r.write},

@@ -13,8 +13,12 @@ import (
 	"github.com/mirzakhany/hm/internal/agent/tools"
 )
 
-// maxSteps bounds model calls in one turn, so a confused loop stops.
-const maxSteps = 80
+// defaultMaxSteps bounds model calls in one turn, so a confused loop
+// stops.
+const defaultMaxSteps = 80
+
+// ErrMaxSteps ends a turn that used up Agent.MaxSteps model calls.
+var ErrMaxSteps = errors.New("stopped: the turn used up its steps")
 
 // EventKind tags what the agent reports while it works.
 type EventKind int
@@ -108,6 +112,8 @@ type Agent struct {
 	// Compaction summarises older messages when the window fills; nil
 	// never compacts.
 	Compaction *CompactConfig
+	// MaxSteps bounds the model calls of one turn; 0 is 80.
+	MaxSteps int
 }
 
 func (a *Agent) emit(e Event) {
@@ -152,6 +158,10 @@ func (a *Agent) Run(ctx context.Context, s *Session, input string) error {
 	// overflowed is set once a request was too long and the session was
 	// compacted for it; a second overflow ends the turn.
 	overflowed := false
+	maxSteps := a.MaxSteps
+	if maxSteps <= 0 {
+		maxSteps = defaultMaxSteps
+	}
 	for step := 0; step < maxSteps; step++ {
 		if !overflowed && a.needsCompaction(s) {
 			if err := a.Compact(ctx, s, ""); err != nil && !errors.Is(err, ErrNothingToCompact) {
@@ -278,7 +288,7 @@ func (a *Agent) Run(ctx context.Context, s *Session, input string) error {
 		}
 	}
 	a.emit(Event{Kind: EvError, Text: fmt.Sprintf("Stopped after %d steps", maxSteps)})
-	return nil
+	return fmt.Errorf("%w (%d)", ErrMaxSteps, maxSteps)
 }
 
 // continueWithQueued starts another step with the waiting messages,

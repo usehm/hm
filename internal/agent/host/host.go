@@ -192,6 +192,8 @@ type Turn struct {
 	Context *agent.Context
 	Tools   ToolsetOptions
 	Hooks   agent.Hooks
+	// MaxSteps bounds the turn's model calls; 0 is the agent's default.
+	MaxSteps int
 }
 
 // Build makes the agent for one turn: the provider, guard, tools, policy
@@ -249,6 +251,6 @@ func (h *Host) Build(t Turn) (*agent.Agent, error) {
 		System:     agent.System(mode, h.Root, s.Created, project, ctx, extra),
 		Tools:      ts.Reg, Policy: policy, Guard: grd, Env: t.Env,
 		Parallel: map[string]bool{"task": true},
-		Hooks:    t.Hooks,
+		Hooks:    t.Hooks, MaxSteps: t.MaxSteps,
 	}, nil
 }

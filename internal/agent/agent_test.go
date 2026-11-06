@@ -392,3 +392,15 @@ func TestContextUsedAndOverflow(t *testing.T) {
 		t.Fatal("a failed call changed the context used")
 	}
 }
+
+func TestMaxStepsEndsTheTurn(t *testing.T) {
+	h := newAgent(t, "auto",
+		[]provider.Block{call("c1", "read", `{"path":"a.go"}`)},
+		[]provider.Block{call("c2", "read", `{"path":"a.go"}`)},
+	)
+	h.agent.MaxSteps = 2
+	err := h.agent.Run(context.Background(), h.session, "loop")
+	if !errors.Is(err, ErrMaxSteps) || len(h.prov.requests) != 2 {
+		t.Fatalf("err %v after %d requests", err, len(h.prov.requests))
+	}
+}

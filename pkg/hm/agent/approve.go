@@ -9,8 +9,9 @@ import (
 	"github.com/mirzakhany/hm/internal/agent/tools"
 )
 
-// noApprover is the model's answer when nobody can approve a call.
-const noApprover = "Refused: hm runs without a user to approve this call. Do without it, or say what you need approved."
+// noApprover is why a call is refused when nobody can approve it; the
+// model reads it after "The user rejected this: ".
+const noApprover = "hm runs without a user to approve this call. Do without it, or say what you need approved."
 
 // label names a sub-agent in what it asks; empty for the top session.
 func (r *Runner) label() string {
@@ -39,7 +40,7 @@ func (r *Runner) approve(ctx context.Context, a agent.Approval) agent.Answer {
 	}
 	d, err := ap.Approve(ctx, req)
 	if err != nil {
-		return agent.Answer{Note: "Refused: the approval failed: " + err.Error()}
+		return agent.Answer{Note: "the approval failed: " + err.Error()}
 	}
 	ans := agent.Answer{Allow: d.Allow, ForSession: d.ForSession && a.CanGrant, Note: d.Note}
 	if d.Allow && d.Edits != nil {
