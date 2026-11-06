@@ -21,12 +21,9 @@ func (r *Runner) label() string {
 	return "sub-agent \"" + r.session.Title + "\""
 }
 
-// approve hands a call waiting for approval to the Approver.
+// approve hands a call waiting for approval to the Approver, telling
+// Events before and after.
 func (r *Runner) approve(ctx context.Context, a agent.Approval) agent.Answer {
-	ap := r.opts.Approver
-	if ap == nil {
-		return agent.Answer{Note: noApprover}
-	}
 	req := Request{
 		Session: r.session.ID, Tool: a.Tool, CallID: a.CallID, Category: a.Plan.Category,
 		Summary: a.Plan.Summary, Reason: a.Reason, Command: a.Plan.Command,
@@ -38,15 +35,30 @@ func (r *Runner) approve(ctx context.Context, a agent.Approval) agent.Answer {
 	for _, e := range a.Plan.Edits {
 		req.Edits = append(req.Edits, Edit{Path: e.Path, Old: e.Old, New: e.New})
 	}
-	d, err := ap.Approve(ctx, req)
-	if err != nil {
-		return agent.Answer{Note: "the approval failed: " + err.Error()}
-	}
+	ev := Event{Kind: EventApprovalNeeded, Session: req.Session, Tool: req.Tool, CallID: req.CallID, Request: &req}
+	r.top.emit(ev)
+	d := r.decide(ctx, req)
+	ev.Kind, ev.Decision = EventApproval, &d
+	r.top.emit(ev)
 	ans := agent.Answer{Allow: d.Allow, ForSession: d.ForSession && a.CanGrant, Note: d.Note}
 	if d.Allow && d.Edits != nil {
 		ans.Edits = chosenEdits(a.Plan.Edits, d.Edits)
 	}
 	return ans
+}
+
+// decide asks the Approver; without one, or when it fails, the call is
+// refused.
+func (r *Runner) decide(ctx context.Context, req Request) Decision {
+	ap := r.opts.Approver
+	if ap == nil {
+		return Decision{Note: noApprover}
+	}
+	d, err := ap.Approve(ctx, req)
+	if err != nil {
+		return Decision{Note: "the approval failed: " + err.Error()}
+	}
+	return d
 }
 
 // chosenEdits are the files of plan the Approver kept, with its New. A

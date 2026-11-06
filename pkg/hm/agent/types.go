@@ -2,9 +2,11 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/mirzakhany/hm/internal/agent"
+	"github.com/mirzakhany/hm/internal/agent/provider"
 )
 
 // ErrBusy is returned when a turn is already running; send more with Steer
@@ -96,6 +98,10 @@ const (
 	EventBlocked     EventKind = "blocked"        // Tool, Text: guard.yaml refused a call
 	EventTurnEnd     EventKind = "turn_end"       // Text: the error that ended it, if any
 	EventSubagentEnd EventKind = "subagent_end"   // a sub-agent's turn ended; Session is its own
+	// EventApprovalNeeded comes before the Approver is asked, Request
+	// set; EventApproval after it answered, Request and Decision set.
+	EventApprovalNeeded EventKind = "approval_needed"
+	EventApproval       EventKind = "approval"
 )
 
 // Event is something that happened in a turn. Session names the session
@@ -107,8 +113,20 @@ type Event struct {
 	Tool    string
 	CallID  string
 	Summary string
+	Input   json.RawMessage // EventToolCall: the call's input
 	Result  *ToolResult
 	Usage   *Usage
+	// Message, for EventMessage, is the message that joined the session.
+	Message  *Message
+	Request  *Request
+	Decision *Decision
+}
+
+// Message is a message of the session. Role is "user", "assistant", or
+// "tool" for the tool results sent back to the model.
+type Message struct {
+	Role string
+	Text string
 }
 
 // ToolResult is what a tool call gave back to the model.
@@ -133,6 +151,7 @@ type SessionInfo struct {
 	Usage          Usage  // every model call of the session
 	Context        int64  // tokens the next model call about sends
 	Saved          bool   // false with Options.NoSession
+	Resumed        bool   // the session was saved before New opened it
 }
 
 var eventKinds = map[agent.EventKind]EventKind{
@@ -144,7 +163,7 @@ var eventKinds = map[agent.EventKind]EventKind{
 
 // event converts one of the loop's events in session id.
 func event(e agent.Event, id string) Event {
-	out := Event{Kind: eventKinds[e.Kind], Session: id, Text: e.Text, Tool: e.Tool, CallID: e.CallID, Summary: e.Summary}
+	out := Event{Kind: eventKinds[e.Kind], Session: id, Text: e.Text, Tool: e.Tool, CallID: e.CallID, Summary: e.Summary, Input: e.Input}
 	switch e.Kind {
 	case agent.EvToolResult:
 		out.Result = &ToolResult{Text: e.Result.Text, IsError: e.Result.IsError}
@@ -153,4 +172,16 @@ func event(e agent.Event, id string) Event {
 		out.Usage = &Usage{Input: u.Input, Output: u.Output, CacheRead: u.CacheRead, CacheWrite: u.CacheWrite, Cost: u.Cost}
 	}
 	return out
+}
+
+// message converts a message of the session.
+func message(m provider.Message) *Message {
+	role := "user"
+	switch {
+	case m.Role == provider.Assistant:
+		role = "assistant"
+	case len(m.Blocks) > 0 && m.Blocks[0].Type == provider.ToolResult:
+		role = "tool"
+	}
+	return &Message{Role: role, Text: m.TextOf()}
 }

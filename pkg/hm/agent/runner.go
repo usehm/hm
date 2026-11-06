@@ -84,6 +84,7 @@ type Runner struct {
 	running               bool
 	cancel                context.CancelFunc
 	steer, follow         []string
+	resumed               bool // the session was saved before New
 
 	// For the top Runner only: base ends background sub-agents on Close;
 	// events is nil until Events is called.
@@ -213,6 +214,7 @@ func (r *Runner) openSession(root string, cfg config.Config) (*agent.Session, er
 		return nil, fmt.Errorf("session %s works in %s; run there instead", id, s.Root)
 	}
 	host.Recover(r.store, s)
+	r.resumed = true
 	return s, nil
 }
 
@@ -328,7 +330,15 @@ func (r *Runner) build() (*agent.Agent, error) {
 		Tools: host.ToolsetOptions{Shells: r.shells, Todos: r.todos, Agents: link{r},
 			Spawn: r.depth < r.h.Config.Agent.Subagents.MaxDepth, Subagent: r.parent != nil, Write: r.write},
 		Hooks: agent.Hooks{
-			Event:   func(e agent.Event) { r.top.emit(event(e, s.ID)) },
+			Event: func(e agent.Event) {
+				ev := event(e, s.ID)
+				if e.Kind == agent.EvMessage {
+					if m, ok := s.Last(); ok {
+						ev.Message = message(m)
+					}
+				}
+				r.top.emit(ev)
+			},
 			Approve: r.approve,
 			Ask:     r.ask,
 			Apply:   func(_ context.Context, edits []tools.FileEdit) error { return applyEdits(edits) },
@@ -437,7 +447,7 @@ func (r *Runner) Session() SessionInfo {
 	}
 	return SessionInfo{
 		ID: s.ID, Title: s.Title, Root: s.Root, Mode: mode, Provider: prov, Model: model,
-		Status: s.StatusNow(), Context: s.ContextUsed(), Saved: r.store != nil,
+		Status: s.StatusNow(), Context: s.ContextUsed(), Saved: r.store != nil, Resumed: r.resumed,
 		Usage: Usage{Input: u.Input, Output: u.Output, CacheRead: u.CacheRead, CacheWrite: u.CacheWrite, Cost: u.Cost},
 	}
 }

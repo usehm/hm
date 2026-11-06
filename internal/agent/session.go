@@ -353,6 +353,19 @@ func (s *Session) Snapshot() []provider.Message {
 	return msgs
 }
 
+// Last returns the active path's latest message.
+func (s *Session) Last() (provider.Message, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	p := s.activePath()
+	for k := len(p) - 1; k >= 0; k-- {
+		if e := &s.entries[p[k]]; e.Kind == KindMessage && e.Message != nil {
+			return *e.Message, true
+		}
+	}
+	return provider.Message{}, false
+}
+
 // MessageIDs are the entry IDs of Snapshot's messages, in order.
 func (s *Session) MessageIDs() []string {
 	s.mu.Lock()

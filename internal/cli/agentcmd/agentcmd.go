@@ -19,6 +19,12 @@ import (
 	"github.com/mirzakhany/hm/pkg/hm/agent"
 )
 
+// Output formats for --output.
+const (
+	outputText = "text" // the final answer
+	outputJSON = "json" // one event per line; see docs/events.md
+)
+
 // Exit codes.
 const (
 	exitOK          = 0
@@ -50,6 +56,7 @@ type options struct {
 	print                    bool
 	mode, provider, model    string
 	session, cwd, approve    string
+	output                   string
 	cont, noSession, verbose bool
 	maxSteps                 int
 	words                    []string
@@ -72,6 +79,7 @@ func parse(args []string, stderr io.Writer) (options, error) {
 	fs.StringVar(&o.cwd, "cwd", "", "workspace folder (default the current folder)")
 	fs.IntVar(&o.maxSteps, "max-steps", 0, "model calls per turn (default 80)")
 	fs.StringVar(&o.approve, "approve", approveNever, "calls needing approval: never, edits (file edits only) or all")
+	fs.StringVar(&o.output, "output", outputText, "what goes to standard output: text (the answer) or json (events, see docs/events.md)")
 	fs.BoolVar(&o.verbose, "v", false, "show tool calls and retries on standard error")
 
 	rest, tail := args, []string(nil)
@@ -94,6 +102,8 @@ func parse(args []string, stderr io.Writer) (options, error) {
 		return o, errors.New("-p is needed for now: hm agent -p \"your prompt\"")
 	case o.approve != approveNever && o.approve != approveEdits && o.approve != approveAll:
 		return o, fmt.Errorf("--approve must be never, edits or all, not %q", o.approve)
+	case o.output != outputText && o.output != outputJSON:
+		return o, fmt.Errorf("--output must be text or json, not %q", o.output)
 	case o.maxSteps < 0:
 		return o, errors.New("--max-steps must be positive")
 	case o.session != "" && o.cont:
@@ -165,8 +175,20 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		fmt.Fprintln(stderr, "hm agent:", err)
 		return exitUsage
 	}
+	var js *jsonWriter
 	var shown chan struct{}
-	if o.verbose {
+	switch {
+	case o.output == outputJSON:
+		js = newJSONWriter(stdout)
+		js.sessionStart(r.Session(), text)
+		shown = make(chan struct{})
+		go func() {
+			defer close(shown)
+			for e := range r.Events() {
+				js.event(e)
+			}
+		}()
+	case o.verbose:
 		shown = make(chan struct{})
 		go func() { defer close(shown); show(r.Events(), stderr) }()
 	}
@@ -175,23 +197,29 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	if shown != nil {
 		<-shown
 	}
+	refused := pol.refusals()
+	code, answer := exitOK, ""
 	switch {
 	case err != nil && ctx.Err() != nil:
 		fmt.Fprintln(stderr, "hm agent: interrupted")
-		return exitInterrupted
+		code = exitInterrupted
 	case err != nil:
 		fmt.Fprintln(stderr, "hm agent:", err)
-		return exitAgentError
+		code = exitAgentError
+	default:
+		answer = r.Answer()
+		if len(refused) > 0 {
+			fmt.Fprintf(stderr, "hm agent: refused %d %s that needed approval (%s); rerun with --approve to allow them\n",
+				len(refused), plural(len(refused), "call"), strings.Join(slices.Compact(slices.Sorted(slices.Values(refused))), ", "))
+			code = exitNeededOK
+		}
 	}
-	if answer := r.Answer(); answer != "" {
+	if js != nil {
+		js.sessionEnd(r.Session(), answer, code, refused)
+	} else if answer != "" {
 		fmt.Fprintln(stdout, answer)
 	}
-	if refused := pol.refusals(); len(refused) > 0 {
-		fmt.Fprintf(stderr, "hm agent: refused %d %s that needed approval (%s); rerun with --approve to allow them\n",
-			len(refused), plural(len(refused), "call"), strings.Join(slices.Compact(slices.Sorted(slices.Values(refused))), ", "))
-		return exitNeededOK
-	}
-	return exitOK
+	return code
 }
 
 // show writes what the agent does to w, a line each, for -v.

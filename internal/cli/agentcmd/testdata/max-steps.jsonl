@@ -1,0 +1,12 @@
+{"v":1,"type":"session_start","session":"S1","time":"2026-11-06T10:00:00Z","root":"ROOT","mode":"auto","provider":"test","model":"test-model","resumed":false,"prompt":"read it"}
+{"v":1,"type":"message_end","session":"S1","time":"2026-11-06T10:00:00Z","role":"user","text":"read it"}
+{"v":1,"type":"message_start","session":"S1","time":"2026-11-06T10:00:00Z","role":"assistant"}
+{"v":1,"type":"tool_start","session":"S1","time":"2026-11-06T10:00:00Z","tool":"read"}
+{"v":1,"type":"usage","session":"S1","time":"2026-11-06T10:00:00Z","input":100,"output":20,"cache_read":0,"cache_write":0,"cost":0}
+{"v":1,"type":"message_end","session":"S1","time":"2026-11-06T10:00:00Z","role":"assistant","text":""}
+{"v":1,"type":"tool_call","session":"S1","time":"2026-11-06T10:00:00Z","tool":"read","call_id":"toolu_1_0","summary":"Read main.go","input":{"path":"main.go"}}
+{"v":1,"type":"tool_result","session":"S1","time":"2026-11-06T10:00:00Z","tool":"read","call_id":"toolu_1_0","text":"     1\tpackage main\n     2\t\n     3\tfunc main() {}\n","is_error":false}
+{"v":1,"type":"message_end","session":"S1","time":"2026-11-06T10:00:00Z","role":"tool","text":""}
+{"v":1,"type":"error","session":"S1","time":"2026-11-06T10:00:00Z","text":"Stopped after 1 step"}
+{"v":1,"type":"turn_end","session":"S1","time":"2026-11-06T10:00:00Z","error":"stopped: the turn used up its steps (1)"}
+{"v":1,"type":"session_end","session":"S1","time":"2026-11-06T10:00:00Z","answer":"","exit_code":1,"refused":[],"usage":{"input":100,"output":20,"cache_read":0,"cache_write":0,"cost":0}}

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -27,7 +28,7 @@ const (
 	EvText       EventKind = iota // Text: more answer text
 	EvThinking                    // Text: more reasoning summary
 	EvToolStart                   // Tool: the model began a call (input still streaming)
-	EvToolCall                    // a call was planned: Tool, CallID, Summary
+	EvToolCall                    // a call was planned: Tool, CallID, Summary, Input
 	EvToolResult                  // Tool, CallID, Result
 	EvMessage                     // a message joined the session (Session is up to date)
 	EvUsage                       // Usage: this call's tokens
@@ -44,6 +45,7 @@ type Event struct {
 	Tool    string
 	CallID  string
 	Summary string
+	Input   json.RawMessage // the call's input, for EvToolCall
 	Result  tools.Result
 	Usage   provider.Usage
 }
@@ -287,7 +289,11 @@ func (a *Agent) Run(ctx context.Context, s *Session, input string) error {
 			return ctx.Err()
 		}
 	}
-	a.emit(Event{Kind: EvError, Text: fmt.Sprintf("Stopped after %d steps", maxSteps)})
+	steps := "steps"
+	if maxSteps == 1 {
+		steps = "step"
+	}
+	a.emit(Event{Kind: EvError, Text: fmt.Sprintf("Stopped after %d %s", maxSteps, steps)})
 	return fmt.Errorf("%w (%d)", ErrMaxSteps, maxSteps)
 }
 
@@ -314,7 +320,7 @@ func (a *Agent) call(ctx context.Context, call provider.Block) tools.Result {
 	if err != nil {
 		return tools.Result{Text: err.Error(), IsError: true}
 	}
-	a.emit(Event{Kind: EvToolCall, Tool: call.ToolName, CallID: call.ToolID, Summary: plan.Summary})
+	a.emit(Event{Kind: EvToolCall, Tool: call.ToolName, CallID: call.ToolID, Summary: plan.Summary, Input: call.Input})
 
 	verdict, why := a.Guard.Check(call.ToolName, plan)
 	if verdict == guard.Deny {

@@ -374,3 +374,44 @@ func TestBusyAndCancel(t *testing.T) {
 		t.Fatal("prompt did not stop")
 	}
 }
+
+func TestApprovalEventsInOrder(t *testing.T) {
+	root, _ := agenttest.Workspace(t, []reply{{Calls: []call{{Name: "shell", Input: `{"command":"echo hi"}`}}}}, "")
+	ap := approverFunc(func(context.Context, Request) (Decision, error) { return Decision{Allow: true}, nil })
+	r := newRunner(t, Options{Root: root, Approver: ap, NoSession: true})
+	events := collect(r)
+	if err := r.Prompt(context.Background(), "run"); err != nil {
+		t.Fatal(err)
+	}
+	var order []string
+	var roles []string
+	for _, e := range events() {
+		switch e.Kind {
+		case EventToolCall:
+			if string(e.Input) != `{"command":"echo hi"}` {
+				t.Fatalf("input %s", e.Input)
+			}
+			order = append(order, string(e.Kind))
+		case EventApprovalNeeded:
+			if e.Request == nil || e.Request.Command != "echo hi" || e.Decision != nil {
+				t.Fatalf("approval_needed %+v", e)
+			}
+			order = append(order, string(e.Kind))
+		case EventApproval:
+			if e.Decision == nil || !e.Decision.Allow {
+				t.Fatalf("approval %+v", e)
+			}
+			order = append(order, string(e.Kind))
+		case EventToolResult:
+			order = append(order, string(e.Kind))
+		case EventMessage:
+			roles = append(roles, e.Message.Role)
+		}
+	}
+	if got := strings.Join(order, " "); got != "tool_call approval_needed approval tool_result" {
+		t.Fatalf("order %s", got)
+	}
+	if got := strings.Join(roles, " "); got != "user assistant tool assistant" {
+		t.Fatalf("message roles %s", got)
+	}
+}

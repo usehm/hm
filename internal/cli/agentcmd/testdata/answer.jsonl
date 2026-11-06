@@ -1,0 +1,8 @@
+{"v":1,"type":"session_start","session":"S1","time":"2026-11-06T10:00:00Z","root":"ROOT","mode":"auto","provider":"test","model":"test-model","resumed":false,"prompt":"what does main do?"}
+{"v":1,"type":"message_end","session":"S1","time":"2026-11-06T10:00:00Z","role":"user","text":"what does main do?"}
+{"v":1,"type":"message_start","session":"S1","time":"2026-11-06T10:00:00Z","role":"assistant"}
+{"v":1,"type":"text_delta","session":"S1","time":"2026-11-06T10:00:00Z","text":"main does nothing"}
+{"v":1,"type":"usage","session":"S1","time":"2026-11-06T10:00:00Z","input":100,"output":20,"cache_read":0,"cache_write":0,"cost":0}
+{"v":1,"type":"message_end","session":"S1","time":"2026-11-06T10:00:00Z","role":"assistant","text":"main does nothing"}
+{"v":1,"type":"turn_end","session":"S1","time":"2026-11-06T10:00:00Z"}
+{"v":1,"type":"session_end","session":"S1","time":"2026-11-06T10:00:00Z","answer":"main does nothing","exit_code":0,"refused":[],"usage":{"input":100,"output":20,"cache_read":0,"cache_write":0,"cost":0}}
