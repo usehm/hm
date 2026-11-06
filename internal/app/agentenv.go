@@ -172,25 +172,37 @@ func (a *App) writeAgentFile(path string, content []byte) error {
 	return nil
 }
 
-// undoAgentTurn puts back every file r's last turn changed.
+// undoAgentTurn goes back to before the user's last message, which goes
+// back in the message box, and puts back every file the last turn
+// changed. The undone turn stays in the session as a branch.
 func (a *App) undoAgentTurn(r *agentRun) {
-	cp := r.lastCheckpoint
-	if cp == nil || len(cp.order) == 0 {
-		a.toast("The last agent turn changed no files", ui.ToastInfo)
+	if r.running {
 		return
 	}
-	var failed []string
-	paths := append([]string(nil), cp.order...)
-	sort.Strings(paths)
-	for _, p := range paths {
-		if err := a.writeAgentFile(p, cp.files[p]); err != nil {
-			failed = append(failed, a.ws.Rel(p)+": "+err.Error())
+	e, _, ok := r.session.LastPrompt()
+	if !ok {
+		a.toast("Nothing to undo", ui.ToastInfo)
+		return
+	}
+	cp := r.lastCheckpoint
+	var paths, failed []string
+	if cp != nil {
+		paths = append(paths, cp.order...)
+		sort.Strings(paths)
+		for _, p := range paths {
+			if err := a.writeAgentFile(p, cp.files[p]); err != nil {
+				failed = append(failed, a.ws.Rel(p)+": "+err.Error())
+			}
 		}
 	}
-	r.lastCheckpoint = nil
+	a.editAndResend(r, e)
 	if len(failed) > 0 {
 		a.toast(fmt.Sprintf("Could not undo %d files: %s", len(failed), failed[0]), ui.ToastError)
 		return
 	}
-	a.toast(fmt.Sprintf("Undid the agent's changes to %d %s", len(paths), plural(len(paths), "file")), ui.ToastSuccess)
+	msg := "Went back before your last message; /tree keeps the undone turn"
+	if len(paths) > 0 {
+		msg += fmt.Sprintf(", and the agent's changes to %d %s are undone", len(paths), plural(len(paths), "file"))
+	}
+	a.toast(msg, ui.ToastSuccess)
 }

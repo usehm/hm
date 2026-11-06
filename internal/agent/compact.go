@@ -36,6 +36,9 @@ type SummaryRequest struct {
 	Todos    []tools.Todo
 	// Focus is what the user asked the summary to keep, from /compact.
 	Focus string
+	// Branch asks for a few lines on what a branch the user left did,
+	// for /tree, instead of a summary to continue from.
+	Branch bool
 }
 
 // SummaryReply is a Compactor's answer.
@@ -93,13 +96,22 @@ Failures not yet fixed, with their messages.
 ## Next step
 What the agent was about to do.`
 
+const branchSystem = `You describe a branch of a conversation between a user and a coding agent
+that the user has left to try something else. In two to four short lines
+of plain text, say what was tried on it, what changed (file paths) and how
+it ended. No headings.`
+
 // Summarize asks the model for the summary.
 func (m ModelCompactor) Summarize(ctx context.Context, in SummaryRequest) (SummaryReply, error) {
+	system, maxTokens := summarySystem, summaryMaxTokens
+	if in.Branch {
+		system, maxTokens = branchSystem, 512
+	}
 	resp, err := m.Provider.Stream(ctx, provider.Request{
 		Model:     m.Model,
-		System:    summarySystem,
+		System:    system,
 		Messages:  []provider.Message{{Role: provider.User, Blocks: []provider.Block{{Type: provider.Text, Text: summaryPrompt(in)}}}},
-		MaxTokens: summaryMaxTokens,
+		MaxTokens: maxTokens,
 	}, nil)
 	if err != nil {
 		return SummaryReply{}, err
@@ -127,6 +139,10 @@ func summaryPrompt(in SummaryRequest) string {
 		for _, t := range in.Todos {
 			fmt.Fprintf(&b, "- [%s] %s\n", t.Status, t.Text)
 		}
+	}
+	if in.Branch {
+		b.WriteString("\nDescribe this branch.")
+		return b.String()
 	}
 	b.WriteString("\nWrite the summary")
 	if in.Previous != "" {
@@ -259,16 +275,13 @@ func estimateAll(msgs []provider.Message) int64 {
 // about keep tokens of the latest ones. focus is added to the request.
 func Compact(ctx context.Context, s *Session, c Compactor, keep int, focus string) (Compaction, error) {
 	s.mu.Lock()
-	msgs := append([]provider.Message(nil), s.Messages...)
-	var prev Compaction
-	if n := len(s.Compactions); n > 0 {
-		prev = s.Compactions[n-1]
-	}
+	msgs, ents := s.messages()
+	prev, from := s.lastCompaction(ents)
+	from = max(from, 0)
 	todos := append([]tools.Todo(nil), s.Todos...)
 	before := s.Context
 	s.mu.Unlock()
 
-	from := min(prev.At, len(msgs))
 	at := cutPoint(msgs, from, keep)
 	if at < 0 {
 		return Compaction{}, ErrNothingToCompact
@@ -277,7 +290,6 @@ func Compact(ctx context.Context, s *Session, c Compactor, keep int, focus strin
 	if err != nil {
 		return Compaction{}, err
 	}
-	s.addCost(sum.Usage)
 
 	// The context shrinks by what was folded in and grows by the summary;
 	// the system prompt and tools stay. The next call measures it.
@@ -290,8 +302,8 @@ func Compact(ctx context.Context, s *Session, c Compactor, keep int, focus strin
 	kept := estimateAll(withSummary(sum.Text, msgs[at:]))
 	dropped := estimateAll(msgs[from:at]) + int64(len(prev.Summary)/4)
 	after := max(before-dropped+int64(len(sum.Text)/4), kept)
-	comp := Compaction{At: at, Summary: sum.Text, TokensBefore: before, TokensAfter: after, Model: sum.Model, Time: now()}
-	s.addCompaction(comp)
+	comp := Compaction{KeptFrom: ents[at].ID, At: at, Summary: sum.Text, TokensBefore: before, TokensAfter: after, Model: sum.Model, Time: now()}
+	s.addCompaction(comp, sum.Usage)
 	return comp, nil
 }
 
@@ -314,6 +326,26 @@ func (a *Agent) Compact(ctx context.Context, s *Session, focus string) error {
 	}
 	a.emit(Event{Kind: EvCompacted, Text: fmt.Sprintf("Compacted %s → %s tokens", Tokens(c.TokensBefore), Tokens(c.TokensAfter))})
 	a.emit(Event{Kind: EvMessage}) // saves the session
+	return nil
+}
+
+// SummarizeBranch describes the branch ending at leaf that the user left,
+// for /tree, when it holds at least minMessages messages the active path
+// does not share.
+func (a *Agent) SummarizeBranch(ctx context.Context, s *Session, leaf string, minMessages int) error {
+	cc := a.Compaction
+	if cc == nil || cc.Compactor == nil {
+		return errors.New("compaction is not set up")
+	}
+	msgs := s.Abandoned(leaf)
+	if len(msgs) == 0 || len(msgs) < minMessages {
+		return nil
+	}
+	sum, err := cc.Compactor.Summarize(ctx, SummaryRequest{Messages: msgs, Branch: true})
+	if err != nil {
+		return err
+	}
+	s.addBranchSummary(leaf, BranchSummary{Text: sum.Text, Model: sum.Model, Usage: sum.Usage})
 	return nil
 }
 

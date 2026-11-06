@@ -147,10 +147,10 @@ func TestInterruptedSessionResumes(t *testing.T) {
 	h, root := agentProject(t, "openai", model)
 	s := agent.NewSession("auto", "test")
 	s.Root, s.Status, s.Title = root, agent.StatusRunning, "cut off"
-	s.Messages = []provider.Message{
-		{Role: provider.User, Blocks: []provider.Block{{Type: provider.Text, Text: "cut off"}}},
-		{Role: provider.Assistant, Blocks: []provider.Block{{Type: provider.ToolUse, ToolID: "c1", ToolName: "read", Input: []byte(`{"path":"main.go"}`)}}},
-	}
+	s.Append(
+		provider.Message{Role: provider.User, Blocks: []provider.Block{{Type: provider.Text, Text: "cut off"}}},
+		provider.Message{Role: provider.Assistant, Blocks: []provider.Block{{Type: provider.ToolUse, ToolID: "c1", ToolName: "read", Input: []byte(`{"path":"main.go"}`)}}},
+	)
 	if err := h.app.agent.store.Save(s); err != nil {
 		t.Fatal(err)
 	}

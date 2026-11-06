@@ -423,6 +423,11 @@ agent:
     keep_tokens: 20000        # latest history kept as it is; at most a quarter of the window
     provider: ""              # agent.providers entry that summarises; "" = the session's
     model: ""                 # model that summarises; "" = the provider's
+  # When you go back to an earlier message, describe the branch left
+  # behind in a few lines for /tree. Costs one call to the compaction model.
+  branch_summary:
+    enabled: false
+    min_messages: 6           # shorter branches get no summary
 
 # Where the agent keeps artifacts. Storage backends are not wired up yet.
 artifacts:

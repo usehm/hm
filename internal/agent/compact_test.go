@@ -70,7 +70,7 @@ func TestCutPoint(t *testing.T) {
 
 func TestForModel(t *testing.T) {
 	s := NewSession("auto", "script")
-	s.Messages = []provider.Message{ut("one"), at(say("a")), ut("two"), at(call("1", "read", "{}")), tr("1")}
+	addMessages(s, ut("one"), at(say("a")), ut("two"), at(call("1", "read", "{}")), tr("1"))
 	if got := s.ForModel(); len(got) != 5 {
 		t.Fatalf("no compaction: %d messages", len(got))
 	}
@@ -84,7 +84,7 @@ func TestForModel(t *testing.T) {
 		{3, 3, 1}, // the summary goes in its own message before the call
 	}
 	for _, tt := range tests {
-		s.Compactions = []Compaction{{At: tt.at, Summary: "S"}}
+		compactAt(s, tt.at, "S")
 		got := s.ForModel()
 		if len(got) != tt.n || got[0].Role != provider.User || len(got[0].Blocks) != tt.firstLen {
 			t.Fatalf("at %d: %+v", tt.at, got)
@@ -98,7 +98,7 @@ func TestForModel(t *testing.T) {
 			}
 		}
 	}
-	if len(s.Messages[2].Blocks) != 1 {
+	if len(s.Snapshot()[2].Blocks) != 1 {
 		t.Fatal("ForModel changed the stored message")
 	}
 }
@@ -125,8 +125,8 @@ func TestAutoCompactBeforeRequest(t *testing.T) {
 	if req.System != h.prov.requests[0].System {
 		t.Fatal("the system prompt changed")
 	}
-	if len(h.session.Messages) != 4 {
-		t.Fatalf("history has %d messages, want all 4", len(h.session.Messages))
+	if len(h.session.Snapshot()) != 4 {
+		t.Fatalf("history has %d messages, want all 4", len(h.session.Snapshot()))
 	}
 	var compacted string
 	for _, e := range h.events {
@@ -183,7 +183,7 @@ func TestOverflowCompactsAndRetriesOnce(t *testing.T) {
 			if len(fc.asked) != 1 || len(prov.requests) != tt.wantCalls {
 				t.Fatalf("compacted %d times, %d calls", len(fc.asked), len(prov.requests))
 			}
-			if !tt.wantErr && h.session.Messages[len(h.session.Messages)-1].TextOf() != "after" {
+			if !tt.wantErr && h.session.Snapshot()[len(h.session.Snapshot())-1].TextOf() != "after" {
 				t.Fatal("the turn did not finish")
 			}
 		})
@@ -203,8 +203,8 @@ func TestOverflowWithoutAutoCompactFails(t *testing.T) {
 
 func TestCompactFoldsPreviousSummaryTodosAndFocus(t *testing.T) {
 	s := NewSession("auto", "script")
-	s.Messages = []provider.Message{ut("one"), at(say("a")), ut("two"), at(say("b")), ut("three"), at(say("c"))}
-	s.Todos = []tools.Todo{{Text: "fix parser", Status: "in_progress"}}
+	addMessages(s, ut("one"), at(say("a")), ut("two"), at(say("b")), ut("three"), at(say("c")))
+	s.SetTodos([]tools.Todo{{Text: "fix parser", Status: "in_progress"}})
 	fc := &fakeCompactor{}
 	if _, err := Compact(context.Background(), s, fc, 1, "the parser bug"); err != nil {
 		t.Fatal(err)
@@ -213,7 +213,7 @@ func TestCompactFoldsPreviousSummaryTodosAndFocus(t *testing.T) {
 	if first.Previous != "" || first.Focus != "the parser bug" || len(first.Todos) != 1 || len(first.Messages) != 5 {
 		t.Fatalf("first request %+v", first)
 	}
-	s.Messages = append(s.Messages, ut("four"), at(say("d")))
+	addMessages(s, ut("four"), at(say("d")))
 	c, err := Compact(context.Background(), s, fc, 1, "")
 	if err != nil {
 		t.Fatal(err)
@@ -222,7 +222,7 @@ func TestCompactFoldsPreviousSummaryTodosAndFocus(t *testing.T) {
 	if second.Previous != "SUMMARY A" || len(second.Messages) != 2 || second.Messages[0].TextOf() != "c" {
 		t.Fatalf("second request %+v", second)
 	}
-	if c.At != 7 || len(s.Compactions) != 2 || s.ContextUsed() != c.TokensAfter {
+	if c.At != 7 || len(s.CompactionsNow()) != 2 || s.ContextUsed() != c.TokensAfter {
 		t.Fatalf("compaction %+v, context %d", c, s.ContextUsed())
 	}
 	if got := s.ForModel(); len(got) != 2 || !strings.Contains(got[0].TextOf(), "SUMMARY B") {
@@ -235,7 +235,7 @@ func TestCompactFoldsPreviousSummaryTodosAndFocus(t *testing.T) {
 
 func TestCompactionSavedAndReloaded(t *testing.T) {
 	s := NewSession("auto", "script")
-	s.Messages = []provider.Message{ut("one"), at(say("a")), ut("two"), at(say("b"))}
+	addMessages(s, ut("one"), at(say("a")), ut("two"), at(say("b")))
 	if _, err := Compact(context.Background(), s, &fakeCompactor{}, 1, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -247,7 +247,7 @@ func TestCompactionSavedAndReloaded(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Messages) != 4 || len(got.Compactions) != 1 || got.Compactions[0].Summary != "SUMMARY A" {
+	if len(got.Snapshot()) != 4 || len(got.CompactionsNow()) != 1 || got.CompactionsNow()[0].Summary != "SUMMARY A" {
 		t.Fatalf("loaded %+v", got)
 	}
 	if a, b := got.ForModel(), s.ForModel(); len(a) != len(b) || a[0].TextOf() != b[0].TextOf() {
@@ -285,14 +285,14 @@ func TestModelCompactorPrompt(t *testing.T) {
 func TestSmallWindowKeepsLess(t *testing.T) {
 	big := strings.Repeat("x", 400)
 	h := newAgent(t, "auto")
-	h.session.Messages = []provider.Message{ut(big), at(say(big)), ut(big), at(say(big)), ut(big), at(say(big))}
+	addMessages(h.session, ut(big), at(say(big)), ut(big), at(say(big)), ut(big), at(say(big)))
 	fc := &fakeCompactor{}
 	h.agent.ContextWindow = 800 // keeps at most 200 tokens, not 20k
 	h.agent.Compaction = &CompactConfig{KeepTokens: 20000, Compactor: fc}
 	if err := h.agent.Compact(context.Background(), h.session, ""); err != nil {
 		t.Fatal(err)
 	}
-	if c := h.session.Compactions[0]; c.At != 4 {
+	if c := h.session.CompactionsNow()[0]; c.At != 4 {
 		t.Fatalf("kept from %d, want 4", c.At)
 	}
 }

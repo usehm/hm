@@ -235,6 +235,7 @@ var rules = func() []rule {
 		{"agent.compaction.threshold", floatRange(0.1, 0.99)},
 		{"agent.compaction.reserve_tokens", intRange(0, 1_000_000)},
 		{"agent.compaction.keep_tokens", intRange(1000, 1_000_000)},
+		{"agent.branch_summary.min_messages", intRange(1, 10_000)},
 		{"agent.providers.*.context_window", intRange(0, 100_000_000)},
 		{"keys.*", shortcutRule},
 		{"keybindings.*.key", shortcutRule},

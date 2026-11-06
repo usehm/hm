@@ -21,7 +21,7 @@ That pause is what Hm is built around. The agent can write code quickly, but the
 - shows every change in a real editor, with the language server, diagnostics and git diff right next to it;
 - has modes that slow the agent down when you want them to: **rubber-duck** plans and pushes back before touching code, and **lazy** changes only what is necessary;
 - by default asks before it runs shell commands or deletes files, and always follows your `guard.yaml` rules;
-- lets you undo the agent's last turn.
+- lets you undo the agent's last turn, or go back to any earlier message and try again, keeping every branch.
 
 Fast where it can be, and quiet when you need to think.
 
@@ -61,13 +61,14 @@ Fast where it can be, and quiet when you need to think.
 ### AI agent
 - Chat with the agent beside the editor or full screen; ask about a selection with `cmd+alt+l`.
 - Sessions in tabs, several working at once: `cmd+t` opens one, `ctrl+tab` / `ctrl+shift+tab` switch, and a spinner or dot marks a tab that is working, waiting for you or was interrupted.
-- Full screen, a sidebar replaces the explorer: New chat, Projects, Artifacts, a filterable history of every session (across all your folders, with sub-agents nested under the session that started them) and Agent Settings.
+- Full screen, a sidebar replaces the explorer: New chat, Projects, Artifacts, a filterable history of every session (across all your folders, with sub-agents and forks nested under the session they came from) and Agent Settings.
 - Projects: a title, description and context that the agent is given before every task in the project's sessions. Pick one in the composer.
 - Reads the instruction files other agents use: `AGENTS.md`, or `CLAUDE.md` when there is none, from `~/.config/hm` and from each folder between your home folder and the workspace, outer folders first. A `SYSTEM.md` (`.hm/SYSTEM.md`, else `~/.config/hm/SYSTEM.md`) replaces the base prompt, or adds to it when its first line is `<!-- append -->`. The book icon in the session header and `/context` list the files a session uses. A session reads them once when it starts, so its prompt stays cached.
 - Prompt templates: each `.md` file in `~/.config/hm/prompts`, `.hm/prompts`, `.claude/commands` or `.pi/prompts` is a `/name` command in the message box, listed in its completions with its description. `$ARGUMENTS` is what you type after the command, `$1`, `$2` … its words (quotes group them), and a line `@path` inlines a workspace file (guard.yaml rules apply). Front matter can set `description`, `argument-hint`, `mode` and `model` (a provider's name or the model it runs). Claude Code commands work as they are. Built-in commands win over a template of the same name.
 - Type while the agent works. Enter steers: the running tool call finishes, the rest of the batch is skipped and the model reads your message. Alt+Enter sends a follow-up that waits for the turn to end. Queued messages show above the message box with their kind, and can be edited or removed before they are sent.
-- Sessions are saved after every step. If hm stops mid-task, the session reopens marked as interrupted, with a **Resume** button.
+- Sessions are saved after every step, as an append-only JSON Lines file (older sessions convert when first opened; the original goes to `sessions/v1/`). If hm stops mid-task, the session reopens marked as interrupted, with a **Resume** button.
 - Replay a session one message at a time, with when each one happened.
+- Sessions are trees. Hover a message you sent to **edit and resend** it, which starts a new branch from that point, or to **branch here** and go on from the end of that turn. The old branch stays. `/tree` shows every branch (search the text, filter by user, assistant, tools or labels); choose a message to edit it, or any other entry to go on from there. `/fork [id]` opens a new session that starts from a point of this one, and `/label <text>` bookmarks the latest message so `/tree` can find it. With `agent.branch_summary` on, a branch you leave gets a few lines on what it did. Files on disk are not changed when you switch branches.
 - Rate limits, an overloaded API and dropped connections don't end the turn: the call is retried with growing waits (or as long as the API asks), and the chat says so ("Rate limited, retrying in 8s (2/5)"). `Esc` stops the wait. A call is never retried once its answer has started to stream.
 - A context meter in the composer shows how much of the model's window the conversation fills ("42k / 200k"), in the warning colour from 80%.
 - Long sessions keep working: when the conversation nears 85% of the model's window, or the API says the prompt is too long, older messages are summarised (goal, decisions, files touched, open tasks, unsolved errors, next step) and the model sees the summary plus the latest messages. `/compact [focus]` does it by hand, keeping what you name. A divider in the chat ("Compacted 148k → 12k tokens") opens to show the summary; the saved session and replay keep every message.
@@ -80,7 +81,7 @@ Fast where it can be, and quiet when you need to think.
 - Tools: read, write, edit and multi-edit files, grep, list, run shell commands, LSP diagnostics and rename, format, project search, todos, web search and fetch, and asking you questions.
 - Extensible with MCP servers, your own command-line tools and skills (also read from `.cursor/skills` and `.claude/skills`).
 - Approval per tool and mode, plus a `guard.yaml` of deny, read-only and ask rules. A project's rules can only tighten yours.
-- Undo the agent's last turn.
+- Undo the agent's last turn: the conversation goes back to before your message, which returns to the message box, and the files the turn changed are put back. The undone turn stays in `/tree`.
 - AI inline completions: ghost text at the caret, `Tab` to accept.
 - API keys live in the OS keychain or come from environment variables.
 
@@ -201,6 +202,7 @@ agent:
     keep_tokens: 20000                             # latest history kept as it is
     provider: ""                                   # agent.providers entry that summarises; "" = the session's
     model: ""                                      # e.g. a smaller, cheaper model; "" = the provider's
+  branch_summary: { enabled: false, min_messages: 6 } # describe a branch you leave, for /tree (one call to the compaction model)
   subagents: { max_depth: 1, max_concurrent: 4 }   # max_depth: 0 turns the task tool off
   context:                                         # AGENTS.md and friends in the system prompt
     enabled: true

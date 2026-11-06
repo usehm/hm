@@ -127,6 +127,10 @@ type agentRun struct {
 	replay     bool
 	replayStep int
 
+	// treeQuery and treeFilter narrow the /tree view.
+	treeQuery  string
+	treeFilter int
+
 	// focusInput moves focus to the message box on the next build.
 	focusInput bool
 
@@ -440,7 +444,7 @@ func (a *App) agentFor(r *agentRun) (*agent.Agent, error) {
 		return nil, errors.New("guard.yaml: " + err.Error())
 	}
 	s := r.session
-	s.Mode, s.Provider = r.mode, r.provider
+	s.SetModel(r.mode, r.provider, pc.Model)
 	ts := a.agentToolset(r, mode)
 	policy := agent.NewPolicy(a.ws.Root, ts.rules)
 	policy.ReadRoots = ts.readRoots
@@ -712,7 +716,7 @@ func (r *agentRun) unqueue(i int) {
 
 func (r *agentRun) todosSnapshot() {
 	if r.session != nil && r.todos != nil {
-		r.session.Todos = r.todos.Items()
+		r.session.SetTodos(r.todos.Items())
 	}
 }
 
@@ -770,6 +774,7 @@ func (a *App) agentEvent(r *agentRun, e agent.Event) {
 		r.compacting = false
 	case agent.EvMessage:
 		r.stream, r.thinking, r.streamTool, r.retry = "", "", "", ""
+		r.todosSnapshot()
 	case agent.EvToolCall:
 		r.calls[e.CallID] = callView{summary: e.Summary}
 	case agent.EvToolResult:
@@ -777,7 +782,6 @@ func (a *App) agentEvent(r *agentRun, e agent.Event) {
 		res := e.Result
 		cv.result = &res
 		r.calls[e.CallID] = cv
-		r.todosSnapshot()
 	case agent.EvError:
 		r.errText = e.Text
 	}
@@ -857,8 +861,8 @@ func (a *App) agentAsk(ctx context.Context, r *agentRun, question string) (strin
 	}
 }
 
-// slashCommand runs /mode, /provider, /context, /compact and /new, or else the
-// prompt template of that name.
+// slashCommand runs /mode, /provider, /context, /compact, /tree, /fork,
+// /label and /new, or else the prompt template of that name.
 func (a *App) slashCommand(r *agentRun, text string) {
 	f := strings.Fields(text)
 	switch f[0] {
@@ -890,11 +894,25 @@ func (a *App) slashCommand(r *agentRun, text string) {
 		r.errText, r.info = "", contextInfo(a.agentContext(r))
 	case "/compact":
 		a.compactNow(r, strings.TrimSpace(text[len(f[0]):]))
+	case "/tree":
+		a.openTree(r)
+	case "/fork":
+		id := ""
+		if len(f) > 1 {
+			var err error
+			if id, err = findEntry(r.session, f[1]); err != nil {
+				r.errText = err.Error()
+				return
+			}
+		}
+		a.forkAt(r, id)
+	case "/label":
+		a.labelLast(r, strings.TrimSpace(text[len(f[0]):]))
 	default:
 		if a.runTemplate(r, f[0], strings.TrimSpace(text[len(f[0]):])) {
 			return
 		}
-		r.errText = "Unknown command " + f[0] + ". Try /mode, /provider, /context, /compact or /new, or add a prompt template."
+		r.errText = "Unknown command " + f[0] + ". Try /mode, /provider, /context, /compact, /tree, /fork, /label or /new, or add a prompt template."
 	}
 }
 

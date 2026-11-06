@@ -128,7 +128,7 @@ func (h *harness) run(t *testing.T, input string) {
 
 func (h *harness) results() []provider.Block {
 	var out []provider.Block
-	for _, m := range h.session.Messages {
+	for _, m := range h.session.Snapshot() {
 		for _, b := range m.Blocks {
 			if b.Type == provider.ToolResult {
 				out = append(out, b)
@@ -294,7 +294,7 @@ func TestSessionStore(t *testing.T) {
 		t.Fatalf("list %+v", list)
 	}
 	s, err := st.Load(list[0].ID)
-	if err != nil || len(s.Messages) != 2 || s.Messages[1].TextOf() != "hello" {
+	if err != nil || len(s.Snapshot()) != 2 || s.Snapshot()[1].TextOf() != "hello" {
 		t.Fatalf("loaded %+v %v", s, err)
 	}
 }

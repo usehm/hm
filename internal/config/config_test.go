@@ -353,6 +353,28 @@ func TestAgentPromptsSettings(t *testing.T) {
 	}
 }
 
+func TestAgentBranchSummarySettings(t *testing.T) {
+	cfg, _ := Load()
+	if b := cfg.Agent.BranchSummary; b.Enabled || b.MinMessages != 6 {
+		t.Fatalf("defaults %+v", b)
+	}
+	tests := []struct {
+		yaml, key string
+	}{
+		{"min_messages: 0", "agent.branch_summary.min_messages"},
+		{"enabled: true", ""},
+	}
+	for _, tt := range tests {
+		_, ps := Load(Layer{Name: "u.yaml", Data: []byte("agent:\n  branch_summary:\n    " + tt.yaml + "\n")})
+		switch {
+		case tt.key == "" && len(ps) > 0:
+			t.Errorf("%s: problems %v", tt.yaml, ps)
+		case tt.key != "" && (len(ps) != 1 || ps[0].Key != tt.key):
+			t.Errorf("%s: problems %v, want one at %s", tt.yaml, ps, tt.key)
+		}
+	}
+}
+
 func TestAgentCompactionSettings(t *testing.T) {
 	cfg, _ := Load()
 	c := cfg.Agent.Compaction

@@ -250,8 +250,10 @@ func (a *App) agentHeader(c *ui.Ctx, r *agentRun, full bool) ui.View {
 			Tooltip("Tokens in (cached included) and out, and cost when known"))
 	}
 	items = append(items,
-		ui.IconButton(r.wid("undo"), icons.Undo2).Tooltip("Undo the last agent turn's file changes").
-			Disabled(r.lastCheckpoint == nil || r.running).OnClick(func() { a.undoAgentTurn(r) }),
+		ui.IconButton(r.wid("undo"), icons.Undo2).Tooltip("Undo the last turn: go back before your message and put back the files it changed").
+			Disabled(r.running || !r.hasPrompt()).OnClick(func() { a.undoAgentTurn(r) }),
+		ui.IconButton(r.wid("tree"), icons.ListTree).Tooltip("Session tree (/tree)").
+			Disabled(len(r.session.Entries()) == 0).OnClick(func() { a.openTree(r) }),
 		ui.IconButton(r.wid("replay"), icons.Rewind).Tooltip("Replay the session step by step").
 			Disabled(r.running || len(r.session.Snapshot()) == 0).OnClick(func() {
 			r.replay = !r.replay
@@ -429,6 +431,7 @@ func (a *App) transcript(c *ui.Ctx, r *agentRun) ui.View {
 			}
 		}
 	}
+	ids, path, labels := r.session.MessageIDs(), r.session.Path(), r.session.Labels()
 	compactions := map[int][]agent.Compaction{}
 	for _, cp := range r.session.CompactionsNow() {
 		compactions[cp.At] = append(compactions[cp.At], cp)
@@ -443,8 +446,16 @@ func (a *App) transcript(c *ui.Ctx, r *agentRun) ui.View {
 				if cmd := r.templateOf(m); cmd != "" {
 					body = append([]ui.View{ui.Caption("from " + cmd)}, body...)
 				}
-				rows = append(rows, ui.Column(body...).Gap(th.Spacing.XXS).
-					Padding(th.Spacing.S).Radius(th.Radius.Medium).Background(ui.TokenListActive))
+				if l := labels[ids[i]]; l != "" {
+					body = append([]ui.View{ui.Badge(l)}, body...)
+				}
+				bubble := ui.Column(body...).Gap(th.Spacing.XXS).
+					Padding(th.Spacing.S).Radius(th.Radius.Medium).Background(ui.TokenListActive)
+				if i < len(ids) && agent.PromptText(m) != "" && !r.replay {
+					rows = append(rows, a.promptView(c, r, bubble, ids[i], path))
+				} else {
+					rows = append(rows, bubble)
+				}
 			}
 			continue
 		}
@@ -494,6 +505,28 @@ func (a *App) transcript(c *ui.Ctx, r *agentRun) ui.View {
 	return ui.Scroll(r.wid("transcript"), ui.Column(rows...).Gap(th.Spacing.S).Padding(th.Spacing.M)).Follow(!r.replay).Grow(1)
 }
 
+// promptView is a message the user typed, with actions on hover to send
+// it again changed or to go back to the end of its turn.
+func (a *App) promptView(c *ui.Ctx, r *agentRun, bubble ui.View, id string, path []agent.Entry) ui.View {
+	th := c.Theme()
+	end, later := turnEnd(path, id)
+	return ui.HoverGroup(r.wid("prompt-"+id), func(hovered bool) ui.View {
+		edit := ui.IconButton(r.wid("prompt-edit-"+id), icons.Pencil).Tooltip("Edit and resend: a new branch from here").
+			Reveal(hovered).Disabled(r.running).OnClick(func() {
+			if e, ok := r.session.Entry(id); ok {
+				a.editAndResend(r, e)
+			}
+		})
+		actions := []ui.View{edit}
+		if later {
+			actions = append(actions, ui.IconButton(r.wid("prompt-branch-"+id), icons.GitBranch).
+				Tooltip("Branch here: go on from the end of this turn; later turns stay in /tree").
+				Reveal(hovered).Disabled(r.running).OnClick(func() { a.branchTo(r, end) }))
+		}
+		return ui.Column(bubble, ui.Row(actions...).Gap(th.Spacing.XXS).Justify(ui.JustifyEnd)).Gap(th.Spacing.XXS)
+	})
+}
+
 // agentMarkdown renders assistant text; links resolve against the workspace.
 func (a *App) agentMarkdown(id, text string) ui.View {
 	return ui.Markdown(id, text).OnLink(func(u string) { a.openLink(a.ws.Root, u) })
@@ -501,9 +534,18 @@ func (a *App) agentMarkdown(id, text string) ui.View {
 
 // userShown hides attached context, which can be long, from the bubble.
 func userShown(t string) string {
+	if typed := typedText(t); typed != t {
+		return typed + "  [+ context]"
+	}
+	return t
+}
+
+// typedText is a message without the context its mentions attached: what
+// the user typed, to edit and send again.
+func typedText(t string) string {
 	for _, tag := range []string{"\n\n<file", "\n\n<folder", "\n\n<selection", "\n\n<diagnostics", "\n\nRun git_diff"} {
 		if i := strings.Index(t, tag); i >= 0 {
-			return t[:i] + "  [+ context]"
+			return t[:i]
 		}
 	}
 	return t
@@ -968,7 +1010,7 @@ func (a *App) agentSuggest(value string, caret int) ([]ui.Suggestion, int, int) 
 			}
 		}
 	case start == 0 && strings.HasPrefix(word, "/"):
-		for _, cmd := range []string{"/mode ", "/provider ", "/context", "/compact ", "/new"} {
+		for _, cmd := range []string{"/mode ", "/provider ", "/context", "/compact ", "/tree", "/fork ", "/label ", "/new"} {
 			if strings.HasPrefix(cmd, word) {
 				out = append(out, ui.Suggestion{Label: cmd})
 			}

@@ -202,6 +202,17 @@ type Agent struct {
 	Prompts    AgentPrompts        `yaml:"prompts"`
 	Retry      AgentRetry          `yaml:"retry"`
 	Compaction AgentCompaction     `yaml:"compaction"`
+	// BranchSummary describes a branch the user leaves, for /tree.
+	BranchSummary AgentBranchSummary `yaml:"branch_summary"`
+}
+
+// AgentBranchSummary asks the model, when the user goes back to an earlier
+// point of a session, for a few lines on what the branch left behind did.
+// The compaction model writes them.
+type AgentBranchSummary struct {
+	Enabled bool `yaml:"enabled"`
+	// MinMessages is how long the branch left must be to get a summary.
+	MinMessages int `yaml:"min_messages"`
 }
 
 // AgentCompaction summarises a session's older messages when it nears the

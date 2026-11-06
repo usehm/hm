@@ -365,28 +365,45 @@ func (a *App) agentSidebar(c *ui.Ctx) ui.View {
 }
 
 // sidebarSessions are the session rows matching the filter, each followed
-// by the sub-agent sessions it started.
+// by the sub-agent sessions it started and the sessions forked from it.
 func (a *App) sidebarSessions(c *ui.Ctx) []ui.View {
 	q := strings.ToLower(strings.TrimSpace(a.agent.sideQuery))
 	list := a.sessionList()
+	listed := map[string]bool{}
+	for _, s := range list {
+		listed[s.ID] = true
+	}
+	// A session nests under the one it came from while that one is listed.
+	source := func(s agent.Summary) string {
+		for _, id := range []string{s.ParentID, s.ForkOf} {
+			if id != "" && listed[id] {
+				return id
+			}
+		}
+		return ""
+	}
 	children := map[string][]agent.Summary{}
 	for _, s := range list {
-		if s.ParentID != "" {
-			children[s.ParentID] = append(children[s.ParentID], s)
+		if src := source(s); src != "" {
+			children[src] = append(children[src], s)
 		}
 	}
 	var rows []ui.View
+	var add func(s agent.Summary, depth int)
+	add = func(s agent.Summary, depth int) {
+		rows = append(rows, a.sessionRow(c, s, depth))
+		for _, ch := range children[s.ID] {
+			add(ch, depth+1)
+		}
+	}
 	for _, s := range list {
-		if s.ParentID != "" {
+		if source(s) != "" {
 			continue
 		}
 		if q != "" && !a.sessionMatches(s, q) {
 			continue
 		}
-		rows = append(rows, a.sessionRow(c, s, false))
-		for _, ch := range children[s.ID] {
-			rows = append(rows, a.sessionRow(c, ch, true))
-		}
+		add(s, 0)
 	}
 	return rows
 }
@@ -401,7 +418,7 @@ func (a *App) sessionMatches(s agent.Summary, q string) bool {
 
 // sessionRow is one session in the sidebar: a status mark and the title,
 // with a menu, shown on hover, to rename or remove it.
-func (a *App) sessionRow(c *ui.Ctx, s agent.Summary, child bool) ui.View {
+func (a *App) sessionRow(c *ui.Ctx, s agent.Summary, depth int) ui.View {
 	th := c.Theme()
 	id := s.ID
 	idx := a.agentTabIndex(agentTabSession, id)
@@ -421,7 +438,10 @@ func (a *App) sessionRow(c *ui.Ctx, s agent.Summary, child bool) ui.View {
 		mark = statusDot(render.Color{}).Tooltip("")
 	}
 	title := sessionTitle(s.Title)
-	if child {
+	switch {
+	case depth > 0 && s.ForkOf != "" && s.ParentID == "":
+		title = "↱ " + title
+	case depth > 0:
 		title = "↳ " + title
 	}
 	body := ui.Row(
@@ -453,8 +473,8 @@ func (a *App) sessionRow(c *ui.Ctx, s agent.Summary, child bool) ui.View {
 			}),
 		).Gap(th.Spacing.XXS).Align(ui.AlignCenter)
 	})
-	if child {
-		row = row.PaddingLeft(th.Spacing.M)
+	if depth > 0 {
+		row = row.PaddingLeft(th.Spacing.M * float32(min(depth, 4)))
 	}
 	return row
 }

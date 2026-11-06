@@ -122,6 +122,10 @@ func (a *Agent) emit(e Event) {
 // skippedText is the result of a call skipped for a steering message.
 const skippedText = "Skipped: the user sent a new message"
 
+// branchedText is the result of a call left without one when the user
+// went back to the message that made it.
+const branchedText = "Skipped: the user went back to an earlier point of the conversation"
+
 // take returns the messages hook gives as text blocks.
 func take(hook func() []string) []provider.Block {
 	if hook == nil {
@@ -140,6 +144,9 @@ func take(hook func() []string) []provider.Block {
 // asking for approvals on the way. The session grows append-only: earlier
 // turns are never edited, so cached prefixes and thinking stay valid.
 func (a *Agent) Run(ctx context.Context, s *Session, input string) error {
+	// After going back to a message that made tool calls, they need
+	// results before the user's next message.
+	s.answerOpenCalls(branchedText, false)
 	s.addUserText(input)
 	a.emit(Event{Kind: EvMessage})
 	// overflowed is set once a request was too long and the session was
@@ -194,8 +201,7 @@ func (a *Agent) Run(ctx context.Context, s *Session, input string) error {
 			return err
 		}
 		overflowed = false
-		s.AddUsage(resp.Usage)
-		s.append(resp.Message)
+		s.appendReply(resp.Message, resp.Usage)
 		a.emit(Event{Kind: EvUsage, Usage: resp.Usage})
 		a.emit(Event{Kind: EvMessage})
 

@@ -202,7 +202,7 @@ func TestSameTaskOnAnthropicAndOpenRouter(t *testing.T) {
 			h.app.answerApproval(h.app.run(), true, false)
 			h.until("turn end", 10*time.Second, func() bool { return !h.app.run().running })
 			s := h.app.run().session
-			if last := s.Messages[len(s.Messages)-1]; last.TextOf() != "Done: main prints 1." {
+			if last := s.Snapshot()[len(s.Snapshot())-1]; last.TextOf() != "Done: main prints 1." {
 				t.Fatalf("last message %+v", last)
 			}
 			if u := s.UsageNow(); u.Input == 0 || u.Output == 0 {
@@ -340,7 +340,7 @@ func TestComposerMovesDownAfterFirstMessage(t *testing.T) {
 	}
 
 	s := h.app.run().session
-	s.Messages = append(s.Messages, provider.Message{Role: provider.User,
+	s.Append(provider.Message{Role: provider.User,
 		Blocks: []provider.Block{{Type: provider.Text, Text: "hello"}}})
 	h.frame()
 	h.frame()
@@ -426,7 +426,7 @@ func TestPromptTemplates(t *testing.T) {
 
 	runTask(t, h, `/review main.go "nil checks"`)
 	h.until("turn end", 10*time.Second, func() bool { return !r.running })
-	first := r.session.Messages[0]
+	first := r.session.Snapshot()[0]
 	want := "Review main.go for nil checks.\nCheck error handling.\n@../outside.txt"
 	if first.TextOf() != want {
 		t.Fatalf("expanded to %q, want %q", first.TextOf(), want)
@@ -533,7 +533,7 @@ func TestRateLimitRetriesAndContinues(t *testing.T) {
 				t.Fatalf("error %q, retry %q", r.errText, r.retry)
 			}
 			s := r.session
-			if last := s.Messages[len(s.Messages)-1]; last.TextOf() != "Done: main prints 1." {
+			if last := s.Snapshot()[len(s.Snapshot())-1]; last.TextOf() != "Done: main prints 1." {
 				t.Fatalf("last message %+v", last)
 			}
 		})
@@ -571,8 +571,8 @@ func TestCompactCommand(t *testing.T) {
 	if !strings.Contains(req, "## Next step") || !strings.Contains(req, "focus on: focus on the parser bug") {
 		t.Fatalf("summary request %s", req)
 	}
-	if len(r.session.Messages) != 4 {
-		t.Fatalf("history has %d messages", len(r.session.Messages))
+	if len(r.session.Snapshot()) != 4 {
+		t.Fatalf("history has %d messages", len(r.session.Snapshot()))
 	}
 	h.frame() // the divider draws
 

@@ -50,20 +50,20 @@ func TestRepairAnswersDanglingCalls(t *testing.T) {
 	if !s.Repair() {
 		t.Fatal("repair should answer the call")
 	}
-	last := s.Messages[len(s.Messages)-1]
+	last := s.Snapshot()[len(s.Snapshot())-1]
 	if last.Role != provider.User || last.Blocks[0].ToolID != "c1" || !last.Blocks[0].IsError {
 		t.Fatalf("last %+v", last)
 	}
 	if s.Repair() {
 		t.Fatal("a repaired session needs nothing more")
 	}
-	if len(s.TimesNow()) != len(s.Messages) {
+	if len(s.TimesNow()) != len(s.Snapshot()) {
 		t.Fatal("every message has a time")
 	}
 	// The next message joins the tool results rather than following them.
 	s.addUserText("continue")
-	if n := len(s.Messages); n != 3 || s.Messages[2].Blocks[1].Text != "continue" {
-		t.Fatalf("messages %+v", s.Messages)
+	if n := len(s.Snapshot()); n != 3 || s.Snapshot()[2].Blocks[1].Text != "continue" {
+		t.Fatalf("messages %+v", s.Snapshot())
 	}
 }
 
@@ -129,7 +129,7 @@ func TestSteeringJoinsAfterToolResults(t *testing.T) {
 	queue = []string{"one more thing"}
 	h.prov.turns = [][]provider.Block{{say("ok")}, {say("done too")}}
 	h.run(t, "thanks")
-	if got := h.session.Messages[len(h.session.Messages)-1].TextOf(); got != "done too" {
+	if got := h.session.Snapshot()[len(h.session.Snapshot())-1].TextOf(); got != "done too" {
 		t.Fatalf("last %q", got)
 	}
 }

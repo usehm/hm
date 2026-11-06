@@ -182,9 +182,14 @@ func (a *App) registerCommands(c *ui.Ctx) {
 			Enabled(len(a.agent.tabs) > 0).Run(func() { c.Commands().ShowScope(scopeAgentTabs, "Go to agent tab") }),
 		ui.Cmd("agent.projects").Title("Agent: Projects").Icon(icons.FolderKanban).Run(func() { a.openAgentPage(agentTabProjects, "") }),
 		ui.Cmd("agent.settings").Title("Agent: Settings").Icon(icons.Settings).Run(func() { a.openAgentPage(agentTabSettings, "") }),
-		ui.Cmd("agent.undo").Title("Agent: Undo Last Turn").Icon(icons.Undo2).Enabled(a.run() != nil && a.run().lastCheckpoint != nil).Run(func() {
+		ui.Cmd("agent.undo").Title("Agent: Undo Last Turn").Icon(icons.Undo2).Enabled(a.run() != nil && !a.run().running && a.run().hasPrompt()).Run(func() {
 			if r := a.run(); r != nil {
 				a.undoAgentTurn(r)
+			}
+		}),
+		ui.Cmd("agent.tree").Title("Agent: Session Tree").Icon(icons.ListTree).Enabled(a.run() != nil).Run(func() {
+			if r := a.run(); r != nil {
+				a.openTree(r)
 			}
 		}),
 		// Enter in the message box steers; these send it either way, so
