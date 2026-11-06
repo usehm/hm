@@ -102,6 +102,8 @@ Fast where it can be, and quiet when you need to think.
   - `-v` shows tool calls and retries on standard error. Warnings always go there; standard output gets only the answer.
   - `--output json` writes every event instead, one JSON object per line (text deltas, tool calls and results, approvals, usage, the answer and exit code at the end), for scripts and `jq`. The format is in [docs/events.md](docs/events.md).
 
+  `hm agent --rpc` lets another program drive a session: it sends JSON commands on standard input (prompt, steer, follow-up, abort, approve, answer, set the mode or model, compact, fork, export, list sessions, get the state) and reads the events and a response to each command. It approves calls itself (`--approve ask`, the default) unless `--approve edits|all` allows them. See [docs/rpc.md](docs/rpc.md) and the Python client in [examples/rpc_client.py](examples/rpc_client.py).
+
   Exit codes: `0` done, `1` the agent failed (a model call, a missing key, out of steps), `2` bad usage, `3` a call was refused for want of approval (the answer is still printed), `130` interrupted.
 - AI inline completions: ghost text at the caret, `Tab` to accept.
 - API keys live in the OS keychain or come from environment variables.

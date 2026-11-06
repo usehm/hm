@@ -24,7 +24,7 @@ var eventTypes = map[string]bool{
 	"session_start": true, "message_start": true, "text_delta": true, "thinking_delta": true,
 	"tool_start": true, "tool_call": true, "approval_needed": true, "approval": true, "blocked": true,
 	"tool_result": true, "message_end": true, "usage": true, "retry": true, "error": true,
-	"compaction_start": true, "compaction_end": true, "subagent_end": true, "turn_end": true, "session_end": true,
+	"compaction_start": true, "compaction_end": true, "subagent_end": true, "turn_end": true, "session_end": true, "question": true, "response": true,
 }
 
 // runJSON runs hm agent --output json and returns its lines, checked

@@ -22,7 +22,7 @@ func (l link) Spawn(ctx context.Context, _ string, t tools.Task) tools.Result {
 		parent.bg.Add(1)
 		go func() {
 			defer parent.bg.Add(-1)
-			report := child.work(parent.top.base, t.Prompt)
+			report := child.work(parent.top.background(), t.Prompt)
 			_ = parent.bus.Send(id, parent.session.ID, host.BackgroundReport(t, report), true)
 		}()
 		return host.BackgroundStarted(id, t)

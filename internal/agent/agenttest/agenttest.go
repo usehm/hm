@@ -58,6 +58,13 @@ func (f *Model) Sent(s string) bool {
 	return false
 }
 
+// Reset replaces what is left of the script.
+func (f *Model) Reset(script []Reply) {
+	f.mu.Lock()
+	f.script = script
+	f.mu.Unlock()
+}
+
 // Last is the latest request's body.
 func (f *Model) Last() string {
 	f.mu.Lock()

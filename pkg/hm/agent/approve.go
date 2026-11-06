@@ -89,6 +89,7 @@ func (r *Runner) ask(ctx context.Context, q string) (string, error) {
 	if l := r.label(); l != "" {
 		q = l + " asks: " + q
 	}
+	r.top.emit(Event{Kind: EventQuestion, Session: r.session.ID, Tool: "ask_user", CallID: CallID(ctx), Text: q})
 	ans, err := ak.Ask(ctx, q)
 	if err == nil && strings.TrimSpace(ans) == "" {
 		err = errors.New("the user did not answer")

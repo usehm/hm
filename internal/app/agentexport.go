@@ -16,7 +16,7 @@ import (
 
 	"github.com/mirzakhany/hm/internal/agent"
 	"github.com/mirzakhany/hm/internal/agent/export"
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/mirzakhany/hm/internal/agent/host"
 	"github.com/mirzakhany/hm/internal/gitx"
 	"github.com/mirzakhany/hm/internal/secrets"
 )
@@ -87,33 +87,6 @@ func parseExportArgs(s string) (exportArgs, error) {
 	return out, nil
 }
 
-// exportPath is where an export goes: p as typed, relative to root, with
-// the default file name when p is a folder; ~/Downloads (or home) when p
-// is empty.
-func exportPath(p string, f export.Format, title string, now time.Time, root, home string) string {
-	name := export.FileName(title, now, f)
-	if p == "" {
-		dir := filepath.Join(home, "Downloads")
-		if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
-			dir = home
-		}
-		return filepath.Join(dir, name)
-	}
-	if p == "~" || strings.HasPrefix(p, "~/") {
-		p = filepath.Join(home, p[1:])
-	}
-	if !filepath.IsAbs(p) {
-		p = filepath.Join(root, p)
-	}
-	if fi, err := os.Stat(p); (err == nil && fi.IsDir()) || strings.HasSuffix(p, string(filepath.Separator)) {
-		return filepath.Join(p, name)
-	}
-	if filepath.Ext(p) == "" {
-		p += "." + string(f)
-	}
-	return p
-}
-
 // exportCommand runs /export in r.
 func (a *App) exportCommand(r *agentRun, args string) {
 	ea, err := parseExportArgs(args)
@@ -159,7 +132,7 @@ func (a *App) exportSession(s *agent.Session, ea exportArgs) {
 		// The title names the file, so it loses its secrets too.
 		title, _, _ := s.Meta()
 		title, _ = opts.Redactor.Redact(title)
-		path := exportPath(ea.path, ea.format, title, time.Now(), root, home)
+		path := export.Path(ea.path, ea.format, title, time.Now(), root, home)
 		res, err := export.Render(s, opts)
 		if err == nil {
 			err = os.MkdirAll(filepath.Dir(path), 0o755)
@@ -317,66 +290,21 @@ func githubToken(keys secrets.Store, gitToken func() string) string {
 }
 
 // secretSource returns a function, to call off the UI goroutine, that
-// reads every secret hm knows of: provider and web search keys, MCP
-// servers' environment and headers, the GitHub tokens, and environment
-// variables named like keys.
+// reads every secret hm knows of: those of the config and environment
+// (host.KnownSecrets) and the GitHub tokens.
 func (a *App) secretSource() func() []string {
 	cfg := a.cfg.Current()
 	keys, gitTok := a.agent.keys, a.agent.share.gitToken
 	return func() []string {
-		var out []string
-		add := func(v string) {
-			if r, err := config.Resolve(v); err == nil {
-				v = r
-			}
-			out = append(out, v)
-			if f := strings.Fields(v); len(f) == 2 { // "Bearer <token>"
-				out = append(out, f[1])
-			}
-		}
-		for _, p := range cfg.Agent.Providers {
-			if p.APIKey != "" {
-				add(p.APIKey)
-			}
-		}
-		if k := cfg.Tools.Web.Search.APIKey; k != "" {
-			add(k)
-		}
-		for _, m := range cfg.Tools.MCP {
-			for _, v := range m.Env {
-				add(v)
-			}
-			for _, v := range m.Headers {
-				add(v)
-			}
-		}
+		out := host.KnownSecrets(cfg)
 		if t, err := keys.Get(gistKey); err == nil {
 			out = append(out, t)
 		}
 		if gitTok == nil {
 			gitTok = func() string { return gitx.LoadAuth("https://github.com").Password }
 		}
-		out = append(out, gitTok())
-		for _, kv := range os.Environ() {
-			name, val, _ := strings.Cut(kv, "=")
-			if secretName(name) {
-				out = append(out, val)
-			}
-		}
-		return out
+		return append(out, gitTok())
 	}
-}
-
-// secretName reports whether an environment variable's name says it
-// holds a secret.
-func secretName(name string) bool {
-	n := strings.ToUpper(name)
-	for _, s := range []string{"_KEY", "_TOKEN", "_SECRET", "_PASSWORD", "_PAT"} {
-		if strings.HasSuffix(n, s) {
-			return true
-		}
-	}
-	return strings.Contains(n, "API_KEY") || strings.Contains(n, "SECRET")
 }
 
 // exportPalette is the page's colours from the current theme's light and

@@ -76,6 +76,11 @@ type (
 		Allow  bool   `json:"allow"`
 		Note   string `json:"note,omitempty"`
 	}
+	questionLine struct {
+		envelope
+		CallID string `json:"call_id"`
+		Text   string `json:"text"`
+	}
 	blockedLine struct {
 		envelope
 		Tool   string `json:"tool"`
@@ -186,6 +191,8 @@ func (w *jsonWriter) event(e agent.Event) {
 			Summary: r.Summary, Command: r.Command, Paths: r.Paths, Reason: r.Reason})
 	case agent.EventApproval:
 		w.write("approval", s, &approvalLine{CallID: e.CallID, Tool: e.Tool, Allow: e.Decision.Allow, Note: e.Decision.Note})
+	case agent.EventQuestion:
+		w.write("question", s, &questionLine{CallID: e.CallID, Text: e.Text})
 	case agent.EventBlocked:
 		w.write("blocked", s, &blockedLine{Tool: e.Tool, Reason: e.Text})
 	case agent.EventToolResult:

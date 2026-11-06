@@ -35,6 +35,7 @@ const (
 )
 
 const usage = `Usage: hm agent -p [flags] [prompt...]
+       hm agent --rpc [flags]
 
 Runs hm's agent on the prompt in the workspace and prints its final
 answer. Piped standard input is added to the prompt; without a prompt it
@@ -53,7 +54,7 @@ func Main(args []string) int {
 
 // options are the parsed flags.
 type options struct {
-	print                    bool
+	print, rpc               bool
 	mode, provider, model    string
 	session, cwd, approve    string
 	output                   string
@@ -70,6 +71,7 @@ func parse(args []string, stderr io.Writer) (options, error) {
 	fs.SetOutput(stderr)
 	fs.Usage = func() { fmt.Fprint(stderr, usage); fs.PrintDefaults() }
 	fs.BoolVar(&o.print, "p", false, "print mode: run the prompt, print the final answer and exit")
+	fs.BoolVar(&o.rpc, "rpc", false, "read JSON commands on standard input, write events and responses on standard output (see docs/rpc.md)")
 	fs.StringVar(&o.mode, "mode", "", "agent mode, such as lazy or auto (default agent.default_mode)")
 	fs.StringVar(&o.provider, "provider", "", "provider name under agent.providers (default agent.default_provider)")
 	fs.StringVar(&o.model, "model", "", "model id (default the provider's model)")
@@ -78,7 +80,7 @@ func parse(args []string, stderr io.Writer) (options, error) {
 	fs.BoolVar(&o.noSession, "no-session", false, "do not save the session")
 	fs.StringVar(&o.cwd, "cwd", "", "workspace folder (default the current folder)")
 	fs.IntVar(&o.maxSteps, "max-steps", 0, "model calls per turn (default 80)")
-	fs.StringVar(&o.approve, "approve", approveNever, "calls needing approval: never, edits (file edits only) or all")
+	fs.StringVar(&o.approve, "approve", "", "calls needing approval: never (the default with -p), ask the client (the default with --rpc), edits (allow file edits) or all")
 	fs.StringVar(&o.output, "output", outputText, "what goes to standard output: text (the answer) or json (events, see docs/events.md)")
 	fs.BoolVar(&o.verbose, "v", false, "show tool calls and retries on standard error")
 
@@ -97,11 +99,25 @@ func parse(args []string, stderr io.Writer) (options, error) {
 		rest = fs.Args()[1:]
 	}
 	o.words = append(o.words, tail...)
+	if o.approve == "" {
+		o.approve = approveNever
+		if o.rpc {
+			o.approve = approveAsk
+		}
+	}
 	switch {
-	case !o.print:
-		return o, errors.New("-p is needed for now: hm agent -p \"your prompt\"")
-	case o.approve != approveNever && o.approve != approveEdits && o.approve != approveAll:
-		return o, fmt.Errorf("--approve must be never, edits or all, not %q", o.approve)
+	case o.print && o.rpc:
+		return o, errors.New("use -p or --rpc, not both")
+	case !o.print && !o.rpc:
+		return o, errors.New("-p or --rpc is needed: hm agent -p \"your prompt\"")
+	case o.rpc && len(o.words) > 0:
+		return o, errors.New("--rpc takes its prompts on standard input, not as arguments")
+	case o.rpc && o.approve == approveNever:
+		return o, errors.New("--rpc asks the client; --approve takes ask, edits or all")
+	case !o.rpc && o.approve == approveAsk:
+		return o, errors.New("--approve=ask needs --rpc; with -p use never, edits or all")
+	case o.approve != approveNever && o.approve != approveAsk && o.approve != approveEdits && o.approve != approveAll:
+		return o, fmt.Errorf("--approve must be never, ask, edits or all, not %q", o.approve)
 	case o.output != outputText && o.output != outputJSON:
 		return o, fmt.Errorf("--output must be text or json, not %q", o.output)
 	case o.maxSteps < 0:
@@ -156,6 +172,9 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		fmt.Fprintln(stderr, "hm agent:", err)
 		return exitUsage
 	}
+	if o.rpc {
+		return runRPC(ctx, o, stdin, stdout, stderr)
+	}
 	text, err := prompt(o.words, stdin)
 	if err != nil {
 		fmt.Fprintln(stderr, "hm agent:", err)
@@ -166,11 +185,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		return exitUsage
 	}
 	pol := &policy{mode: o.approve}
-	r, err := agent.New(agent.Options{
-		Root: o.cwd, Mode: o.mode, Provider: o.provider, Model: o.model,
-		SessionID: o.session, Continue: o.cont, NoSession: o.noSession, MaxSteps: o.maxSteps,
-		Approver: pol, Logger: slog.New(&lineHandler{w: stderr, level: slog.LevelWarn}),
-	})
+	r, err := newRunner(o, pol, stderr)
 	if err != nil {
 		fmt.Fprintln(stderr, "hm agent:", err)
 		return exitUsage
@@ -220,6 +235,15 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		fmt.Fprintln(stdout, answer)
 	}
 	return code
+}
+
+// newRunner opens the session the flags name, with ap deciding approvals.
+func newRunner(o options, ap agent.Approver, stderr io.Writer) (*agent.Runner, error) {
+	return agent.New(agent.Options{
+		Root: o.cwd, Mode: o.mode, Provider: o.provider, Model: o.model,
+		SessionID: o.session, Continue: o.cont, NoSession: o.noSession, MaxSteps: o.maxSteps,
+		Approver: ap, Logger: slog.New(&lineHandler{w: stderr, level: slog.LevelWarn}),
+	})
 }
 
 // show writes what the agent does to w, a line each, for -v.

@@ -1,6 +1,6 @@
 # hm agent JSON events, version 1
 
-`hm agent -p --output json "prompt"` writes what the agent does to standard output, one JSON object per line. Nothing else goes there: warnings and errors for people go to standard error. `hm agent --rpc` (coming next) writes the same events.
+`hm agent -p --output json "prompt"` writes what the agent does to standard output, one JSON object per line. Nothing else goes there: warnings and errors for people go to standard error. `hm agent --rpc` writes the same events, with a `response` to each command; see [rpc.md](rpc.md).
 
 ```sh
 hm agent -p --output json "list the packages" | jq -c 'select(.type == "tool_call")'
@@ -69,6 +69,10 @@ The mode asks about this call. `call_id`, `tool`, `category` (`read`, `edit`, `d
 
 `call_id`, `tool`, `allow` (bool), and `note`, which the model reads when the call is refused.
 
+### `question`
+
+`call_id`, `text`: the agent asks you something (`ask_user`). Over RPC, send `answer`; with `-p` nobody can answer, and the agent is told so.
+
 ### `blocked`
 
 `tool`, `reason`: guard.yaml refused the call. No approval was asked.
@@ -107,3 +111,7 @@ Older messages are being summarised to fit the model's window. `compaction_end`'
 | `usage` | The session's totals, as in `usage`. |
 
 Bad usage (exit code `2`) is reported on standard error before any session opens, so it writes no lines.
+
+### `response`
+
+RPC only: the answer to a command, with its `id`, `command`, `ok`, `error` and `data`. See [rpc.md](rpc.md).

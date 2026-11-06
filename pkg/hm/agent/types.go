@@ -7,6 +7,7 @@ import (
 
 	"github.com/mirzakhany/hm/internal/agent"
 	"github.com/mirzakhany/hm/internal/agent/provider"
+	"github.com/mirzakhany/hm/internal/agent/tools"
 )
 
 // ErrBusy is returned when a turn is already running; send more with Steer
@@ -102,7 +103,14 @@ const (
 	// set; EventApproval after it answered, Request and Decision set.
 	EventApprovalNeeded EventKind = "approval_needed"
 	EventApproval       EventKind = "approval"
+	// EventQuestion comes before an Asker is asked ask_user's question:
+	// CallID names the call, Text is the question.
+	EventQuestion EventKind = "question"
 )
+
+// CallID is the tool call an Approver or Asker is called for; Ask uses it
+// to tie an answer to its EventQuestion.
+func CallID(ctx context.Context) string { return tools.CallID(ctx) }
 
 // Event is something that happened in a turn. Session names the session
 // it happened in: the Runner's, or one of its sub-agents'.
@@ -152,6 +160,7 @@ type SessionInfo struct {
 	Context        int64  // tokens the next model call about sends
 	Saved          bool   // false with Options.NoSession
 	Resumed        bool   // the session was saved before New opened it
+	Running        bool   // a turn is running
 }
 
 var eventKinds = map[agent.EventKind]EventKind{

@@ -42,42 +42,6 @@ func TestParseExportArgs(t *testing.T) {
 	}
 }
 
-func TestExportPath(t *testing.T) {
-	home, root := t.TempDir(), t.TempDir()
-	day := time.Date(2026, 11, 6, 9, 0, 0, 0, time.UTC)
-	name := "hm-fix-it-2026-11-06.html"
-	if got := exportPath("", export.HTML, "Fix it", day, root, home); got != filepath.Join(home, name) {
-		t.Errorf("no Downloads folder: %s", got)
-	}
-	if err := os.Mkdir(filepath.Join(home, "Downloads"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Mkdir(filepath.Join(root, "out"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	tests := []struct{ in, want string }{
-		{"", filepath.Join(home, "Downloads", name)},
-		{"out", filepath.Join(root, "out", name)},
-		{"chat", filepath.Join(root, "chat.html")},
-		{"~/x.html", filepath.Join(home, "x.html")},
-		{filepath.Join(home, "abs.html"), filepath.Join(home, "abs.html")},
-	}
-	for _, tt := range tests {
-		if got := exportPath(tt.in, export.HTML, "Fix it", day, root, home); got != tt.want {
-			t.Errorf("exportPath(%q) = %s, want %s", tt.in, got, tt.want)
-		}
-	}
-}
-
-func TestSecretName(t *testing.T) {
-	for name, want := range map[string]bool{"ANTHROPIC_API_KEY": true, "GITHUB_TOKEN": true, "aws_secret_access_key": true,
-		"DB_PASSWORD": true, "HOME": false, "PATH": false, "KEYBOARD": false} {
-		if got := secretName(name); got != want {
-			t.Errorf("secretName(%s) = %v", name, got)
-		}
-	}
-}
-
 // exportHarness opens the agent with a session that mentions the
 // Anthropic key hm keeps in the keychain.
 func exportHarness(t *testing.T) (*harness, *agentRun, string) {

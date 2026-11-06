@@ -86,10 +86,13 @@ type Runner struct {
 	steer, follow         []string
 	resumed               bool // the session was saved before New
 
-	// For the top Runner only: base ends background sub-agents on Close;
-	// events is nil until Events is called.
+	// For the top Runner only: base ends on Close, unblocking emit;
+	// bgCtx ends background sub-agents on Close or Abort. events is nil until
+	// Events is called.
 	base      context.Context
 	stop      context.CancelFunc
+	bgCtx     context.Context // guarded by mu
+	bgStop    context.CancelFunc
 	evMu      sync.RWMutex
 	events    chan Event
 	closed    bool
@@ -147,6 +150,7 @@ func New(o Options) (*Runner, error) {
 	r.top = r
 	r.h = &host.Host{Root: root, Config: cfg, Projects: projects, Warn: func(msg string) { log.Warn(msg) }}
 	r.base, r.stop = context.WithCancel(context.Background())
+	r.bgCtx, r.bgStop = context.WithCancel(r.base)
 	if !o.NoSession {
 		r.store = agent.NewStore(config.StateDir())
 	}
@@ -438,7 +442,7 @@ func (r *Runner) isClosed() bool {
 // Session describes the session.
 func (r *Runner) Session() SessionInfo {
 	r.mu.Lock()
-	mode, prov, model := r.mode, r.provider, r.model
+	mode, prov, model, running := r.mode, r.provider, r.model, r.running
 	r.mu.Unlock()
 	s := r.session
 	u := s.UsageNow()
@@ -447,7 +451,7 @@ func (r *Runner) Session() SessionInfo {
 	}
 	return SessionInfo{
 		ID: s.ID, Title: s.Title, Root: s.Root, Mode: mode, Provider: prov, Model: model,
-		Status: s.StatusNow(), Context: s.ContextUsed(), Saved: r.store != nil, Resumed: r.resumed,
+		Status: s.StatusNow(), Context: s.ContextUsed(), Saved: r.store != nil, Resumed: r.resumed, Running: running,
 		Usage: Usage{Input: u.Input, Output: u.Output, CacheRead: u.CacheRead, CacheWrite: u.CacheWrite, Cost: u.Cost},
 	}
 }
@@ -497,6 +501,27 @@ func (r *Runner) Compact(ctx context.Context, focus string) error {
 	err = ag.Compact(ctx, r.session, focus)
 	r.save()
 	return err
+}
+
+// background is the context background sub-agents run under.
+func (r *Runner) background() context.Context {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.bgCtx
+}
+
+// Abort stops the turn in progress and the background sub-agents; the
+// Runner stays open for the next Prompt. Queued messages are dropped.
+func (r *Runner) Abort() {
+	t := r.top
+	t.mu.Lock()
+	if t.cancel != nil {
+		t.cancel()
+	}
+	t.bgStop()
+	t.bgCtx, t.bgStop = context.WithCancel(t.base)
+	t.steer, t.follow = nil, nil
+	t.mu.Unlock()
 }
 
 // Close stops the turn in progress, background sub-agents, shells and MCP

@@ -312,6 +312,7 @@ func (a *Agent) continueWithQueued(s *Session) bool {
 
 // call runs one tool call through the policy.
 func (a *Agent) call(ctx context.Context, call provider.Block) tools.Result {
+	ctx = tools.WithCallID(ctx, call.ToolID) // hooks and the tool see which call
 	t, ok := a.Tools.Get(call.ToolName)
 	if !ok {
 		return tools.Result{Text: "Unknown tool " + call.ToolName + " (not available in this mode)", IsError: true}
@@ -385,7 +386,7 @@ func (a *Agent) call(ctx context.Context, call provider.Block) tools.Result {
 		}
 		return tools.Result{Text: describeEdits(a.Env, plan.Edits, edits, ans.Note)}
 	case plan.Run != nil:
-		return plan.Run(tools.WithCallID(ctx, call.ToolID))
+		return plan.Run(ctx)
 	}
 	return tools.Result{Text: "Nothing to do"}
 }

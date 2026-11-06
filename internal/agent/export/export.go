@@ -6,6 +6,8 @@ package export
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 	"unicode"
@@ -456,4 +458,31 @@ func oneLine(s string, n int) string {
 		s = string(r[:n]) + "…"
 	}
 	return s
+}
+
+// Path is where an export goes: p as typed, relative to root, with
+// the default file name when p is a folder; ~/Downloads (or home) when p
+// is empty.
+func Path(p string, f Format, title string, now time.Time, root, home string) string {
+	name := FileName(title, now, f)
+	if p == "" {
+		dir := filepath.Join(home, "Downloads")
+		if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
+			dir = home
+		}
+		return filepath.Join(dir, name)
+	}
+	if p == "~" || strings.HasPrefix(p, "~/") {
+		p = filepath.Join(home, p[1:])
+	}
+	if !filepath.IsAbs(p) {
+		p = filepath.Join(root, p)
+	}
+	if fi, err := os.Stat(p); (err == nil && fi.IsDir()) || strings.HasSuffix(p, string(filepath.Separator)) {
+		return filepath.Join(p, name)
+	}
+	if filepath.Ext(p) == "" {
+		p += "." + string(f)
+	}
+	return p
 }
