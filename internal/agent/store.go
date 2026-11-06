@@ -123,6 +123,14 @@ func (s *Session) all() []any {
 	return append(out, s.stateRecord())
 }
 
+// Lines is the session as its file holds it, one record per line, with
+// every entry once; for exporting the raw session.
+func (s *Session) Lines() ([]byte, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return lines(s.all())
+}
+
 func lines(recs []any) ([]byte, error) {
 	var b bytes.Buffer
 	for _, r := range recs {

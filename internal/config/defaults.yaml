@@ -428,6 +428,11 @@ agent:
   branch_summary:
     enabled: false
     min_messages: 6           # shorter branches get no summary
+  # /share uploads a session's HTML export as a secret GitHub gist and
+  # copies a link. viewer_url is that link, with {id}, {user} and {file}
+  # filled in from the gist; "" copies the gist's own page.
+  share:
+    viewer_url: ""
 
 # Where the agent keeps artifacts. Storage backends are not wired up yet.
 artifacts:

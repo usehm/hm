@@ -12,6 +12,7 @@ require (
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/mirzakhany/yoga v0.46.0
 	github.com/modelcontextprotocol/go-sdk v1.8.0
+	github.com/yuin/goldmark v1.8.5
 	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/net v0.58.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -94,7 +95,6 @@ require (
 	github.com/tree-sitter/tree-sitter-typescript v0.23.2 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
-	github.com/yuin/goldmark v1.8.5 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/otel v1.33.0 // indirect
 	go.opentelemetry.io/otel/metric v1.33.0 // indirect

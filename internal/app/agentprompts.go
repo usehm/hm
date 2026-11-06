@@ -21,7 +21,7 @@ import (
 // builtinCommands are the slash commands hm runs itself. They win over
 // prompt templates of the same name.
 var builtinCommands = map[string]bool{"/mode": true, "/provider": true, "/context": true, "/compact": true,
-	"/tree": true, "/fork": true, "/label": true, "/new": true, "/clear": true}
+	"/tree": true, "/fork": true, "/label": true, "/export": true, "/share": true, "/new": true, "/clear": true}
 
 // promptTemplates is the prompt templates, read again when stale.
 func (a *App) promptTemplates() []prompts.Template {

@@ -375,6 +375,33 @@ func TestAgentBranchSummarySettings(t *testing.T) {
 	}
 }
 
+func TestAgentShareSettings(t *testing.T) {
+	cfg, _ := Load()
+	if v := cfg.Agent.Share.ViewerURL; v != "" {
+		t.Fatalf("default viewer_url %q", v)
+	}
+	tests := []struct {
+		value string
+		ok    bool
+	}{
+		{`""`, true},
+		{`"https://example.com/view?gist={id}"`, true},
+		{`"http://localhost:8080/{user}/{id}/{file}"`, true},
+		{`"https://example.com/view"`, false},
+		{`"ftp://example.com/{id}"`, false},
+		{`"{id}"`, false},
+	}
+	for _, tt := range tests {
+		_, ps := Load(Layer{Name: "u.yaml", Data: []byte("agent:\n  share:\n    viewer_url: " + tt.value + "\n")})
+		switch {
+		case tt.ok && len(ps) > 0:
+			t.Errorf("%s: problems %v", tt.value, ps)
+		case !tt.ok && (len(ps) != 1 || ps[0].Key != "agent.share.viewer_url"):
+			t.Errorf("%s: problems %v, want one at agent.share.viewer_url", tt.value, ps)
+		}
+	}
+}
+
 func TestAgentCompactionSettings(t *testing.T) {
 	cfg, _ := Load()
 	c := cfg.Agent.Compaction

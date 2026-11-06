@@ -493,6 +493,13 @@ func (s *Session) StatusNow() string {
 	return s.Status
 }
 
+// Meta copies the session's title and when it was created and updated.
+func (s *Session) Meta() (title string, created, updated time.Time) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.Title, s.Created, s.Updated
+}
+
 // SetTitle renames the session.
 func (s *Session) SetTitle(t string) {
 	s.mu.Lock()

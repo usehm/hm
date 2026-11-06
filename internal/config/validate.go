@@ -236,6 +236,18 @@ var rules = func() []rule {
 		{"agent.compaction.reserve_tokens", intRange(0, 1_000_000)},
 		{"agent.compaction.keep_tokens", intRange(1000, 1_000_000)},
 		{"agent.branch_summary.min_messages", intRange(1, 10_000)},
+		{"agent.share.viewer_url", func(n *yaml.Node) string {
+			if n.Kind != yaml.ScalarNode || n.Value == "" {
+				return ""
+			}
+			if !strings.HasPrefix(n.Value, "https://") && !strings.HasPrefix(n.Value, "http://") {
+				return "must be an http or https URL"
+			}
+			if !strings.Contains(n.Value, "{id}") {
+				return "must contain {id}, the gist's ID"
+			}
+			return ""
+		}},
 		{"agent.providers.*.context_window", intRange(0, 100_000_000)},
 		{"keys.*", shortcutRule},
 		{"keybindings.*.key", shortcutRule},

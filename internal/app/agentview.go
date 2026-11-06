@@ -1010,7 +1010,7 @@ func (a *App) agentSuggest(value string, caret int) ([]ui.Suggestion, int, int) 
 			}
 		}
 	case start == 0 && strings.HasPrefix(word, "/"):
-		for _, cmd := range []string{"/mode ", "/provider ", "/context", "/compact ", "/tree", "/fork ", "/label ", "/new"} {
+		for _, cmd := range []string{"/mode ", "/provider ", "/context", "/compact ", "/tree", "/fork ", "/label ", "/export ", "/share", "/new"} {
 			if strings.HasPrefix(cmd, word) {
 				out = append(out, ui.Suggestion{Label: cmd})
 			}

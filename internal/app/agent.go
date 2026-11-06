@@ -57,6 +57,9 @@ type agentState struct {
 	settingsCat string
 
 	keys secrets.Store
+	// share stands in for the browser and GitHub in tests of /export
+	// and /share.
+	share shareHooks
 	// keyOK says which providers' keys resolve. Reading the keychain runs
 	// a process, so it is read off the UI goroutine by refreshProviderKeys.
 	keyOK  map[string]bool
@@ -862,7 +865,8 @@ func (a *App) agentAsk(ctx context.Context, r *agentRun, question string) (strin
 }
 
 // slashCommand runs /mode, /provider, /context, /compact, /tree, /fork,
-// /label and /new, or else the prompt template of that name.
+// /label, /export, /share and /new, or else the prompt template of that
+// name.
 func (a *App) slashCommand(r *agentRun, text string) {
 	f := strings.Fields(text)
 	switch f[0] {
@@ -908,11 +912,15 @@ func (a *App) slashCommand(r *agentRun, text string) {
 		a.forkAt(r, id)
 	case "/label":
 		a.labelLast(r, strings.TrimSpace(text[len(f[0]):]))
+	case "/export":
+		a.exportCommand(r, strings.TrimSpace(text[len(f[0]):]))
+	case "/share":
+		a.shareCommand(r, f[1:])
 	default:
 		if a.runTemplate(r, f[0], strings.TrimSpace(text[len(f[0]):])) {
 			return
 		}
-		r.errText = "Unknown command " + f[0] + ". Try /mode, /provider, /context, /compact, /tree, /fork, /label or /new, or add a prompt template."
+		r.errText = "Unknown command " + f[0] + ". Try /mode, /provider, /context, /compact, /tree, /fork, /label, /export, /share or /new, or add a prompt template."
 	}
 }
 

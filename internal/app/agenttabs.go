@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/mirzakhany/yoga/icons"
@@ -261,6 +262,7 @@ func (a *App) agentTabMenu(i int) []ui.MenuItem {
 	if r := t.run; r != nil && len(r.session.Snapshot()) > 0 {
 		items = append(items, ui.MenuSeparator,
 			ui.MenuItem{Label: "Rename…", Icon: icons.Pencil, OnSelect: func() { a.renameSession(r.session.ID) }})
+		items = append(items, a.sessionActions(r.session.ID)...)
 	}
 	return items
 }
@@ -467,10 +469,11 @@ func (a *App) sessionRow(c *ui.Ctx, s agent.Summary, depth int) ui.View {
 			btn = btn.Background(ui.TokenListHover)
 		}
 		return ui.Row(btn,
-			ui.IconButton("agent-side-more-"+id, icons.Ellipsis).Height(h).Tooltip("More").Reveal(hovered).Menu([]ui.MenuItem{
-				{Label: "Rename…", Icon: icons.Pencil, OnSelect: func() { a.renameSession(id) }},
-				{Label: "Remove", Icon: icons.Trash2, Danger: true, OnSelect: func() { a.removeSession(id) }},
-			}),
+			ui.IconButton("agent-side-more-"+id, icons.Ellipsis).Height(h).Tooltip("More").Reveal(hovered).Menu(slices.Concat(
+				[]ui.MenuItem{{Label: "Rename…", Icon: icons.Pencil, OnSelect: func() { a.renameSession(id) }}},
+				a.sessionActions(id),
+				[]ui.MenuItem{ui.MenuSeparator, {Label: "Remove", Icon: icons.Trash2, Danger: true, OnSelect: func() { a.removeSession(id) }}},
+			)),
 		).Gap(th.Spacing.XXS).Align(ui.AlignCenter)
 	})
 	if depth > 0 {

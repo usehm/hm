@@ -204,6 +204,16 @@ type Agent struct {
 	Compaction AgentCompaction     `yaml:"compaction"`
 	// BranchSummary describes a branch the user leaves, for /tree.
 	BranchSummary AgentBranchSummary `yaml:"branch_summary"`
+	// Share is where /share puts a session.
+	Share AgentShare `yaml:"share"`
+}
+
+// AgentShare configures /share, which uploads a session's HTML export as
+// a secret GitHub gist.
+type AgentShare struct {
+	// ViewerURL is the link copied after sharing, with {id}, {user} and
+	// {file} filled in from the gist; empty copies the gist's own URL.
+	ViewerURL string `yaml:"viewer_url"`
 }
 
 // AgentBranchSummary asks the model, when the user goes back to an earlier
