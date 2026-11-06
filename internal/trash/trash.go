@@ -1,4 +1,6 @@
-package workspace
+// Package trash moves files to the user's trash, so deleting them can be
+// undone.
+package trash
 
 import (
 	"fmt"
@@ -10,15 +12,15 @@ import (
 	"time"
 )
 
-// Trash moves path to the user's trash so a delete can be undone.
-func Trash(path string) error {
+// Move moves path to the user's trash so a delete can be undone.
+func Move(path string) error {
 	switch runtime.GOOS {
 	case "darwin":
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return err
 		}
-		return os.Rename(path, freeName(filepath.Join(home, ".Trash"), filepath.Base(path)))
+		return os.Rename(path, FreeName(filepath.Join(home, ".Trash"), filepath.Base(path)))
 	case "windows":
 		ps := "Add-Type -AssemblyName Microsoft.VisualBasic; " +
 			"$p = $args[0]; if (Test-Path -PathType Container $p) " +
@@ -46,7 +48,7 @@ func trashXDG(path string) error {
 	if err := os.MkdirAll(info, 0o700); err != nil {
 		return err
 	}
-	dst := freeName(files, filepath.Base(path))
+	dst := FreeName(files, filepath.Base(path))
 	abs, _ := filepath.Abs(path)
 	meta := fmt.Sprintf("[Trash Info]\nPath=%s\nDeletionDate=%s\n",
 		strings.ReplaceAll(abs, " ", "%20"), time.Now().Format("2006-01-02T15:04:05"))
@@ -56,8 +58,8 @@ func trashXDG(path string) error {
 	return os.Rename(path, dst)
 }
 
-// freeName returns dir/name, or dir/"name N" when that is taken.
-func freeName(dir, name string) string {
+// FreeName returns dir/name, or dir/"name N" when that is taken.
+func FreeName(dir, name string) string {
 	p := filepath.Join(dir, name)
 	ext := filepath.Ext(name)
 	base := strings.TrimSuffix(name, ext)

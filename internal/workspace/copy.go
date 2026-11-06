@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/mirzakhany/hm/internal/trash"
 )
 
 // CopyInto copies the file or folder src into dir and returns the new path.
@@ -34,7 +36,7 @@ func MoveInto(src, dir string) (string, error) {
 	if err := checkInto(src, dir); err != nil {
 		return "", err
 	}
-	dst := freeName(dir, filepath.Base(src))
+	dst := trash.FreeName(dir, filepath.Base(src))
 	return dst, os.Rename(src, dst)
 }
 

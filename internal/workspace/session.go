@@ -6,6 +6,9 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/mirzakhany/hm/internal/config"
+	"github.com/mirzakhany/hm/internal/trash"
 )
 
 // Session is what hm remembers between runs: app state, not configuration.
@@ -43,14 +46,11 @@ type SessionTab struct {
 	Scroll float32 `json:"scroll,omitempty"`
 }
 
-// StateDir is where hm keeps app state. Tests point it elsewhere.
-var StateDir = func() string {
-	dir, err := os.UserConfigDir()
-	if err != nil {
-		dir = os.TempDir()
-	}
-	return filepath.Join(dir, "hm")
-}
+// StateDir is where hm keeps app state; see config.StateDir.
+func StateDir() string { return config.StateDir() }
+
+// Trash moves path to the user's trash so a delete can be undone.
+func Trash(path string) error { return trash.Move(path) }
 
 func sessionPath() string { return filepath.Join(StateDir(), "state.json") }
 

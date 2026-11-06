@@ -10,6 +10,7 @@ import (
 	"github.com/mirzakhany/yoga/render"
 	"github.com/mirzakhany/yoga/shape"
 
+	"github.com/mirzakhany/hm/internal/config"
 	"github.com/mirzakhany/hm/internal/editor"
 )
 
@@ -23,7 +24,7 @@ func setup(t *testing.T) (*Workspace, string) {
 	root := t.TempDir()
 	write(t, filepath.Join(root, "a.go"), "package a\n")
 	write(t, filepath.Join(root, "sub", "b.go"), "package b\n")
-	StateDir = func() string { return filepath.Join(root, ".state") }
+	config.StateDir = func() string { return filepath.Join(root, ".state") }
 	return New(root, editor.New(nil)), root
 }
 

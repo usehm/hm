@@ -7,8 +7,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mirzakhany/yoga/theme"
-	"github.com/mirzakhany/yoga/ui"
 	"gopkg.in/yaml.v3"
 )
 
@@ -205,11 +203,15 @@ var Enums = map[string][]string{
 var rules = func() []rule {
 	rs := []rule{
 		{"editor.theme", func(n *yaml.Node) string {
-			if n.Value == "system" || slices.Contains(theme.Names(), n.Value) {
+			if ThemeNames == nil {
+				return "" // no themes to check against without the UI
+			}
+			names := ThemeNames()
+			if n.Value == "system" || slices.Contains(names, n.Value) {
 				return ""
 			}
 			msg := "unknown theme " + quote(n.Value)
-			if s := closest(n.Value, theme.Names()); s != "" {
+			if s := closest(n.Value, names); s != "" {
 				msg += ", did you mean " + quote(s) + "?"
 			}
 			return msg
@@ -355,18 +357,28 @@ func shortcutRule(n *yaml.Node) string {
 	if n.Value == "" {
 		return "" // no shortcut
 	}
-	if _, err := ParseShortcut(n.Value); err != nil {
+	if err := ParseShortcut(n.Value); err != nil {
 		return err.Error()
 	}
 	return ""
 }
 
-// ParseShortcut parses a config shortcut: a chord such as "cmd+shift+p",
+// ThemeNames lists the themes editor.theme may name, and ParseKeys checks a
+// shortcut. The app sets both; config does not import the UI toolkit, so
+// the agent can run without it. Left nil, the checks are skipped.
+var (
+	ThemeNames func() []string
+	ParseKeys  func(string) error
+)
+
+// ParseShortcut checks a config shortcut: a chord such as "cmd+shift+p",
 // "ctrl+`" or "alt+mouse4", or two in a row such as "cmd+k cmd+s".
-func ParseShortcut(s string) (ui.KeySeq, error) {
-	seq, err := ui.ParseKeySeq(s)
-	if err != nil {
-		return seq, fmt.Errorf("bad shortcut %s: %v", quote(s), err)
+func ParseShortcut(s string) error {
+	if ParseKeys == nil {
+		return nil
 	}
-	return seq, nil
+	if err := ParseKeys(s); err != nil {
+		return fmt.Errorf("bad shortcut %s: %v", quote(s), err)
+	}
+	return nil
 }

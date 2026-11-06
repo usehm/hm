@@ -13,11 +13,9 @@ import (
 	"github.com/mirzakhany/yoga/ui"
 
 	"github.com/mirzakhany/hm/internal/agent"
-	"github.com/mirzakhany/hm/internal/agent/guard"
+	"github.com/mirzakhany/hm/internal/agent/host"
 	"github.com/mirzakhany/hm/internal/agent/mcp"
 	"github.com/mirzakhany/hm/internal/agent/prompts"
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/agent/skills"
 	"github.com/mirzakhany/hm/internal/agent/tools"
 	"github.com/mirzakhany/hm/internal/config"
 	"github.com/mirzakhany/hm/internal/diff"
@@ -199,12 +197,12 @@ func (a *App) initAgent() {
 	st.tabs, st.active = nil, 0
 	st.live = map[string]*agentRun{}
 	st.bus = agent.NewBus(func(id string) { a.onUI(func() { a.mailArrived(id) }) })
-	st.store = agent.NewStore(workspace.StateDir())
+	st.store = agent.NewStore(config.StateDir())
 	if err := st.store.Migrate(a.ws.Root); err != nil {
 		a.notifs.Add("Could not move the old agent sessions: "+err.Error(), ui.ToastWarning)
 	}
 	if st.projects == nil {
-		ps, err := agent.LoadProjects(workspace.StateDir())
+		ps, err := agent.LoadProjects(config.StateDir())
 		if err != nil {
 			a.notifs.Add("Could not read the agent projects: "+err.Error(), ui.ToastWarning)
 		}
@@ -214,7 +212,7 @@ func (a *App) initAgent() {
 	a.newMCP()
 	a.startMCP(a.cfg.Current().Tools.MCP)
 	a.agent.materialize.Go(func() {
-		if err := skills.Materialize(builtinSkillsDir()); err != nil {
+		if err := host.MaterializeSkills(); err != nil {
 			a.onUI(func() { a.notifs.Add("Could not write the built-in skills: "+err.Error(), ui.ToastWarning) })
 		}
 	})
@@ -344,37 +342,7 @@ func (a *App) anyRunning() bool {
 }
 
 // modes resolves the configured modes for this workspace.
-func (a *App) modes() map[string]agent.Mode {
-	return agent.Modes(a.cfg.Current().Modes, a.ws.Root)
-}
-
-// newProvider builds the selected provider, resolving its key.
-func (a *App) newProvider(name string) (provider.Provider, config.Provider, error) {
-	pc, ok := a.cfg.Current().Agent.Providers[name]
-	if !ok {
-		return nil, pc, fmt.Errorf("no provider named %q in agent.providers", name)
-	}
-	p, err := buildProvider(name, pc)
-	return p, pc, err
-}
-
-// buildProvider resolves pc's key and builds the provider. Reading the
-// keychain runs a process, so callers off the UI goroutine are welcome.
-func buildProvider(name string, pc config.Provider) (provider.Provider, error) {
-	key := ""
-	if pc.APIKey != "" {
-		var err error
-		key, err = config.Resolve(pc.APIKey)
-		if err != nil && pc.Type == "anthropic" && strings.HasPrefix(pc.APIKey, "keychain:") {
-			// The SDK may still find credentials of its own.
-			key, err = "", nil
-		}
-		if err != nil {
-			return nil, fmt.Errorf("%s API key: %w; add it in Settings → Agent", name, err)
-		}
-	}
-	return provider.New(provider.Config{Type: pc.Type, BaseURL: pc.BaseURL, APIKey: key})
-}
+func (a *App) modes() map[string]agent.Mode { return a.agentHost().Modes() }
 
 // queuedMsg is a message waiting for the running agent. A follow-up waits
 // for the turn to end; otherwise it steers, skipping the tool calls not yet
@@ -431,36 +399,11 @@ func (a *App) sendText(r *agentRun, text string, followUp bool) {
 // agentFor builds the agent for one turn of r: the provider, guard, tools,
 // policy and system prompt as they are now.
 func (a *App) agentFor(r *agentRun) (*agent.Agent, error) {
-	modes := a.modes()
-	mode, ok := modes[r.mode]
-	if !ok {
-		return nil, errors.New("Unknown mode " + r.mode + "; pick one with /mode")
-	}
-	prov, pc, err := a.newProvider(r.provider)
-	if err != nil {
-		return nil, err
-	}
-	// Read per message, so edits to guard.yaml apply to the next one. A
-	// broken file stops the agent rather than letting it run unguarded.
-	grd, err := guard.Load(userGuardPath(), projectGuardPath(a.ws.Root), a.ws.Root)
-	if err != nil {
-		return nil, errors.New("guard.yaml: " + err.Error())
-	}
 	s := r.session
-	s.SetModel(r.mode, r.provider, pc.Model)
-	ts := a.agentToolset(r, mode)
-	policy := agent.NewPolicy(a.ws.Root, ts.rules)
-	policy.ReadRoots = ts.readRoots
 	if r.grants == nil {
-		r.grants = agent.NewGrants()
-	}
-	policy.Grants = r.grants // grants last the session, not one message
-	var project *agent.Project
-	if p, ok := a.agent.projects.Get(s.ProjectID); ok {
-		project = &p
+		r.grants = agent.NewGrants() // grants last the session, not one message
 	}
 	store := a.agent.store
-	extra := ts.extra
 	// A sub-agent asks the user through the session at the top, the one
 	// on screen.
 	asker, label := r, ""
@@ -469,26 +412,11 @@ func (a *App) agentFor(r *agentRun) (*agent.Agent, error) {
 			asker = asker.parent
 		}
 		label = "sub-agent \"" + s.Title + "\""
-		extra = subagentPrompt(r) + "\n" + extra
-	}
-	compaction, err := a.compaction(r.provider, prov)
-	if err != nil {
-		return nil, err
 	}
 	ctx := a.agentContext(r)
-	if !r.ctxWarned {
-		r.ctxWarned = true
-		for _, w := range ctx.Warnings {
-			a.notifs.Add("Agent instructions: "+w, ui.ToastWarning)
-		}
-	}
-	return &agent.Agent{
-		Provider: provider.WithRetry(prov, a.cfg.Current().Agent.Retry.MaxAttempts),
-		Model:    pc.Model, Effort: pc.Effort, ContextWindow: a.contextWindow(r.provider),
-		Compaction: compaction,
-		System:     agent.System(mode, a.ws.Root, s.Created, project, ctx, extra),
-		Tools:      ts.reg, Policy: policy, Guard: grd, Env: agentEnv{a},
-		Parallel: map[string]bool{"task": true},
+	ag, err := a.agentHost().Build(host.Turn{
+		Session: s, Mode: r.mode, Provider: r.provider, Grants: r.grants,
+		Env: agentEnv{a}, Context: ctx, Tools: a.agentTools(r),
 		Hooks: agent.Hooks{
 			Event: func(e agent.Event) { a.onUI(func() { a.agentEvent(r, e) }) },
 			Approve: func(ctx context.Context, req agent.Approval) agent.Answer {
@@ -520,29 +448,17 @@ func (a *App) agentFor(r *agentRun) (*agent.Agent, error) {
 			FollowUp: func() []string { return a.inboxOf(r, true) },
 			Persist:  func() { _ = store.Save(s) },
 		},
-	}, nil
-}
-
-// compaction is how agents of the session's provider prov compact: the
-// summary is written by agent.compaction.provider and model when set.
-func (a *App) compaction(name string, prov provider.Provider) (*agent.CompactConfig, error) {
-	cc := a.cfg.Current().Agent.Compaction
-	sumName, sumProv := name, prov
-	if cc.Provider != "" && cc.Provider != name {
-		p, _, err := a.newProvider(cc.Provider)
-		if err != nil {
-			return nil, errors.New("agent.compaction.provider: " + err.Error())
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !r.ctxWarned {
+		r.ctxWarned = true
+		for _, w := range ctx.Warnings {
+			a.notifs.Add("Agent instructions: "+w, ui.ToastWarning)
 		}
-		sumName, sumProv = cc.Provider, p
 	}
-	model := cc.Model
-	if model == "" {
-		model = a.modelOf(sumName)
-	}
-	return &agent.CompactConfig{
-		Auto: cc.Enabled, Threshold: cc.Threshold, Reserve: cc.ReserveTokens, KeepTokens: cc.KeepTokens,
-		Compactor: agent.ModelCompactor{Provider: provider.WithRetry(sumProv, a.cfg.Current().Agent.Retry.MaxAttempts), Model: model},
-	}, nil
+	return ag, nil
 }
 
 // startTurn runs the agent on prompt in the background.
@@ -650,7 +566,7 @@ func (a *App) inboxOf(r *agentRun, followUp bool) []string {
 	out := r.takeQueue(followUp)
 	if a.agent.bus != nil {
 		for _, m := range a.agent.bus.Take(r.session.ID, followUp) {
-			out = append(out, mailText(m))
+			out = append(out, host.MailText(m))
 		}
 	}
 	return out
@@ -660,10 +576,6 @@ func (a *App) inboxOf(r *agentRun, followUp bool) []string {
 // new turn.
 func (a *App) allQueued(r *agentRun) []string {
 	return append(a.inboxOf(r, false), a.inboxOf(r, true)...)
-}
-
-func mailText(m agent.Mail) string {
-	return fmt.Sprintf("<agent_message from=%q name=%q>\n%s\n</agent_message>", m.From, m.FromName, m.Text)
 }
 
 // takeQueue returns and removes the follow-ups, or the steering messages,
@@ -933,12 +845,7 @@ func (a *App) agentContext(r *agentRun) *agent.Context {
 	if r.ctx != nil {
 		return r.ctx
 	}
-	r.ctx = &agent.Context{}
-	if cfg := a.cfg.Current().Agent.Context; cfg.Enabled {
-		home, _ := os.UserHomeDir()
-		*r.ctx = agent.LoadContext(a.ws.Root, home, config.UserDir(),
-			agent.ContextOptions{Names: cfg.Files, MaxBytes: cfg.MaxBytes})
-	}
+	r.ctx = a.agentHost().Context()
 	return r.ctx
 }
 
@@ -1034,12 +941,8 @@ func (a *App) resumeAgentSession(id string) {
 			}, nil)
 		return
 	}
-	if s.Status == agent.StatusRunning {
-		// Saved mid-turn by a run of hm that is gone.
-		s.Status = agent.StatusInterrupted
-		s.Repair()
-		_ = a.agent.store.Save(s)
-	}
+	// Saved mid-turn by a run of hm that is gone.
+	host.Recover(a.agent.store, s)
 	a.openRunTab(a.newRun(s))
 }
 

@@ -7,13 +7,12 @@ import (
 	"github.com/mirzakhany/yoga/icons"
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/agent/guard"
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/mirzakhany/hm/internal/agent/host"
 )
 
-func userGuardPath() string { return filepath.Join(config.UserDir(), "guard.yaml") }
+func userGuardPath() string { return host.UserGuardPath() }
 
-func projectGuardPath(root string) string { return filepath.Join(root, ".hm", "guard.yaml") }
+func projectGuardPath(root string) string { return host.ProjectGuardPath(root) }
 
 // guardTemplate starts a new guard.yaml.
 const guardTemplate = `# Rules for what hm's agent may do, checked before it asks you anything.
@@ -73,7 +72,7 @@ func (a *App) openGuard(project bool) {
 func (a *App) securitySection(c *ui.Ctx) ui.View {
 	th := c.Theme()
 	status := ui.View(ui.Alert("The guard rules read fine.", ui.AlertSuccess))
-	if _, err := guard.Load(userGuardPath(), projectGuardPath(a.ws.Root), a.ws.Root); err != nil {
+	if _, err := a.agentHost().Guard(); err != nil {
 		status = ui.Alert("The agent will not run until this is fixed: "+err.Error(), ui.AlertError)
 	}
 	row := func(id, title, path string, project bool) ui.View {

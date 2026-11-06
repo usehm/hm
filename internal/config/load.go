@@ -205,6 +205,16 @@ func mappingIndex(m *yaml.Node, key string) int {
 
 // UserPath is the user config file: $XDG_CONFIG_HOME/hm/config.yaml or
 // ~/.config/hm/config.yaml on every OS, so dotfiles repos can carry it.
+// StateDir is where hm keeps app state: sessions, projects, window state.
+// Tests point it elsewhere.
+var StateDir = func() string {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		dir = os.TempDir()
+	}
+	return filepath.Join(dir, "hm")
+}
+
 func UserPath() string { return filepath.Join(UserDir(), "config.yaml") }
 
 // UserDir is the user config folder. Tests point it elsewhere.

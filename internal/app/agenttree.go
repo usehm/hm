@@ -396,11 +396,12 @@ func (a *App) summarizeBranch(r *agentRun, leaf string) {
 	if !cfg.Enabled || leaf == "" || len(s.Abandoned(leaf)) < cfg.MinMessages {
 		return
 	}
-	prov, _, err := a.newProvider(r.provider)
+	h := a.agentHost()
+	prov, _, err := h.Provider(r.provider)
 	if err != nil {
 		return
 	}
-	cc, err := a.compaction(r.provider, prov)
+	cc, err := h.Compaction(r.provider, prov)
 	if err != nil {
 		return
 	}

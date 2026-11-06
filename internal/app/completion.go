@@ -9,6 +9,7 @@ import (
 	"github.com/mirzakhany/yoga/ui"
 
 	"github.com/mirzakhany/hm/internal/agent/complete"
+	"github.com/mirzakhany/hm/internal/agent/host"
 	"github.com/mirzakhany/hm/internal/agent/provider"
 	"github.com/mirzakhany/hm/internal/config"
 )
@@ -172,7 +173,7 @@ func (st *complState) provider(name string, pc config.Provider) (provider.Provid
 	if st.prov != nil && st.provKey == key {
 		return st.prov, nil
 	}
-	p, err := buildProvider(name, pc)
+	p, err := host.BuildProvider(name, pc)
 	if err != nil {
 		return nil, err
 	}

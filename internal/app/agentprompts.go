@@ -168,9 +168,9 @@ func (a *App) promptInclude(rel string) (string, error) {
 			return "", errors.New("links outside the workspace")
 		}
 	}
-	grd, err := guard.Load(userGuardPath(), projectGuardPath(a.ws.Root), a.ws.Root)
+	grd, err := a.agentHost().Guard()
 	if err != nil {
-		return "", errors.New("guard.yaml: " + err.Error())
+		return "", err
 	}
 	if v, why := grd.Check("read", tools.Plan{Category: tools.CatRead, Paths: []string{path}}); v == guard.Deny {
 		return "", errors.New(why)

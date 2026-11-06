@@ -15,7 +15,6 @@ import (
 
 	"github.com/mirzakhany/hm/internal/config"
 	"github.com/mirzakhany/hm/internal/secrets"
-	"github.com/mirzakhany/hm/internal/workspace"
 )
 
 // harness drives App frames the way yoga's GPU loop does.
@@ -94,7 +93,7 @@ func project(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	state := t.TempDir()
-	workspace.StateDir = func() string { return filepath.Join(state, "state") }
+	config.StateDir = func() string { return filepath.Join(state, "state") }
 	config.UserDir = func() string { return filepath.Join(state, "config") }
 	files := map[string]string{
 		"go.mod":          "module example.com/demo\n\ngo 1.22\n",

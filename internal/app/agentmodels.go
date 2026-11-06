@@ -9,7 +9,7 @@ import (
 	"github.com/mirzakhany/yoga/ui"
 	"gopkg.in/yaml.v3"
 
-	"github.com/mirzakhany/hm/internal/agent/provider"
+	"github.com/mirzakhany/hm/internal/agent/host"
 )
 
 // providerLabel is how a provider is shown: the two built-in ones by what
@@ -38,23 +38,11 @@ func (a *App) providerReady(name string) bool {
 }
 
 // modelOf is the model a provider runs, with the Anthropic default filled in.
-func (a *App) modelOf(name string) string {
-	pc := a.cfg.Current().Agent.Providers[name]
-	if pc.Model == "" && pc.Type == "anthropic" {
-		return provider.DefaultAnthropicModel
-	}
-	return pc.Model
-}
+func (a *App) modelOf(name string) string { return a.agentHost().ModelOf(name) }
 
-// contextWindow is the window of the provider's model in tokens: the
-// provider's context_window, else hm's table; 0 when unknown.
-func (a *App) contextWindow(name string) int {
-	if w := a.cfg.Current().Agent.Providers[name].ContextWindow; w > 0 {
-		return w
-	}
-	l, _ := provider.LimitsOf(a.modelOf(name))
-	return l.ContextWindow
-}
+// contextWindow is the window of the provider's model in tokens; 0 when
+// unknown.
+func (a *App) contextWindow(name string) int { return a.agentHost().ContextWindow(name) }
 
 // setModel makes model the provider's model. It goes to the user config,
 // or to the project config when that one pins the provider's model.
@@ -124,7 +112,7 @@ func (a *App) modelsFor(name string) (models []string, loading bool, errText str
 	pc := a.cfg.Current().Agent.Providers[name]
 	go func() {
 		var models []string
-		p, err := buildProvider(name, pc)
+		p, err := host.BuildProvider(name, pc)
 		if err == nil {
 			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 			models, err = p.Models(ctx)

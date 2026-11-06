@@ -83,6 +83,17 @@ Fast where it can be, and quiet when you need to think.
 - Extensible with MCP servers, your own command-line tools and skills (also read from `.cursor/skills` and `.claude/skills`).
 - Approval per tool and mode, plus a `guard.yaml` of deny, read-only and ask rules. A project's rules can only tighten yours.
 - Undo the agent's last turn: the conversation goes back to before your message, which returns to the message box, and the files the turn changed are put back. The undone turn stays in `/tree`.
+- Embeddable: the Go package `github.com/mirzakhany/hm/pkg/hm/agent` runs the same agent without the window, with the same config, `guard.yaml`, skills, MCP servers, instruction files and saved sessions. Your program decides approvals by implementing `Approver`, and reads what happens from `Events()`:
+
+  ```go
+  r, err := agent.New(agent.Options{Root: ".", Approver: myApprover{}})
+  if err != nil { ... }
+  defer r.Close()
+  err = r.Prompt(ctx, "list the packages") // r.Steer and r.FollowUp work meanwhile
+  fmt.Println(r.Answer())
+  ```
+
+  Without an Approver, calls that need approval are refused and the model is told why. A command-line `hm agent` comes next.
 - AI inline completions: ghost text at the caret, `Tab` to accept.
 - API keys live in the OS keychain or come from environment variables.
 
