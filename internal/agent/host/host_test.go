@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/mirzakhany/hm/internal/agent"
+	"github.com/mirzakhany/hm/internal/agent/provider"
 	"github.com/mirzakhany/hm/internal/agent/tools"
 	"github.com/mirzakhany/hm/internal/config"
 )
@@ -140,5 +141,56 @@ func TestSubagentPromptAndReport(t *testing.T) {
 	}
 	if r := Report(t.Context(), s, nil); !r.IsError || !strings.Contains(r.Text, "without a report") {
 		t.Fatalf("report %+v", r)
+	}
+}
+
+func TestProviderTypesMatchPresets(t *testing.T) {
+	want := append([]string{"anthropic", "openai"}, provider.PresetNames()...)
+	got := slices.Clone(config.ProviderTypes)
+	slices.Sort(want)
+	slices.Sort(got)
+	if !slices.Equal(got, want) {
+		t.Fatalf("config.ProviderTypes = %v, want %v", got, want)
+	}
+}
+
+func TestContextWindowFromModels(t *testing.T) {
+	h, warns := testHost(t, `
+agent:
+  providers:
+    local: { type: ollama, model: "llama3.3:70b" }
+    pinned: { type: ollama, model: "llama3.3:70b", context_window: 4096 }
+    anthropic: { type: anthropic, model: claude-opus-5-5 }
+`)
+	write := func(path, body string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(filepath.Join(config.UserDir(), "models.json"),
+		`[{"id": "llama3.3:70b", "context_window": 131072}, {"id": "claude-opus-5-5", "provider": "anthropic", "context_window": 200000}]`)
+	write(filepath.Join(h.Root, ".hm", "models.json"), `[{"id": "llama3.3:70b", "provider": "local", "context_window": 65536}]`)
+	cases := map[string]int{"local": 65536, "pinned": 4096, "anthropic": 200_000}
+	for name, want := range cases {
+		if got := h.ContextWindow(name); got != want {
+			t.Errorf("ContextWindow(%s) = %d, want %d", name, got, want)
+		}
+	}
+	if len(*warns) > 0 {
+		t.Errorf("warnings %v", *warns)
+	}
+
+	// A broken file is reported and the other still applies.
+	write(filepath.Join(h.Root, ".hm", "models.json"), `[{`)
+	h.Registry = nil
+	if got := h.ContextWindow("local"); got != 131072 {
+		t.Errorf("after a broken project file: %d", got)
+	}
+	if len(*warns) != 1 || !strings.Contains((*warns)[0], "models.json") {
+		t.Errorf("warnings %v", *warns)
 	}
 }

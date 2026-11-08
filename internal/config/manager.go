@@ -96,7 +96,7 @@ func (m *Manager) SetProject(path string) (bool, []Problem) {
 	return m.Reload()
 }
 
-// Watch starts watching both files. wake runs, from the watcher's goroutine,
+// Watch starts watching both files and the models.json beside each. wake runs, from the watcher's goroutine,
 // after a change settles; the UI then calls TakeChange and Reload.
 func (m *Manager) Watch(wake func()) error {
 	w, err := fsnotify.NewWatcher()
@@ -167,6 +167,9 @@ func (m *Manager) event(ev fsnotify.Event) {
 	for _, f := range []string{m.user, m.project} {
 		if f == "" {
 			continue
+		}
+		if name == filepath.Join(filepath.Dir(f), ModelsFile) {
+			relevant = true
 		}
 		switch dir := LanguagesDir(f); {
 		case name == dir: // the languages folder appeared or went away

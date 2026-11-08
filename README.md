@@ -10,7 +10,7 @@
 
 Hm is a desktop code editor with an AI coding agent built in. It is written in Go and draws its UI with [Yoga](https://github.com/mirzakhany/yoga), a GPU-rendered (WebGPU) UI toolkit, so it starts quickly, stays light, and runs natively on macOS, Linux and Windows without a browser engine. It is a sibling of [Chapar](https://github.com/chapar-rest/chapar) and shares its look and feel.
 
-Everything is configured in plain YAML, with a settings page on top. The agent is bring-your-own-key: Anthropic, OpenAI or any OpenAI-compatible endpoint (OpenRouter, Ollama, LM Studio, ...), and nothing leaves your machine except the calls you configure.
+Everything is configured in plain YAML, with a settings page on top. The agent is bring-your-own-key: Anthropic, OpenAI or any OpenAI-compatible endpoint (OpenRouter, Groq, Mistral, xAI, Ollama, LM Studio, ...), and nothing leaves your machine except the calls you configure.
 
 ## Why "Hm"?
 
@@ -62,6 +62,8 @@ Fast where it can be, and quiet when you need to think.
 - Chat with the agent beside the editor or full screen; ask about a selection with `cmd+alt+l`.
 - Sessions in tabs, several working at once: `cmd+t` opens one, `ctrl+tab` / `ctrl+shift+tab` switch, and a spinner or dot marks a tab that is working, waiting for you or was interrupted.
 - Full screen, a sidebar replaces the explorer: New chat, Projects, Artifacts, a filterable history of every session (across all your folders, with sub-agents and forks nested under the session they came from) and Agent Settings.
+- Providers: Anthropic, OpenAI and any OpenAI-compatible endpoint. OpenRouter, Groq, Cerebras, Mistral, xAI, DeepSeek, Together, Fireworks, Hugging Face, Ollama and LM Studio are known by name (`type: groq`), so Settings → Agent → **Add a provider** only asks for a key.
+- A model registry: `~/.config/hm/models.json` and `.hm/models.json` add models or change what hm knows of them (context window, max output, prices, what they support, effort levels), the workspace's file winning. The context meter, compaction and the cost of each reply use it. Changes apply as soon as you save.
 - Projects: a title, description and context that the agent is given before every task in the project's sessions. Pick one in the composer.
 - Reads the instruction files other agents use: `AGENTS.md`, or `CLAUDE.md` when there is none, from `~/.config/hm` and from each folder between your home folder and the workspace, outer folders first. A `SYSTEM.md` (`.hm/SYSTEM.md`, else `~/.config/hm/SYSTEM.md`) replaces the base prompt, or adds to it when its first line is `<!-- append -->`. The book icon in the session header and `/context` list the files a session uses. A session reads them once when it starts, so its prompt stays cached.
 - Prompt templates: each `.md` file in `~/.config/hm/prompts`, `.hm/prompts`, `.claude/commands` or `.pi/prompts` is a `/name` command in the message box, listed in its completions with its description. `$ARGUMENTS` is what you type after the command, `$1`, `$2` … its words (quotes group them), and a line `@path` inlines a workspace file (guard.yaml rules apply). Front matter can set `description`, `argument-hint`, `mode` and `model` (a provider's name or the model it runs). Claude Code commands work as they are. Built-in commands win over a template of the same name.
@@ -215,8 +217,9 @@ languages:
 agent:
   default_provider: anthropic
   providers:
-    openrouter: { type: openai, base_url: "https://openrouter.ai/api/v1", api_key: "${OPENROUTER_API_KEY}" }
-    ollama: { type: openai, base_url: "http://localhost:11434/v1", model: qwen3, context_window: 32768 } # for models hm doesn't know
+    openrouter: { type: openrouter, api_key: "${OPENROUTER_API_KEY}" } # a preset: base_url filled in
+    ollama: { type: ollama, model: qwen3, context_window: 32768 }       # context_window: for models hm doesn't know
+    work: { type: openai, base_url: "https://llm.example.com/v1", api_key: "keychain:work" }
   retry: { max_attempts: 5 }                       # retries after a failed model call; 0 = off
   compaction:                                      # summarise older messages near the window's limit
     enabled: true                                  # by itself; /compact works either way
@@ -242,6 +245,17 @@ keybindings:   # swap Enter and Alt+Enter while the agent works
 
 artifacts:
   storage: none   # none | gcs | s3 | git (not wired up yet)
+```
+
+`models.json` (beside `config.yaml` in `~/.config/hm` or `.hm`) is a list of models. Every field but `id` is optional; one you leave out comes from hm's own table or a shorter id that matches (`claude-opus-5` covers `claude-opus-5-20261101`). `provider` limits an entry to one name under `agent.providers`. Prices are USD per million tokens and fill in the cost when the API does not report one.
+
+```json
+[
+  { "id": "qwen3", "provider": "ollama", "name": "Qwen 3", "context_window": 32768, "max_output": 8192,
+    "supports": { "tools": true, "images": false, "thinking": true } },
+  { "id": "claude-opus-5-5", "price": { "input": 4, "output": 20, "cache_read": 0.2, "cache_write": 5 },
+    "efforts": ["low", "medium", "high", "xhigh", "max"] }
+]
 ```
 
 ## Roadmap

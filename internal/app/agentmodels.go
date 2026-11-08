@@ -10,16 +10,21 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/mirzakhany/hm/internal/agent/host"
+	"github.com/mirzakhany/hm/internal/agent/provider"
+	"github.com/mirzakhany/hm/internal/config"
 )
 
 // providerLabel is how a provider is shown: the two built-in ones by what
-// they speak, any other by its config name.
+// they speak, a preset's by the service, any other by its config name.
 func providerLabel(name string) string {
 	switch name {
 	case "anthropic":
 		return "Anthropic"
 	case "openai":
 		return "OpenAI-compatible"
+	}
+	if p, ok := provider.Presets[name]; ok {
+		return p.Label
 	}
 	return name
 }
@@ -30,11 +35,42 @@ func localEndpoint(baseURL string) bool {
 	return strings.Contains(baseURL, "localhost") || strings.Contains(baseURL, "127.0.0.1")
 }
 
+// localProvider reports whether a provider is an OpenAI-compatible server
+// on this machine.
+func localProvider(pc config.Provider) bool {
+	return provider.OpenAICompatible(pc.Type) && localEndpoint(provider.BaseURL(pc.Type, pc.BaseURL))
+}
+
 // providerReady reports whether a provider can be called: it has a key, or
 // it is a local endpoint that needs none.
 func (a *App) providerReady(name string) bool {
-	pc := a.cfg.Current().Agent.Providers[name]
-	return a.hasProviderKey(name) || (pc.Type == "openai" && localEndpoint(pc.BaseURL))
+	return a.hasProviderKey(name) || localProvider(a.cfg.Current().Agent.Providers[name])
+}
+
+// addProvider adds a preset under its own name and asks for its key.
+func (a *App) addProvider(name string) {
+	p, ok := provider.Presets[name]
+	if !ok {
+		return
+	}
+	if _, exists := a.cfg.Current().Agent.Providers[name]; !exists {
+		a.setUserSetting([]string{"agent", "providers", name, "type"}, name)
+	}
+	if !p.Local {
+		a.askProviderKey(name)
+	}
+}
+
+// addProviderSetting is the Settings row that adds a preset not set up yet.
+func (a *App) addProviderSetting() ui.FormItem {
+	opts := []ui.SelectOption{{Label: "Choose a service", Value: ""}}
+	for _, n := range provider.PresetNames() {
+		if _, ok := a.cfg.Current().Agent.Providers[n]; !ok {
+			opts = append(opts, ui.SelectOption{Label: provider.Presets[n].Label, Value: n})
+		}
+	}
+	return ui.FormSelect("set-agent-add-provider", "Add a provider",
+		"Services that speak the OpenAI API; paste a key and pick a model", opts, 0, a.addProvider)
 }
 
 // modelOf is the model a provider runs, with the Anthropic default filled in.

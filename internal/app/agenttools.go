@@ -8,6 +8,7 @@ import (
 
 	"github.com/mirzakhany/hm/internal/agent/host"
 	"github.com/mirzakhany/hm/internal/agent/mcp"
+	"github.com/mirzakhany/hm/internal/agent/provider"
 	"github.com/mirzakhany/hm/internal/config"
 )
 
@@ -15,7 +16,24 @@ import (
 // it is now.
 func (a *App) agentHost() *host.Host {
 	return &host.Host{Root: a.ws.Root, Config: a.cfg.Current(), Projects: a.agent.projects, MCP: a.agent.mcp,
-		Warn: func(msg string) { a.notifs.Add(msg, ui.ToastWarning) }}
+		Warn: a.agentWarn, Registry: a.modelRegistry()}
+}
+
+func (a *App) agentWarn(msg string) { a.notifs.Add(msg, ui.ToastWarning) }
+
+// modelRegistry is hm's model table with the models.json files on top,
+// read once per workspace and again when one of them changes.
+func (a *App) modelRegistry() *provider.Registry {
+	st := &a.agent
+	if st.registry == nil || st.registryRoot != a.ws.Root {
+		var err error
+		st.registry, err = host.LoadModels(a.ws.Root)
+		st.registryRoot = a.ws.Root
+		if err != nil {
+			a.agentWarn(err.Error())
+		}
+	}
+	return st.registry
 }
 
 // agentTools are the tools of r beyond the config's: the editor's

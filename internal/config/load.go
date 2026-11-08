@@ -232,6 +232,22 @@ var UserDir = func() string {
 // ProjectPath is the project config file under root.
 func ProjectPath(root string) string { return filepath.Join(root, ".hm", "config.yaml") }
 
+// ModelsFile is the model registry kept beside each config file: it adds
+// models to hm's table or changes their limits and prices.
+const ModelsFile = "models.json"
+
+// ModelsPaths are the registry files for a config's user and project
+// files, the project's last so it wins; an empty path is left out.
+func ModelsPaths(user, project string) []string {
+	var out []string
+	for _, f := range []string{user, project} {
+		if f != "" {
+			out = append(out, filepath.Join(filepath.Dir(f), ModelsFile))
+		}
+	}
+	return out
+}
+
 // ExpandHome replaces a leading ~ with the home folder.
 func ExpandHome(p string) string {
 	if p == "~" || strings.HasPrefix(p, "~/") {

@@ -16,6 +16,7 @@ import (
 	"github.com/mirzakhany/hm/internal/agent/host"
 	"github.com/mirzakhany/hm/internal/agent/mcp"
 	"github.com/mirzakhany/hm/internal/agent/prompts"
+	"github.com/mirzakhany/hm/internal/agent/provider"
 	"github.com/mirzakhany/hm/internal/agent/tools"
 	"github.com/mirzakhany/hm/internal/config"
 	"github.com/mirzakhany/hm/internal/diff"
@@ -55,6 +56,10 @@ type agentState struct {
 	settingsCat string
 
 	keys secrets.Store
+	// registry is the model registry of registryRoot, nil until read and
+	// after a models.json changes.
+	registry     *provider.Registry
+	registryRoot string
 	// share stands in for the browser and GitHub in tests of /export
 	// and /share.
 	share shareHooks

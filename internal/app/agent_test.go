@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -322,6 +323,32 @@ agent:
 	h.app.agent.keys.Set("remote", "sk-test")
 	h.app.refreshProviderKeys()
 	h.until("key read", 10*time.Second, func() bool { return h.app.providerReady("remote") })
+}
+
+func TestAddPresetProvider(t *testing.T) {
+	root := project(t)
+	writeFile(t, filepath.Join(root, ".hm", "config.yaml"), `
+agent:
+  providers:
+    box: { type: ollama }
+`)
+	h := newHarness(t, root, false)
+	if !h.app.providerReady("box") {
+		t.Fatal("a local preset needs no key")
+	}
+	item := h.app.addProviderSetting()
+	var values []string
+	for _, o := range item.Options {
+		values = append(values, o.Value)
+	}
+	if !slices.Contains(values, "groq") || !slices.Contains(values, "lmstudio") || slices.Contains(values, "anthropic") {
+		t.Fatalf("add options %v", values)
+	}
+	item.OnChange("lmstudio")
+	h.until("config reload", 10*time.Second, func() bool { return h.app.providerReady("lmstudio") })
+	if got := providerLabel("lmstudio"); got != "LM Studio" {
+		t.Fatalf("label %q", got)
+	}
 }
 
 // Docked as a panel, the composer opens tall at the top of a new session

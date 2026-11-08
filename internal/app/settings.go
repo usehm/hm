@@ -11,6 +11,7 @@ import (
 	"github.com/mirzakhany/yoga/ui"
 
 	"github.com/mirzakhany/hm/internal/agent"
+	"github.com/mirzakhany/hm/internal/agent/provider"
 	"github.com/mirzakhany/hm/internal/config"
 	"github.com/mirzakhany/hm/internal/workspace"
 )
@@ -354,6 +355,7 @@ func (a *App) agentSettings(c *ui.Ctx) ui.View {
 		ui.FormSelect("set-agent-layout", "Layout", "Full screen, toggled with the editor, or a panel beside it",
 			enumOptions("agent.layout"), enumIndex("agent.layout", cfg.Layout),
 			func(v string) { a.setSetting([]string{"agent", "layout"}, v) }),
+		a.addProviderSetting(),
 	).Grouped()}
 	for _, name := range provs {
 		name := name
@@ -361,14 +363,17 @@ func (a *App) agentSettings(c *ui.Ctx) ui.View {
 		status, keyLabel := "No key: add one to choose a model", "Add key"
 		if a.hasProviderKey(name) {
 			status, keyLabel = "Key set", "Replace key"
-		} else if pc.Type == "openai" && localEndpoint(pc.BaseURL) {
+		} else if localProvider(pc) {
 			status = "Local endpoint, no key needed"
 		}
 		items := []ui.FormItem{ui.FormHeading(providerLabel(name), status)}
-		if pc.Type == "openai" {
+		if provider.OpenAICompatible(pc.Type) {
 			base := []string{"agent", "providers", name, "base_url"}
-			items = append(items, ui.FormText("set-agent-base-"+name, "Base URL",
-				"OpenAI, OpenRouter, Ollama, LM Studio, Groq, DeepSeek, …",
+			hint := "OpenAI, OpenRouter, Ollama, LM Studio, Groq, DeepSeek, …"
+			if p, ok := provider.Presets[pc.Type]; ok {
+				hint = "Empty uses " + p.BaseURL
+			}
+			items = append(items, ui.FormText("set-agent-base-"+name, "Base URL", hint,
 				a.textValue(base, pc.BaseURL), func(v string) { a.setTextSetting(base, v) }))
 		}
 		if a.providerReady(name) {

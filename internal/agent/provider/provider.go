@@ -129,6 +129,9 @@ type Response struct {
 	// StopDetail explains a refusal, when the API says why.
 	StopDetail string
 	Usage      Usage
+	// Model is the model the API says answered, when it says; a fallback
+	// may answer for the one asked for.
+	Model string
 }
 
 // EventKind tags streaming events.
@@ -162,20 +165,18 @@ type Provider interface {
 
 // Config builds a provider.
 type Config struct {
-	Type    string // anthropic | openai
+	Type    string // anthropic | openai | one of Presets
 	BaseURL string
 	APIKey  string
 }
 
 // New returns the provider for cfg.
 func New(cfg Config) (Provider, error) {
-	switch cfg.Type {
-	case "anthropic":
+	if cfg.Type == "anthropic" {
 		return NewAnthropic(cfg), nil
-	case "openai", "":
-		if cfg.BaseURL == "" {
-			cfg.BaseURL = "https://api.openai.com/v1"
-		}
+	}
+	if OpenAICompatible(cfg.Type) {
+		cfg.BaseURL = BaseURL(cfg.Type, cfg.BaseURL)
 		return NewOpenAI(cfg), nil
 	}
 	return nil, errors.New("unknown provider type " + cfg.Type)

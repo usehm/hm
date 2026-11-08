@@ -73,6 +73,7 @@ func (a *App) reloadConfig() {
 	before := a.cfg.Current()
 	beforeProblems := a.problemsKey
 	applied, problems := a.cfg.Reload()
+	a.agent.registry = nil // a models.json may be what changed
 	a.problemsKey = fmt.Sprint(problems)
 	a.showConfigDiagnostics()
 	if !applied {

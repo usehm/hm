@@ -283,10 +283,7 @@ func (a *Anthropic) response(acc anthropic.BetaMessage, model string) (Response,
 	u := acc.Usage
 	r.Usage = Usage{Input: u.InputTokens, Output: u.OutputTokens,
 		CacheRead: u.CacheReadInputTokens, CacheWrite: u.CacheCreationInputTokens}
-	r.Usage.Cost = Cost(string(acc.Model), r.Usage)
-	if r.Usage.Cost == 0 {
-		r.Usage.Cost = Cost(model, r.Usage)
-	}
+	r.Model = string(acc.Model)
 	return r, nil
 }
 

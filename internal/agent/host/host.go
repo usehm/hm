@@ -31,6 +31,9 @@ type Host struct {
 	// Warn is told about things the user should fix that do not stop the
 	// agent, such as a skill that does not read; nil drops them.
 	Warn func(msg string)
+	// Registry is the model registry; nil reads it with LoadModels the
+	// first time it is needed.
+	Registry *provider.Registry
 }
 
 func (h *Host) warn(msg string) {
@@ -59,6 +62,28 @@ func (h *Host) Guard() (*guard.Guard, error) {
 		return nil, errors.New("guard.yaml: " + err.Error())
 	}
 	return g, nil
+}
+
+// LoadModels reads hm's model table with the user's and the workspace's
+// models.json on top. A file that does not read is left out and reported.
+func LoadModels(root string) (*provider.Registry, error) {
+	proj := ""
+	if root != "" {
+		proj = config.ProjectPath(root)
+	}
+	return provider.Builtin().Merge(config.ModelsPaths(config.UserPath(), proj)...)
+}
+
+// Models is the model registry.
+func (h *Host) Models() *provider.Registry {
+	if h.Registry == nil {
+		var err error
+		h.Registry, err = LoadModels(h.Root)
+		if err != nil {
+			h.warn(err.Error())
+		}
+	}
+	return h.Registry
 }
 
 // Modes resolves the configured modes for the workspace.
@@ -103,7 +128,7 @@ func (h *Host) ModelOf(name string) string {
 }
 
 // ContextWindow is the window of the provider's model in tokens: the
-// provider's context_window, else hm's table; 0 when unknown.
+// provider's context_window, else the model registry; 0 when unknown.
 func (h *Host) ContextWindow(name string) int { return h.contextWindow(name, "") }
 
 // contextWindow is ContextWindow for model, or the provider's own model
@@ -115,8 +140,8 @@ func (h *Host) contextWindow(name, model string) int {
 	if model == "" {
 		model = h.ModelOf(name)
 	}
-	l, _ := provider.LimitsOf(model)
-	return l.ContextWindow
+	m, _ := h.Models().Lookup(name, model)
+	return m.ContextWindow
 }
 
 // Compaction is how agents of provider name, built as prov, compact: the
@@ -137,12 +162,13 @@ func (h *Host) Compaction(name string, prov provider.Provider) (*agent.CompactCo
 	}
 	return &agent.CompactConfig{
 		Auto: cc.Enabled, Threshold: cc.Threshold, Reserve: cc.ReserveTokens, KeepTokens: cc.KeepTokens,
-		Compactor: agent.ModelCompactor{Provider: h.retry(sumProv), Model: model},
+		Compactor: agent.ModelCompactor{Provider: h.wrap(sumName, sumProv), Model: model},
 	}, nil
 }
 
-func (h *Host) retry(p provider.Provider) provider.Provider {
-	return provider.WithRetry(p, h.Config.Agent.Retry.MaxAttempts)
+// wrap adds retries and pricing to provider name's calls.
+func (h *Host) wrap(name string, p provider.Provider) provider.Provider {
+	return provider.WithPricing(provider.WithRetry(p, h.Config.Agent.Retry.MaxAttempts), h.Models(), name)
 }
 
 // Context reads the instruction files (AGENTS.md, SYSTEM.md and the like)
@@ -245,7 +271,7 @@ func (h *Host) Build(t Turn) (*agent.Agent, error) {
 		ctx = &agent.Context{}
 	}
 	return &agent.Agent{
-		Provider: h.retry(prov),
+		Provider: h.wrap(t.Provider, prov),
 		Model:    model, Effort: pc.Effort, ContextWindow: h.contextWindow(t.Provider, model),
 		Compaction: compaction,
 		System:     agent.System(mode, h.Root, s.Created, project, ctx, extra),

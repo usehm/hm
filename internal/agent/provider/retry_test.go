@@ -313,25 +313,3 @@ func TestClassify(t *testing.T) {
 		}
 	}
 }
-
-func TestLimitsOf(t *testing.T) {
-	cases := []struct {
-		model  string
-		window int
-		ok     bool
-	}{
-		{"claude-opus-5-5", 1_000_000, true},
-		{"claude-haiku-4-5-20251001", 200_000, true},
-		{"anthropic.claude-sonnet-4-6", 1_000_000, true},
-		{"anthropic/claude-opus-5", 1_000_000, true},
-		{"openai/gpt-4o-mini", 128_000, true},
-		{"gpt-4.1-nano", 1_047_576, true},
-		{"llama3.2", 0, false},
-	}
-	for _, tc := range cases {
-		l, ok := LimitsOf(tc.model)
-		if l.ContextWindow != tc.window || ok != tc.ok {
-			t.Errorf("LimitsOf(%q) = %v %v", tc.model, l, ok)
-		}
-	}
-}

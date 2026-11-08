@@ -197,6 +197,12 @@ func TestManagerKeepsLastGoodAndHotReloads(t *testing.T) {
 	if m.Current().Editor.Theme != "dracula" {
 		t.Fatalf("project wins: %s", m.Current().Editor.Theme)
 	}
+
+	// The model registry beside either file counts as a change.
+	for _, f := range ModelsPaths(user, proj) {
+		_ = os.WriteFile(f, []byte("[]"), 0o644)
+		waitWake(t, m, woke)
+	}
 }
 
 func waitWake(t *testing.T, m *Manager, woke chan struct{}) {

@@ -62,7 +62,7 @@ func checkToolTurn(t *testing.T, resp Response, events []Event) {
 
 func TestAnthropicStreamAndReplay(t *testing.T) {
 	srv, bodies := fixture(t, "anthropic_tool_use.sse")
-	p := NewAnthropic(Config{APIKey: "sk-test", BaseURL: srv.URL})
+	p := WithPricing(NewAnthropic(Config{APIKey: "sk-test", BaseURL: srv.URL}), nil, "anthropic")
 	req := Request{Model: "claude-opus-5-5", System: "You are hm.", Tools: []Tool{readTool}, Effort: "high",
 		Messages: []Message{{Role: User, Blocks: []Block{{Type: Text, Text: "read a.go"}}}}}
 	var events []Event

@@ -179,6 +179,13 @@ type rule struct {
 	check func(n *yaml.Node) string
 }
 
+// ProviderTypes are the agent.providers.*.type words: anthropic, openai,
+// and the OpenAI-compatible services hm knows the address of (kept in step
+// with provider.Presets by a test in internal/agent/host).
+var ProviderTypes = []string{"anthropic", "openai",
+	"cerebras", "deepseek", "fireworks", "groq", "huggingface", "lmstudio",
+	"mistral", "ollama", "openrouter", "together", "xai"}
+
 // Enums lists the allowed words per key path; the JSON schema uses it too.
 var Enums = map[string][]string{
 	"editor.auto_save":               {AutoSaveOff, AutoSaveFocusChange, AutoSaveDelay},
@@ -189,7 +196,7 @@ var Enums = map[string][]string{
 	"editor.keymap":                  {"default", "vim"},
 	"editor.auto_indent":             {AutoIndentNone, AutoIndentKeep, AutoIndentAdvanced},
 	"languages.*.editor.auto_indent": {AutoIndentNone, AutoIndentKeep, AutoIndentAdvanced},
-	"agent.providers.*.type":         {"anthropic", "openai"},
+	"agent.providers.*.type":         ProviderTypes,
 	"agent.providers.*.effort":       {"low", "medium", "high", "xhigh", "max"},
 	"modes.*.approval.*":             {"auto", "ask", "deny"},
 	"tools.mcp.*.transport":          {"stdio", "http"},
