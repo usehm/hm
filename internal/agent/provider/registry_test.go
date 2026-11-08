@@ -21,6 +21,8 @@ func TestBuiltinLookup(t *testing.T) {
 		{"anthropic/claude-opus-5", 1_000_000, true},
 		{"openai/gpt-4o-mini", 128_000, true},
 		{"gpt-4.1-nano", 1_047_576, true},
+		{"models/gemini-2.5-pro", 1_048_576, true},
+		{"gemini-3-pro-preview", 1_048_576, true},
 		{"llama3.2", 0, false},
 	}
 	for _, tc := range cases {

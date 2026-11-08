@@ -145,7 +145,7 @@ func TestSubagentPromptAndReport(t *testing.T) {
 }
 
 func TestProviderTypesMatchPresets(t *testing.T) {
-	want := append([]string{"anthropic", "openai"}, provider.PresetNames()...)
+	want := append([]string{"anthropic", "openai", "google"}, provider.PresetNames()...)
 	got := slices.Clone(config.ProviderTypes)
 	slices.Sort(want)
 	slices.Sort(got)

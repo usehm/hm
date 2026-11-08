@@ -292,6 +292,11 @@ type Provider struct {
 	// ContextWindow is the model's window in tokens, for models hm does
 	// not know; 0 uses hm's table.
 	ContextWindow int `yaml:"context_window"`
+	// Project and Location put a google provider on Vertex AI, signed in
+	// with Google Cloud's application default credentials instead of a
+	// key. Location is a region or global (the default).
+	Project  string `yaml:"project"`
+	Location string `yaml:"location"`
 }
 
 // Completion configures AI inline completions in the editor.

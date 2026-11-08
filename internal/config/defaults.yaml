@@ -381,7 +381,9 @@ agent:
   layout: fullscreen          # fullscreen (toggles with the editor) | panel (beside it)
   # Keys live in the OS keychain: "keychain:<name>" (Settings → Agent → Add key)
   # or an environment variable: "${OPENAI_API_KEY}". Pick the model in
-  # Settings → Agent once a key is set. type is anthropic, openai (any
+  # Settings → Agent once a key is set. type is anthropic, google (Gemini;
+  # project: and location: put it on Vertex AI, signed in with
+  # `gcloud auth application-default login` instead of a key), openai (any
   # OpenAI-compatible base_url) or a service hm knows the address of:
   # openrouter, groq, cerebras, mistral, xai, deepseek, together,
   # fireworks, huggingface, ollama, lmstudio. hm knows the context window

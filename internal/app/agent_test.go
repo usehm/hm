@@ -120,7 +120,34 @@ func (f *fakeModel) openai(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "data: [DONE]\n\n")
 }
 
-// sameTask is the task both providers run: edit main.go, then run a check.
+func (f *fakeModel) gemini(w http.ResponseWriter, r *http.Request) {
+	var body map[string]any
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	calls := f.next(body)
+	w.Header().Set("Content-Type", "text/event-stream")
+	parts := []any{}
+	if len(calls) == 0 {
+		parts = append(parts, map[string]any{"text": "Done: main prints 1."})
+	}
+	for _, c := range calls {
+		var args any
+		_ = json.Unmarshal([]byte(c.input), &args)
+		parts = append(parts, map[string]any{"functionCall": map[string]any{"name": c.name, "args": args}, "thoughtSignature": "sig"})
+	}
+	sse(w, "", map[string]any{"candidates": []any{map[string]any{"content": map[string]any{"role": "model", "parts": parts}, "finishReason": "STOP"}},
+		"usageMetadata": map[string]any{"promptTokenCount": 100, "candidatesTokenCount": 20}})
+}
+
+// history is what a request sent the model: Gemini's contents, the others'
+// messages.
+func history(body map[string]any) string {
+	if c, ok := body["contents"]; ok {
+		return fmt.Sprint(c)
+	}
+	return fmt.Sprint(body["messages"])
+}
+
+// sameTask is the task every provider runs: edit main.go, then run a check.
 func sameTask() [][]toolCall {
 	return [][]toolCall{
 		{{"read", `{"path":"main.go"}`}},
@@ -141,21 +168,20 @@ func agentProject(t *testing.T, kind string, model *fakeModel) (*harness, string
 		if model.rateLimit(w) {
 			return
 		}
-		if kind == "anthropic" {
+		switch kind {
+		case "anthropic":
 			model.anthropic(w, r)
-		} else {
+		case "google":
+			model.gemini(w, r)
+		default:
 			model.openai(w, r)
 		}
 	}))
 	t.Cleanup(srv.Close)
 	root := project(t)
-	base := srv.URL
-	if kind != "anthropic" {
-		base += "/api/v1"
-	}
-	typ := "openai"
-	if kind == "anthropic" {
-		typ = "anthropic"
+	base, typ := srv.URL+"/api/v1", "openai"
+	if kind == "anthropic" || kind == "google" {
+		base, typ = srv.URL, kind
 	}
 	writeFile(t, filepath.Join(root, ".hm", "config.yaml"), fmt.Sprintf(`
 agent:
@@ -180,8 +206,8 @@ func runTask(t *testing.T, h *harness, text string) {
 	}
 }
 
-func TestSameTaskOnAnthropicAndOpenRouter(t *testing.T) {
-	for _, kind := range []string{"anthropic", "openai"} {
+func TestSameTaskOnEveryProvider(t *testing.T) {
+	for _, kind := range []string{"anthropic", "openai", "google"} {
 		t.Run(kind, func(t *testing.T) {
 			model := &fakeModel{turns: sameTask()}
 			h, root := agentProject(t, kind, model)
@@ -213,10 +239,10 @@ func TestSameTaskOnAnthropicAndOpenRouter(t *testing.T) {
 				t.Fatal("no context meter after a model call")
 			}
 			// The model saw the shell output, and the @main.go context.
-			if first := fmt.Sprint(model.requests[0]["messages"]); !strings.Contains(first, "<file path=") {
+			if first := history(model.requests[0]); !strings.Contains(first, "<file path=") {
 				t.Fatal("@main.go context was not attached")
 			}
-			if last := fmt.Sprint(model.requests[len(model.requests)-1]["messages"]); !strings.Contains(last, "checked") {
+			if last := history(model.requests[len(model.requests)-1]); !strings.Contains(last, "checked") {
 				t.Fatal("shell output did not reach the model")
 			}
 			// One click undoes the turn's file changes.
@@ -542,7 +568,7 @@ agent:
 }
 
 func TestRateLimitRetriesAndContinues(t *testing.T) {
-	for _, kind := range []string{"anthropic", "openai"} {
+	for _, kind := range []string{"anthropic", "openai", "google"} {
 		t.Run(kind, func(t *testing.T) {
 			model := &fakeModel{limited: 1}
 			h, _ := agentProject(t, kind, model)

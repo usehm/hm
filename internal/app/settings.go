@@ -365,6 +365,8 @@ func (a *App) agentSettings(c *ui.Ctx) ui.View {
 			status, keyLabel = "Key set", "Replace key"
 		} else if localProvider(pc) {
 			status = "Local endpoint, no key needed"
+		} else if vertexProvider(pc) {
+			status = "Vertex AI: signs in with gcloud auth application-default login"
 		}
 		items := []ui.FormItem{ui.FormHeading(providerLabel(name), status)}
 		if provider.OpenAICompatible(pc.Type) {
@@ -375,6 +377,15 @@ func (a *App) agentSettings(c *ui.Ctx) ui.View {
 			}
 			items = append(items, ui.FormText("set-agent-base-"+name, "Base URL", hint,
 				a.textValue(base, pc.BaseURL), func(v string) { a.setTextSetting(base, v) }))
+		}
+		if pc.Type == "google" {
+			proj := []string{"agent", "providers", name, "project"}
+			loc := []string{"agent", "providers", name, "location"}
+			items = append(items,
+				ui.FormText("set-agent-project-"+name, "Vertex AI project", "Empty uses the Gemini API with a key",
+					a.textValue(proj, pc.Project), func(v string) { a.setTextSetting(proj, v) }),
+				ui.FormText("set-agent-location-"+name, "Vertex AI location", "A region such as us-central1; empty is global",
+					a.textValue(loc, pc.Location), func(v string) { a.setTextSetting(loc, v) }))
 		}
 		if a.providerReady(name) {
 			items = append(items, a.modelSetting(name))

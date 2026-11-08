@@ -106,15 +106,25 @@ func BuildProvider(name string, pc config.Provider) (provider.Provider, error) {
 	if pc.APIKey != "" {
 		var err error
 		key, err = config.Resolve(pc.APIKey)
-		if err != nil && pc.Type == "anthropic" && strings.HasPrefix(pc.APIKey, "keychain:") {
-			// The SDK may still find credentials of its own.
+		if err != nil && keyOptional(pc) && strings.HasPrefix(pc.APIKey, "keychain:") {
 			key, err = "", nil
 		}
 		if err != nil {
 			return nil, fmt.Errorf("%s API key: %w; add it in Settings → Agent", name, err)
 		}
 	}
-	return provider.New(provider.Config{Type: pc.Type, BaseURL: pc.BaseURL, APIKey: key})
+	project, err := config.Resolve(pc.Project) // "${GOOGLE_CLOUD_PROJECT}"
+	if err != nil {
+		return nil, fmt.Errorf("%s project: %w", name, err)
+	}
+	return provider.New(provider.Config{Type: pc.Type, BaseURL: pc.BaseURL, APIKey: key, Project: project, Location: pc.Location})
+}
+
+// keyOptional reports whether a provider finds credentials of its own
+// when it has no key: the Anthropic SDK (ANTHROPIC_API_KEY, an `ant auth
+// login` profile) and Vertex AI (Google Cloud's default credentials).
+func keyOptional(pc config.Provider) bool {
+	return pc.Type == "anthropic" || pc.Type == "google" && pc.Project != ""
 }
 
 // ModelOf is the model a provider runs, with the Anthropic default filled

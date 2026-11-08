@@ -65,6 +65,8 @@ var builtin = []ModelInfo{
 	{ID: "claude-opus-4-6", ContextWindow: 1_000_000, MaxOutput: 128_000, Price: Price{5, 25, 0.5, 6.25}},
 	{ID: "claude-sonnet-4-6", ContextWindow: 1_000_000, MaxOutput: 64_000, Price: Price{3, 15, 0.3, 3.75}},
 	{ID: "claude-haiku-4-5", ContextWindow: 200_000, MaxOutput: 64_000, Price: Price{1, 5, 0.1, 1.25}},
+	{ID: "gemini-3", ContextWindow: 1_048_576, MaxOutput: 65_536},
+	{ID: "gemini-2.5", ContextWindow: 1_048_576, MaxOutput: 65_536},
 	{ID: "gpt-4o", ContextWindow: 128_000, MaxOutput: 16_384},
 	{ID: "gpt-4.1", ContextWindow: 1_047_576, MaxOutput: 32_768},
 	{ID: "gpt-5", ContextWindow: 400_000, MaxOutput: 128_000},

@@ -37,7 +37,7 @@ func (e *APIError) Error() string { return e.Msg }
 func (e *APIError) Unwrap() error { return e.Kind }
 
 // overflowPhrases are how APIs say the prompt is too long: Anthropic,
-// OpenAI, OpenRouter, Ollama, llama.cpp and vLLM.
+// OpenAI, OpenRouter, Gemini, Ollama, llama.cpp and vLLM.
 var overflowPhrases = []string{
 	"prompt is too long",
 	"context_length_exceeded",
@@ -46,6 +46,7 @@ var overflowPhrases = []string{
 	"context length",
 	"too many tokens",
 	"exceeds the available context",
+	"exceeds the maximum number of tokens", // Gemini
 }
 
 // classify builds the error for a failed call from its status, headers and

@@ -1,0 +1,6 @@
+data: {"candidates":[{"content":{"role":"model","parts":[{"text":"Let me think about it.","thought":true}]}}]}
+
+data: {"candidates":[{"content":{"role":"model","parts":[{"text":"The answer is 4."}]}}]}
+
+data: {"candidates":[{"content":{"role":"model","parts":[{"text":"","thoughtSignature":"sig-end"}]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":50,"candidatesTokenCount":6,"thoughtsTokenCount":12}}
+

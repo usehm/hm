@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -22,6 +23,8 @@ func providerLabel(name string) string {
 		return "Anthropic"
 	case "openai":
 		return "OpenAI-compatible"
+	case "google":
+		return "Google Gemini"
 	}
 	if p, ok := provider.Presets[name]; ok {
 		return p.Label
@@ -41,36 +44,45 @@ func localProvider(pc config.Provider) bool {
 	return provider.OpenAICompatible(pc.Type) && localEndpoint(provider.BaseURL(pc.Type, pc.BaseURL))
 }
 
+// vertexProvider reports whether a provider is Gemini on Vertex AI, which
+// signs in with Google Cloud's default credentials instead of a key.
+func vertexProvider(pc config.Provider) bool { return pc.Type == "google" && pc.Project != "" }
+
 // providerReady reports whether a provider can be called: it has a key, or
-// it is a local endpoint that needs none.
+// it is a local endpoint or Vertex AI, which need none.
 func (a *App) providerReady(name string) bool {
-	return a.hasProviderKey(name) || localProvider(a.cfg.Current().Agent.Providers[name])
+	pc := a.cfg.Current().Agent.Providers[name]
+	return a.hasProviderKey(name) || localProvider(pc) || vertexProvider(pc)
 }
 
-// addProvider adds a preset under its own name and asks for its key.
+// addable are the provider types Settings adds by name: Gemini and the
+// presets.
+func addable() []string { return append([]string{"google"}, provider.PresetNames()...) }
+
+// addProvider adds a Gemini or preset provider under its type's name and
+// asks for its key.
 func (a *App) addProvider(name string) {
-	p, ok := provider.Presets[name]
-	if !ok {
+	if !slices.Contains(addable(), name) {
 		return
 	}
 	if _, exists := a.cfg.Current().Agent.Providers[name]; !exists {
 		a.setUserSetting([]string{"agent", "providers", name, "type"}, name)
 	}
-	if !p.Local {
+	if !provider.Presets[name].Local {
 		a.askProviderKey(name)
 	}
 }
 
-// addProviderSetting is the Settings row that adds a preset not set up yet.
+// addProviderSetting is the Settings row that adds a provider not set up yet.
 func (a *App) addProviderSetting() ui.FormItem {
 	opts := []ui.SelectOption{{Label: "Choose a service", Value: ""}}
-	for _, n := range provider.PresetNames() {
+	for _, n := range addable() {
 		if _, ok := a.cfg.Current().Agent.Providers[n]; !ok {
-			opts = append(opts, ui.SelectOption{Label: provider.Presets[n].Label, Value: n})
+			opts = append(opts, ui.SelectOption{Label: providerLabel(n), Value: n})
 		}
 	}
 	return ui.FormSelect("set-agent-add-provider", "Add a provider",
-		"Services that speak the OpenAI API; paste a key and pick a model", opts, 0, a.addProvider)
+		"Google Gemini and services that speak the OpenAI API; paste a key and pick a model", opts, 0, a.addProvider)
 }
 
 // modelOf is the model a provider runs, with the Anthropic default filled in.

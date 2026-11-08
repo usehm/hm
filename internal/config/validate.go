@@ -180,9 +180,9 @@ type rule struct {
 }
 
 // ProviderTypes are the agent.providers.*.type words: anthropic, openai,
-// and the OpenAI-compatible services hm knows the address of (kept in step
+// google, and the OpenAI-compatible services hm knows the address of (kept in step
 // with provider.Presets by a test in internal/agent/host).
-var ProviderTypes = []string{"anthropic", "openai",
+var ProviderTypes = []string{"anthropic", "openai", "google",
 	"cerebras", "deepseek", "fireworks", "groq", "huggingface", "lmstudio",
 	"mistral", "ollama", "openrouter", "together", "xai"}
 
