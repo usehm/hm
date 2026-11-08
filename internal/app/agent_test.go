@@ -180,7 +180,7 @@ func agentProject(t *testing.T, kind string, model *fakeModel) (*harness, string
 	t.Cleanup(srv.Close)
 	root := project(t)
 	base, typ := srv.URL+"/api/v1", "openai"
-	if kind == "anthropic" || kind == "google" {
+	if kind == "anthropic" || kind == "google" || kind == "azure" {
 		base, typ = srv.URL, kind
 	}
 	writeFile(t, filepath.Join(root, ".hm", "config.yaml"), fmt.Sprintf(`
@@ -207,7 +207,7 @@ func runTask(t *testing.T, h *harness, text string) {
 }
 
 func TestSameTaskOnEveryProvider(t *testing.T) {
-	for _, kind := range []string{"anthropic", "openai", "google"} {
+	for _, kind := range []string{"anthropic", "openai", "google", "azure"} {
 		t.Run(kind, func(t *testing.T) {
 			model := &fakeModel{turns: sameTask()}
 			h, root := agentProject(t, kind, model)

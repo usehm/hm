@@ -1,7 +1,7 @@
 // Package provider talks to language model APIs: Anthropic's Messages API
 // through its SDK, Google's Gemini (on the Gemini API or Vertex AI), and
-// any OpenAI-compatible chat completions endpoint (OpenAI, OpenRouter,
-// Ollama, LM Studio, Groq, DeepSeek, ...).
+// any OpenAI-compatible chat completions endpoint (OpenAI, Azure OpenAI,
+// OpenRouter, Ollama, LM Studio, Groq, DeepSeek, ...).
 //
 // Conversations are kept in a neutral form. An assistant turn also keeps
 // the provider's own copy of the message, so it can be sent back unchanged
@@ -170,9 +170,11 @@ type Provider interface {
 
 // Config builds a provider.
 type Config struct {
-	Type    string // anthropic | openai | google | one of Presets
+	Type    string // anthropic | openai | google | azure | one of Presets
 	BaseURL string
 	APIKey  string
+	// APIVersion is Azure OpenAI's api-version; empty uses its v1 API.
+	APIVersion string
 	// Project and Location pick Vertex AI for google.
 	Project, Location string
 }
@@ -184,6 +186,8 @@ func New(cfg Config) (Provider, error) {
 		return NewAnthropic(cfg), nil
 	case "google":
 		return NewGoogle(cfg), nil
+	case "azure":
+		return NewAzure(cfg), nil
 	}
 	if OpenAICompatible(cfg.Type) {
 		cfg.BaseURL = BaseURL(cfg.Type, cfg.BaseURL)

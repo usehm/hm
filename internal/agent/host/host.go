@@ -117,7 +117,8 @@ func BuildProvider(name string, pc config.Provider) (provider.Provider, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s project: %w", name, err)
 	}
-	return provider.New(provider.Config{Type: pc.Type, BaseURL: pc.BaseURL, APIKey: key, Project: project, Location: pc.Location})
+	return provider.New(provider.Config{Type: pc.Type, BaseURL: pc.BaseURL, APIKey: key, Project: project, Location: pc.Location,
+		APIVersion: pc.APIVersion})
 }
 
 // keyOptional reports whether a provider finds credentials of its own

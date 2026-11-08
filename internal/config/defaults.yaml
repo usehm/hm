@@ -383,7 +383,9 @@ agent:
   # or an environment variable: "${OPENAI_API_KEY}". Pick the model in
   # Settings → Agent once a key is set. type is anthropic, google (Gemini;
   # project: and location: put it on Vertex AI, signed in with
-  # `gcloud auth application-default login` instead of a key), openai (any
+  # `gcloud auth application-default login` instead of a key), azure
+  # (base_url: your resource; model: the deployment; api_version: e.g.
+  # 2024-10-21, or empty for Azure's v1 API), openai (any
   # OpenAI-compatible base_url) or a service hm knows the address of:
   # openrouter, groq, cerebras, mistral, xai, deepseek, together,
   # fireworks, huggingface, ollama, lmstudio. hm knows the context window

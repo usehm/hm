@@ -9,16 +9,21 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 )
 
-// OpenAI speaks the chat completions API that OpenAI, OpenRouter, Ollama,
-// LM Studio, Groq, DeepSeek and others share.
+// OpenAI speaks the chat completions API that OpenAI, Azure OpenAI,
+// OpenRouter, Ollama, LM Studio, Groq, DeepSeek and others share.
 type OpenAI struct {
 	base string
 	key  string
 	http *http.Client
+	// azure calls an Azure OpenAI resource: the key goes in api-key, and
+	// with apiVersion the model is a deployment in the path.
+	azure      bool
+	apiVersion string
 }
 
 // NewOpenAI builds the adapter for cfg.BaseURL (ending in /v1).
@@ -29,7 +34,76 @@ func NewOpenAI(cfg Config) *OpenAI {
 	}
 }
 
-func (o *OpenAI) Name(model string) string { return "openai:" + o.base + ":" + model }
+// NewAzure builds the adapter for an Azure OpenAI resource at cfg.BaseURL
+// (https://<resource>.openai.azure.com). With cfg.APIVersion it calls a
+// deployment, named by the request's model, at that API version; without,
+// the v1 API, which takes the deployment as the model.
+func NewAzure(cfg Config) *OpenAI {
+	o := NewOpenAI(cfg)
+	o.base = strings.TrimSuffix(strings.TrimSuffix(o.base, "/openai/v1"), "/openai")
+	o.azure, o.apiVersion = true, cfg.APIVersion
+	return o
+}
+
+func (o *OpenAI) Name(model string) string {
+	if o.azure {
+		return "azure:" + o.base + ":" + model
+	}
+	return "openai:" + o.base + ":" + model
+}
+
+// url is where a call for model goes.
+func (o *OpenAI) url(model, path string) string {
+	switch {
+	case o.azure && o.apiVersion != "":
+		return o.base + "/openai/deployments/" + url.PathEscape(model) + path + "?api-version=" + url.QueryEscape(o.apiVersion)
+	case o.azure:
+		return o.base + "/openai/v1" + path
+	}
+	return o.base + path
+}
+
+// auth adds the key the way the API takes it.
+func (o *OpenAI) auth(hr *http.Request) {
+	switch {
+	case o.key == "":
+	case o.azure:
+		hr.Header.Set("api-key", o.key)
+	default:
+		hr.Header.Set("Authorization", "Bearer "+o.key)
+	}
+}
+
+// reasoning reports whether the request goes to OpenAI's own models
+// (on OpenAI or Azure) that reason: they take reasoning_effort and count
+// their limit in max_completion_tokens.
+func (o *OpenAI) reasoning(model string) bool {
+	if !o.azure && !strings.Contains(o.base, "api.openai.com") {
+		return false
+	}
+	m := normalize(model)
+	for _, p := range []string{"o1", "o3", "o4", "gpt-5"} {
+		if strings.HasPrefix(m, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// openAIEffort maps hm's effort words onto reasoning_effort: gpt-5 can
+// think minimally, the o-series no less than low.
+func openAIEffort(model, e string) string {
+	switch e {
+	case "xhigh", "max":
+		return "high"
+	case "off":
+		if strings.HasPrefix(normalize(model), "gpt-5") {
+			return "minimal"
+		}
+		return "low"
+	}
+	return e
+}
 
 type oaMessage struct {
 	Role       string       `json:"role"`
@@ -95,8 +169,16 @@ func (o *OpenAI) body(req Request) ([]byte, error) {
 		"stream":         true,
 		"stream_options": map[string]any{"include_usage": true},
 	}
+	reasoning := o.reasoning(req.Model)
 	if req.MaxTokens > 0 {
-		body["max_tokens"] = req.MaxTokens
+		if reasoning {
+			body["max_completion_tokens"] = req.MaxTokens
+		} else {
+			body["max_tokens"] = req.MaxTokens
+		}
+	}
+	if reasoning && req.Effort != "" {
+		body["reasoning_effort"] = openAIEffort(req.Model, req.Effort)
 	}
 	if len(req.Tools) > 0 {
 		var tools []map[string]any
@@ -174,13 +256,14 @@ func (e oaError) kind() string {
 
 // Models lists the endpoint's models from GET /models, sorted.
 func (o *OpenAI) Models(ctx context.Context) ([]string, error) {
+	if o.azure {
+		return nil, errors.New("Azure OpenAI does not list your deployments; type the deployment name")
+	}
 	hr, err := http.NewRequestWithContext(ctx, http.MethodGet, o.base+"/models", nil)
 	if err != nil {
 		return nil, err
 	}
-	if o.key != "" {
-		hr.Header.Set("Authorization", "Bearer "+o.key)
-	}
+	o.auth(hr)
 	resp, err := o.http.Do(hr)
 	if err != nil {
 		return nil, err
@@ -216,15 +299,16 @@ func (o *OpenAI) Stream(ctx context.Context, req Request, onEvent func(Event)) (
 	if err != nil {
 		return Response{}, err
 	}
-	hr, err := http.NewRequestWithContext(ctx, http.MethodPost, o.base+"/chat/completions", bytes.NewReader(data))
+	if o.azure && o.base == "" {
+		return Response{}, errors.New("set base_url to your Azure OpenAI resource, https://<resource>.openai.azure.com")
+	}
+	hr, err := http.NewRequestWithContext(ctx, http.MethodPost, o.url(req.Model, "/chat/completions"), bytes.NewReader(data))
 	if err != nil {
 		return Response{}, err
 	}
 	hr.Header.Set("Content-Type", "application/json")
 	hr.Header.Set("Accept", "text/event-stream")
-	if o.key != "" {
-		hr.Header.Set("Authorization", "Bearer "+o.key)
-	}
+	o.auth(hr)
 	hr.Header.Set("HTTP-Referer", "https://github.com/mirzakhany/hm")
 	hr.Header.Set("X-Title", "hm")
 	resp, err := o.http.Do(hr)

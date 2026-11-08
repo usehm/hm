@@ -369,14 +369,22 @@ func (a *App) agentSettings(c *ui.Ctx) ui.View {
 			status = "Vertex AI: signs in with gcloud auth application-default login"
 		}
 		items := []ui.FormItem{ui.FormHeading(providerLabel(name), status)}
-		if provider.OpenAICompatible(pc.Type) {
+		if provider.OpenAICompatible(pc.Type) || pc.Type == "azure" {
 			base := []string{"agent", "providers", name, "base_url"}
 			hint := "OpenAI, OpenRouter, Ollama, LM Studio, Groq, DeepSeek, …"
 			if p, ok := provider.Presets[pc.Type]; ok {
 				hint = "Empty uses " + p.BaseURL
+			} else if pc.Type == "azure" {
+				hint = "Your resource: https://<resource>.openai.azure.com"
 			}
 			items = append(items, ui.FormText("set-agent-base-"+name, "Base URL", hint,
 				a.textValue(base, pc.BaseURL), func(v string) { a.setTextSetting(base, v) }))
+		}
+		if pc.Type == "azure" {
+			ver := []string{"agent", "providers", name, "api_version"}
+			items = append(items, ui.FormText("set-agent-apiver-"+name, "API version",
+				"Such as 2024-10-21, with the deployment as the model; empty uses the v1 API",
+				a.textValue(ver, pc.APIVersion), func(v string) { a.setTextSetting(ver, v) }))
 		}
 		if pc.Type == "google" {
 			proj := []string{"agent", "providers", name, "project"}

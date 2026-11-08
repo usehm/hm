@@ -25,6 +25,8 @@ func providerLabel(name string) string {
 		return "OpenAI-compatible"
 	case "google":
 		return "Google Gemini"
+	case "azure":
+		return "Azure OpenAI"
 	}
 	if p, ok := provider.Presets[name]; ok {
 		return p.Label
@@ -55,9 +57,9 @@ func (a *App) providerReady(name string) bool {
 	return a.hasProviderKey(name) || localProvider(pc) || vertexProvider(pc)
 }
 
-// addable are the provider types Settings adds by name: Gemini and the
-// presets.
-func addable() []string { return append([]string{"google"}, provider.PresetNames()...) }
+// addable are the provider types Settings adds by name: Azure, Gemini
+// and the presets.
+func addable() []string { return append([]string{"azure", "google"}, provider.PresetNames()...) }
 
 // addProvider adds a Gemini or preset provider under its type's name and
 // asks for its key.

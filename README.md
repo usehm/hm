@@ -10,7 +10,7 @@
 
 Hm is a desktop code editor with an AI coding agent built in. It is written in Go and draws its UI with [Yoga](https://github.com/mirzakhany/yoga), a GPU-rendered (WebGPU) UI toolkit, so it starts quickly, stays light, and runs natively on macOS, Linux and Windows without a browser engine. It is a sibling of [Chapar](https://github.com/chapar-rest/chapar) and shares its look and feel.
 
-Everything is configured in plain YAML, with a settings page on top. The agent is bring-your-own-key: Anthropic, Google Gemini, OpenAI or any OpenAI-compatible endpoint (OpenRouter, Groq, Mistral, xAI, Ollama, LM Studio, ...), and nothing leaves your machine except the calls you configure.
+Everything is configured in plain YAML, with a settings page on top. The agent is bring-your-own-key: Anthropic, Google Gemini, OpenAI, Azure OpenAI or any OpenAI-compatible endpoint (OpenRouter, Groq, Mistral, xAI, Ollama, LM Studio, ...), and nothing leaves your machine except the calls you configure.
 
 ## Why "Hm"?
 
@@ -62,7 +62,7 @@ Fast where it can be, and quiet when you need to think.
 - Chat with the agent beside the editor or full screen; ask about a selection with `cmd+alt+l`.
 - Sessions in tabs, several working at once: `cmd+t` opens one, `ctrl+tab` / `ctrl+shift+tab` switch, and a spinner or dot marks a tab that is working, waiting for you or was interrupted.
 - Full screen, a sidebar replaces the explorer: New chat, Projects, Artifacts, a filterable history of every session (across all your folders, with sub-agents and forks nested under the session they came from) and Agent Settings.
-- Providers: Anthropic, Google Gemini (with an API key, or on Vertex AI with your gcloud sign-in), OpenAI and any OpenAI-compatible endpoint. OpenRouter, Groq, Cerebras, Mistral, xAI, DeepSeek, Together, Fireworks, Hugging Face, Ollama and LM Studio are known by name (`type: groq`), so Settings → Agent → **Add a provider** only asks for a key. Gemini streams its thinking, and its thought signatures go back with the history as the API requires.
+- Providers: Anthropic, Google Gemini (with an API key, or on Vertex AI with your gcloud sign-in), OpenAI, Azure OpenAI (a deployment with `api_version`, or the v1 API) and any OpenAI-compatible endpoint. `/think` sets `reasoning_effort` on OpenAI's reasoning models (o-series, gpt-5) on OpenAI and Azure. OpenRouter, Groq, Cerebras, Mistral, xAI, DeepSeek, Together, Fireworks, Hugging Face, Ollama and LM Studio are known by name (`type: groq`), so Settings → Agent → **Add a provider** only asks for a key. Gemini streams its thinking, and its thought signatures go back with the history as the API requires.
 - A model registry: `~/.config/hm/models.json` and `.hm/models.json` add models or change what hm knows of them (context window, max output, prices, what they support, effort levels), the workspace's file winning. The context meter, compaction and the cost of each reply use it. Changes apply as soon as you save.
 - Switch models mid-session: `ctrl+l` (or the composer's model menu → All models…) searches every provider's models, `/model <name>` picks one by `provider/model`, model id or part of one, and `ctrl+p` steps through `agent.favorite_models`. The history goes along; thinking written by another provider is left out. `/think off|low|medium|high|xhigh|max` sets how hard the model thinks for the session (`/think default` goes back to the provider's), shown next to the model's name. A reopened session goes on with the model and thinking it last ran.
 - Projects: a title, description and context that the agent is given before every task in the project's sessions. Pick one in the composer.
@@ -223,6 +223,7 @@ agent:
     ollama: { type: ollama, model: qwen3, context_window: 32768 }       # context_window: for models hm doesn't know
     gemini: { type: google, api_key: "keychain:gemini", model: gemini-2.5-pro }
     vertex: { type: google, project: "${GOOGLE_CLOUD_PROJECT}", location: us-central1, model: gemini-2.5-pro } # gcloud auth application-default login
+    azure: { type: azure, base_url: "https://my-resource.openai.azure.com", api_key: "keychain:azure", api_version: "2024-10-21", model: my-gpt-5 } # model: the deployment
     work: { type: openai, base_url: "https://llm.example.com/v1", api_key: "keychain:work" }
   favorite_models: [anthropic/claude-opus-5-5, openrouter/openai/gpt-5] # ctrl+p steps through them
   retry: { max_attempts: 5 }                       # retries after a failed model call; 0 = off

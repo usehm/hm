@@ -297,6 +297,9 @@ type Provider struct {
 	// key. Location is a region or global (the default).
 	Project  string `yaml:"project"`
 	Location string `yaml:"location"`
+	// APIVersion is an azure provider's api-version, such as 2024-10-21;
+	// the model is then a deployment name. Empty uses Azure's v1 API.
+	APIVersion string `yaml:"api_version"`
 }
 
 // Completion configures AI inline completions in the editor.
