@@ -76,10 +76,6 @@ func (a *App) addProviderSetting() ui.FormItem {
 // modelOf is the model a provider runs, with the Anthropic default filled in.
 func (a *App) modelOf(name string) string { return a.agentHost().ModelOf(name) }
 
-// contextWindow is the window of the provider's model in tokens; 0 when
-// unknown.
-func (a *App) contextWindow(name string) int { return a.agentHost().ContextWindow(name) }
-
 // setModel makes model the provider's model. It goes to the user config,
 // or to the project config when that one pins the provider's model.
 func (a *App) setModel(name, model string) {

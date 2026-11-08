@@ -303,6 +303,18 @@ func TestSetModelAndMode(t *testing.T) {
 	if info := r.Session(); info.Model != "other-model" || info.Mode != "careful" || !model.Sent(`"other-model"`) {
 		t.Fatalf("session %+v", info)
 	}
+	if err := r.SetEffort("lots"); err == nil {
+		t.Fatal("unknown effort accepted")
+	}
+	if err := r.SetEffort("off"); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Prompt(context.Background(), "again"); err != nil {
+		t.Fatal(err)
+	}
+	if info := r.Session(); info.Effort != "off" || !model.Sent(`"type":"disabled"`) {
+		t.Fatalf("effort off: %+v", info)
+	}
 }
 
 func TestSubagentReportsToParent(t *testing.T) {

@@ -204,14 +204,15 @@ func (r *Registry) Lookup(prov, model string) (ModelInfo, bool) {
 	return out, true
 }
 
-// Listed returns the entries for provider prov, its own and the ones for
-// any provider, merged by id; for a model picker.
+// Listed returns the models of entries scoped to provider prov, for a
+// model picker: what an API's own list may not name, such as a local
+// model. Entries for any provider only describe models.
 func (r *Registry) Listed(prov string) []ModelInfo {
 	seen := map[string]bool{}
 	var out []ModelInfo
 	for i := len(r.entries) - 1; i >= 0; i-- {
 		e := r.entries[i]
-		if (e.Provider != "" && e.Provider != prov) || seen[e.ID] {
+		if e.Provider != prov || prov == "" || seen[e.ID] {
 			continue
 		}
 		seen[e.ID] = true

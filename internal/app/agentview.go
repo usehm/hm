@@ -386,8 +386,8 @@ func (a *App) agentStatus(c *ui.Ctx) []ui.View {
 	out := []ui.View{
 		ui.Row(ui.Icon(icon, 14, th.ForegroundMuted), ui.Caption(r.mode)).Gap(th.Spacing.XXS).Shrink(0).Tooltip("Mode · /mode to switch"),
 	}
-	if m := a.modelOf(r.provider); m != "" {
-		out = append(out, ui.Caption(m).Ellipsis(ui.EllipsisEnd).Shrink(1).Tooltip(providerLabel(r.provider)))
+	if m := a.modelLabel(r); m != "" {
+		out = append(out, ui.Caption(m).Ellipsis(ui.EllipsisEnd).Shrink(1).Tooltip(providerLabel(r.provider)+" · /model to switch, /think to set thinking"))
 	}
 	if u := a.agentUsage(r); u != "" {
 		out = append(out, ui.Caption(u).Ellipsis(ui.EllipsisEnd).Shrink(1).Tooltip("Tokens in (cached included) and out, and cost when known"))
@@ -910,7 +910,7 @@ func (a *App) contextMeter(r *agentRun) ui.View {
 	}
 	text, tip := tokens(used), "Context used by the last request; the model's window is unknown"
 	color := ui.TokenForegroundMuted
-	if w := int64(a.contextWindow(r.provider)); w > 0 {
+	if w := int64(a.agentHost().ContextWindowOf(r.provider, r.model)); w > 0 {
 		text += " / " + tokens(w)
 		tip = "Context used by the last request / the model's window"
 		if used*10 >= w*8 {
@@ -945,7 +945,8 @@ func (a *App) modePicker(r *agentRun) ui.View {
 // composerModel switches between the configured providers, each shown by the
 // model it runs; the model itself is picked in Settings.
 func (a *App) composerModel(r *agentRun) ui.View {
-	var items []ui.MenuItem
+	items := []ui.MenuItem{{Label: "All models…", Shortcut: a.key("agent.pickModel"),
+		OnSelect: func() { a.openModelPicker(a.ctx) }}, ui.MenuSeparator}
 	for _, p := range a.providerNames() {
 		p := p
 		label, hint := a.modelOf(p), providerLabel(p)
@@ -956,11 +957,11 @@ func (a *App) composerModel(r *agentRun) ui.View {
 		if !a.providerReady(p) {
 			hint = "no key"
 		}
-		items = append(items, ui.MenuItem{Label: label, Shortcut: hint, Checked: p == r.provider,
-			OnSelect: func() { r.provider = p }})
+		items = append(items, ui.MenuItem{Label: label, Shortcut: hint, Checked: p == r.provider && r.model == "",
+			OnSelect: func() { r.provider, r.model = p, "" }})
 	}
 	items = append(items, ui.MenuSeparator, ui.MenuItem{Label: "Models and keys…", OnSelect: a.openSettings})
-	label := a.modelOf(r.provider)
+	label := a.modelLabel(r)
 	switch {
 	case !a.providerReady(r.provider):
 		label = "Set up a model"
@@ -1010,7 +1011,7 @@ func (a *App) agentSuggest(value string, caret int) ([]ui.Suggestion, int, int) 
 			}
 		}
 	case start == 0 && strings.HasPrefix(word, "/"):
-		for _, cmd := range []string{"/mode ", "/provider ", "/context", "/compact ", "/tree", "/fork ", "/label ", "/export ", "/share", "/new"} {
+		for _, cmd := range []string{"/mode ", "/provider ", "/model ", "/think ", "/context", "/compact ", "/tree", "/fork ", "/label ", "/export ", "/share", "/new"} {
 			if strings.HasPrefix(cmd, word) {
 				out = append(out, ui.Suggestion{Label: cmd})
 			}

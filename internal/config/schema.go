@@ -195,13 +195,17 @@ type Agent struct {
 	DefaultMode     string `yaml:"default_mode"`
 	// Layout is where the agent shows: fullscreen swaps it with the editor,
 	// panel docks it beside the editor.
-	Layout     string              `yaml:"layout"`
-	Providers  map[string]Provider `yaml:"providers"`
-	Subagents  Subagents           `yaml:"subagents"`
-	Context    AgentContext        `yaml:"context"`
-	Prompts    AgentPrompts        `yaml:"prompts"`
-	Retry      AgentRetry          `yaml:"retry"`
-	Compaction AgentCompaction     `yaml:"compaction"`
+	Layout    string              `yaml:"layout"`
+	Providers map[string]Provider `yaml:"providers"`
+	// FavoriteModels are the models agent.cycleModel steps through and the
+	// model picker lists first, each as provider/model: a name under
+	// providers, then the model id.
+	FavoriteModels []string        `yaml:"favorite_models"`
+	Subagents      Subagents       `yaml:"subagents"`
+	Context        AgentContext    `yaml:"context"`
+	Prompts        AgentPrompts    `yaml:"prompts"`
+	Retry          AgentRetry      `yaml:"retry"`
+	Compaction     AgentCompaction `yaml:"compaction"`
 	// BranchSummary describes a branch the user leaves, for /tree.
 	BranchSummary AgentBranchSummary `yaml:"branch_summary"`
 	// Share is where /share puts a session.
@@ -282,7 +286,8 @@ type Provider struct {
 	APIKey    string `yaml:"api_key"`
 	Model     string `yaml:"model"`
 	MaxTokens int    `yaml:"max_tokens"`
-	// Effort sets how hard the model thinks: low | medium | high | xhigh | max.
+	// Effort sets how hard the model thinks: off | low | medium | high |
+	// xhigh | max; /think changes it for a session.
 	Effort string `yaml:"effort"`
 	// ContextWindow is the model's window in tokens, for models hm does
 	// not know; 0 uses hm's table.

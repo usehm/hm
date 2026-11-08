@@ -95,7 +95,7 @@ func TestRegistryMerge(t *testing.T) {
 	for _, m := range reg.Listed("ollama") {
 		ids = append(ids, m.ID)
 	}
-	if got := strings.Join(ids, " "); !strings.Contains(got, "llama3.3:70b") || !strings.Contains(got, "claude-opus-5-5") {
+	if got := strings.Join(ids, " "); got != "llama3.3:70b" {
 		t.Errorf("listed for ollama: %s", got)
 	}
 }

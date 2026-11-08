@@ -231,3 +231,56 @@ func TestModels(t *testing.T) {
 		t.Fatal("want an error for a missing endpoint")
 	}
 }
+
+func TestEffortOff(t *testing.T) {
+	a := NewAnthropic(Config{APIKey: "x"})
+	cases := []struct{ effort, thinking, outputEffort string }{
+		{"off", `"thinking":{"type":"disabled"}`, ""},
+		{"low", `"thinking":{"display":"summarized","type":"adaptive"}`, `"effort":"low"`},
+		{"", `"thinking":{"display":"summarized","type":"adaptive"}`, ""},
+	}
+	for _, tc := range cases {
+		p, err := a.params(Request{Model: "claude-opus-5-5", Effort: tc.effort})
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, _ := json.Marshal(p)
+		if !strings.Contains(string(data), tc.thinking) {
+			t.Errorf("effort %q: thinking not %s in %s", tc.effort, tc.thinking, data)
+		}
+		if has := strings.Contains(string(data), `"output_config"`); has != (tc.outputEffort != "") ||
+			(has && !strings.Contains(string(data), tc.outputEffort)) {
+			t.Errorf("effort %q: output_config in %s", tc.effort, data)
+		}
+	}
+
+	or := NewOpenAI(Config{BaseURL: "https://openrouter.ai/api/v1"})
+	for effort, want := range map[string]string{"off": `"reasoning":{"enabled":false}`, "max": `"reasoning":{"effort":"high"}`} {
+		data, err := or.body(Request{Model: "m", Effort: effort})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(data), want) {
+			t.Errorf("openrouter effort %q: %s", effort, data)
+		}
+	}
+}
+
+func TestToolIDAcrossProviders(t *testing.T) {
+	a := NewAnthropic(Config{APIKey: "x"})
+	p, err := a.params(Request{Model: "claude-opus-5-5", Messages: []Message{
+		{Role: User, Blocks: []Block{{Type: Text, Text: "go"}}},
+		{Role: Assistant, NativeFrom: "openai:x:y", Blocks: []Block{{Type: ToolUse, ToolID: "call:9/x", ToolName: "read", Input: json.RawMessage(`{}`)}}},
+		{Role: User, Blocks: []Block{{Type: ToolResult, ToolID: "call:9/x", Text: "ok"}}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, _ := json.Marshal(p)
+	if !strings.Contains(string(data), `"id":"t_call_9_x"`) || !strings.Contains(string(data), `"tool_use_id":"t_call_9_x"`) {
+		t.Fatalf("ids not cleaned alike: %s", data)
+	}
+	if got := toolID("toolu_01-ab"); got != "toolu_01-ab" {
+		t.Fatalf("clean id changed: %s", got)
+	}
+}

@@ -129,15 +129,16 @@ func (h *Host) ModelOf(name string) string {
 
 // ContextWindow is the window of the provider's model in tokens: the
 // provider's context_window, else the model registry; 0 when unknown.
-func (h *Host) ContextWindow(name string) int { return h.contextWindow(name, "") }
+func (h *Host) ContextWindow(name string) int { return h.ContextWindowOf(name, "") }
 
-// contextWindow is ContextWindow for model, or the provider's own model
-// when model is empty.
-func (h *Host) contextWindow(name, model string) int {
-	if w := h.Config.Agent.Providers[name].ContextWindow; w > 0 {
-		return w
-	}
-	if model == "" {
+// ContextWindowOf is ContextWindow for provider name running model, or
+// its own model when model is empty. context_window is for the
+// provider's own model only.
+func (h *Host) ContextWindowOf(name, model string) int {
+	if model == "" || model == h.ModelOf(name) {
+		if w := h.Config.Agent.Providers[name].ContextWindow; w > 0 {
+			return w
+		}
 		model = h.ModelOf(name)
 	}
 	m, _ := h.Models().Lookup(name, model)
@@ -210,7 +211,9 @@ type Turn struct {
 	Mode     string
 	Provider string
 	// Model overrides the provider's configured model; empty keeps it.
-	Model  string
+	Model string
+	// Effort overrides the provider's effort; empty keeps it.
+	Effort string
 	Grants *agent.Grants // "allow for this session" answers; nil: none
 	Env    tools.Env
 	// Context is the session's instruction files, read once with Context
@@ -238,12 +241,15 @@ func (h *Host) Build(t Turn) (*agent.Agent, error) {
 	if err != nil {
 		return nil, err
 	}
-	model := pc.Model
+	model, effort := pc.Model, pc.Effort
 	if t.Model != "" {
 		model = t.Model
 	}
+	if t.Effort != "" {
+		effort = t.Effort
+	}
 	s := t.Session
-	s.SetModel(t.Mode, t.Provider, model)
+	s.SetModel(t.Mode, t.Provider, model, effort)
 	topts := t.Tools
 	topts.Mode = mode
 	ts := h.Toolset(topts)
@@ -272,7 +278,7 @@ func (h *Host) Build(t Turn) (*agent.Agent, error) {
 	}
 	return &agent.Agent{
 		Provider: h.wrap(t.Provider, prov),
-		Model:    model, Effort: pc.Effort, ContextWindow: h.contextWindow(t.Provider, model),
+		Model:    model, Effort: effort, ContextWindow: h.ContextWindowOf(t.Provider, model),
 		Compaction: compaction,
 		System:     agent.System(mode, h.Root, s.Created, project, ctx, extra),
 		Tools:      ts.Reg, Policy: policy, Guard: grd, Env: t.Env,

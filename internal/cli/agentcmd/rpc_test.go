@@ -274,6 +274,12 @@ func TestRPCCommands(t *testing.T) {
 	h.ok("m")
 	h.send(map[string]any{"id": "mm", "type": "set_model", "model": "other-model"})
 	h.ok("mm")
+	h.send(map[string]any{"id": "ef", "type": "set_model", "effort": "low"})
+	h.ok("ef")
+	h.send(map[string]any{"id": "badef", "type": "set_model", "effort": "lots"})
+	if h.response("badef")["ok"] != false {
+		t.Fatal("unknown effort accepted")
+	}
 	h.send(map[string]any{"id": "bad", "type": "set_mode", "mode": "nope"})
 	if h.response("bad")["ok"] != false {
 		t.Fatal("unknown mode accepted")
@@ -281,12 +287,12 @@ func TestRPCCommands(t *testing.T) {
 	key := "sk-ant-api03-" + strings.Repeat("Q", 40)
 	h.send(map[string]any{"id": "p", "type": "prompt", "text": "remember " + key})
 	h.until("turn_end", is("turn_end"))
-	if !model.Sent(`"other-model"`) {
+	if !model.Sent(`"other-model"`) || !model.Sent(`"effort":"low"`) {
 		t.Fatal("set_model did not apply")
 	}
 	h.send(map[string]any{"id": "st", "type": "get_state"})
 	s := h.ok("st")["data"].(map[string]any)["session"].(map[string]any)
-	if s["mode"] != "careful" || s["model"] != "other-model" || s["saved"] != true {
+	if s["mode"] != "careful" || s["model"] != "other-model" || s["effort"] != "low" || s["saved"] != true {
 		t.Fatalf("state %v", s)
 	}
 

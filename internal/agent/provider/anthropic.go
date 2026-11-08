@@ -91,11 +91,14 @@ func (a *Anthropic) params(req Request) (anthropic.BetaMessageNewParams, error) 
 	if req.System != "" {
 		p.System = []anthropic.BetaTextBlockParam{{Text: req.System}}
 	}
-	if adaptive(model) {
+	switch {
+	case req.Effort == "off":
+		p.Thinking = anthropic.BetaThinkingConfigParamUnion{OfDisabled: &anthropic.BetaThinkingConfigDisabledParam{}}
+	case adaptive(model):
 		th := anthropic.BetaThinkingConfigAdaptiveParam{Display: anthropic.BetaThinkingConfigAdaptiveDisplaySummarized}
 		p.Thinking = anthropic.BetaThinkingConfigParamUnion{OfAdaptive: &th}
 	}
-	if req.Effort != "" {
+	if req.Effort != "" && req.Effort != "off" {
 		p.OutputConfig = anthropic.BetaOutputConfigParam{Effort: anthropic.BetaOutputConfigEffort(req.Effort)}
 	}
 	if !a.custom && fallbackModel(model) {
@@ -161,10 +164,10 @@ func toAnthropic(m Message, name string) (anthropic.BetaMessageParam, error) {
 				input = json.RawMessage("{}")
 			}
 			blocks = append(blocks, anthropic.BetaContentBlockParamUnion{OfToolUse: &anthropic.BetaToolUseBlockParam{
-				ID: b.ToolID, Name: b.ToolName, Input: input,
+				ID: toolID(b.ToolID), Name: b.ToolName, Input: input,
 			}})
 		case ToolResult:
-			blocks = append(blocks, anthropic.NewBetaToolResultBlock(b.ToolID, b.Text, b.IsError))
+			blocks = append(blocks, anthropic.NewBetaToolResultBlock(toolID(b.ToolID), b.Text, b.IsError))
 		}
 	}
 	role := anthropic.BetaMessageParamRoleUser

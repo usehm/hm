@@ -155,6 +155,7 @@ type SessionInfo struct {
 	Root           string
 	Mode, Provider string
 	Model          string // empty for the provider's default
+	Effort         string // empty for the model's default
 	Status         string // "", "running" or "interrupted"
 	Usage          Usage  // every model call of the session
 	Context        int64  // tokens the next model call about sends

@@ -197,7 +197,7 @@ var Enums = map[string][]string{
 	"editor.auto_indent":             {AutoIndentNone, AutoIndentKeep, AutoIndentAdvanced},
 	"languages.*.editor.auto_indent": {AutoIndentNone, AutoIndentKeep, AutoIndentAdvanced},
 	"agent.providers.*.type":         ProviderTypes,
-	"agent.providers.*.effort":       {"low", "medium", "high", "xhigh", "max"},
+	"agent.providers.*.effort":       {"off", "low", "medium", "high", "xhigh", "max"},
 	"modes.*.approval.*":             {"auto", "ask", "deny"},
 	"tools.mcp.*.transport":          {"stdio", "http"},
 	"tools.mcp.*.approval":           {"auto", "ask", "deny"},
@@ -258,6 +258,12 @@ var rules = func() []rule {
 			return ""
 		}},
 		{"agent.providers.*.context_window", intRange(0, 100_000_000)},
+		{"agent.favorite_models.*", func(n *yaml.Node) string {
+			if p, m, ok := strings.Cut(n.Value, "/"); !ok || p == "" || m == "" {
+				return "must be provider/model, such as anthropic/claude-opus-5-5"
+			}
+			return ""
+		}},
 		{"keys.*", shortcutRule},
 		{"keybindings.*.key", shortcutRule},
 		{"keybindings.*.command", nonEmpty},

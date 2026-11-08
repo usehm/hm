@@ -35,6 +35,7 @@ type rpcCommand struct {
 	Edits       []rpcEdit `json:"edits"`
 	Provider    string    `json:"provider"`
 	Model       string    `json:"model"`
+	Effort      *string   `json:"effort"`
 	Mode        string    `json:"mode"`
 	Focus       string    `json:"focus"`
 	Entry       string    `json:"entry"`
@@ -171,6 +172,7 @@ type rpcSession struct {
 	Mode     string      `json:"mode"`
 	Provider string      `json:"provider"`
 	Model    string      `json:"model"`
+	Effort   string      `json:"effort,omitempty"`
 	Status   string      `json:"status"`
 	Running  bool        `json:"running"`
 	Saved    bool        `json:"saved"`
@@ -179,7 +181,7 @@ type rpcSession struct {
 }
 
 func sessionOf(i agent.SessionInfo) rpcSession {
-	return rpcSession{ID: i.ID, Title: i.Title, Root: i.Root, Mode: i.Mode, Provider: i.Provider, Model: i.Model,
+	return rpcSession{ID: i.ID, Title: i.Title, Root: i.Root, Mode: i.Mode, Provider: i.Provider, Model: i.Model, Effort: i.Effort,
 		Status: i.Status, Running: i.Running, Saved: i.Saved, Context: i.Context, Usage: usageOf(i.Usage)}
 }
 
@@ -358,6 +360,14 @@ func (p *rpc) run(ctx context.Context, c rpcCommand) (any, error) {
 		}
 		return nil, p.client.deliver(c.CallID, "question", c.Text)
 	case "set_model":
+		if c.Effort != nil {
+			if err := r.SetEffort(*c.Effort); err != nil {
+				return nil, err
+			}
+		}
+		if c.Provider == "" && c.Model == "" && c.Effort != nil {
+			return nil, nil // only the effort changes
+		}
 		return nil, r.SetModel(c.Provider, c.Model)
 	case "set_mode":
 		return nil, r.SetMode(c.Mode)

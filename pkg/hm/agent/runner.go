@@ -18,6 +18,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -26,6 +27,7 @@ import (
 	"github.com/mirzakhany/hm/internal/agent"
 	"github.com/mirzakhany/hm/internal/agent/host"
 	"github.com/mirzakhany/hm/internal/agent/mcp"
+	"github.com/mirzakhany/hm/internal/agent/provider"
 	"github.com/mirzakhany/hm/internal/agent/tools"
 	"github.com/mirzakhany/hm/internal/config"
 	"github.com/mirzakhany/hm/internal/secrets"
@@ -81,6 +83,7 @@ type Runner struct {
 	mu                    sync.Mutex
 	session               *agent.Session
 	mode, provider, model string
+	effort                string // empty for the provider's
 	running               bool
 	cancel                context.CancelFunc
 	steer, follow         []string
@@ -325,11 +328,11 @@ func (r *Runner) turn(ctx context.Context, text string) error {
 // build makes the agent for r's next turn.
 func (r *Runner) build() (*agent.Agent, error) {
 	r.mu.Lock()
-	mode, prov, model := r.mode, r.provider, r.model
+	mode, prov, model, effort := r.mode, r.provider, r.model, r.effort
 	r.mu.Unlock()
 	s := r.session
 	return r.h.Build(host.Turn{
-		Session: s, Mode: mode, Provider: prov, Model: model, Grants: r.grants, MaxSteps: r.opts.MaxSteps,
+		Session: s, Mode: mode, Provider: prov, Model: model, Effort: effort, Grants: r.grants, MaxSteps: r.opts.MaxSteps,
 		Env: diskEnv{root: r.h.Root, search: r.h.Config.Search}, Context: r.top.ictx,
 		Tools: host.ToolsetOptions{Shells: r.shells, Todos: r.todos, Agents: link{r},
 			Spawn: r.depth < r.h.Config.Agent.Subagents.MaxDepth, Subagent: r.parent != nil, Write: r.write},
@@ -442,15 +445,18 @@ func (r *Runner) isClosed() bool {
 // Session describes the session.
 func (r *Runner) Session() SessionInfo {
 	r.mu.Lock()
-	mode, prov, model, running := r.mode, r.provider, r.model, r.running
+	mode, prov, model, effort, running := r.mode, r.provider, r.model, r.effort, r.running
 	r.mu.Unlock()
 	s := r.session
 	u := s.UsageNow()
 	if model == "" {
 		model = r.h.Config.Agent.Providers[prov].Model
 	}
+	if effort == "" {
+		effort = r.h.Config.Agent.Providers[prov].Effort
+	}
 	return SessionInfo{
-		ID: s.ID, Title: s.Title, Root: s.Root, Mode: mode, Provider: prov, Model: model,
+		ID: s.ID, Title: s.Title, Root: s.Root, Mode: mode, Provider: prov, Model: model, Effort: effort,
 		Status: s.StatusNow(), Context: s.ContextUsed(), Saved: r.store != nil, Resumed: r.resumed, Running: running,
 		Usage: Usage{Input: u.Input, Output: u.Output, CacheRead: u.CacheRead, CacheWrite: u.CacheWrite, Cost: u.Cost},
 	}
@@ -472,6 +478,19 @@ func (r *Runner) SetModel(prov, model string) error {
 		return err
 	}
 	r.provider, r.model = prov, model
+	return nil
+}
+
+// SetEffort sets how hard the model thinks from the next turn: one of
+// provider.Efforts ("off" turns thinking off), or empty for the
+// provider's effort.
+func (r *Runner) SetEffort(effort string) error {
+	if effort != "" && !slices.Contains(provider.Efforts, effort) {
+		return fmt.Errorf("unknown effort %q; use one of %s", effort, strings.Join(provider.Efforts, ", "))
+	}
+	r.mu.Lock()
+	r.effort = effort
+	r.mu.Unlock()
 	return nil
 }
 

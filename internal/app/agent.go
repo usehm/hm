@@ -60,6 +60,8 @@ type agentState struct {
 	// after a models.json changes.
 	registry     *provider.Registry
 	registryRoot string
+	// picking lists the models in the palette while it is open.
+	picking bool
 	// share stands in for the browser and GitHub in tests of /export
 	// and /share.
 	share shareHooks
@@ -89,7 +91,10 @@ type agentRun struct {
 	grants   *agent.Grants // "allow for this session" answers of session
 	mode     string
 	provider string
-	input    string
+	// model and effort are what the session picked with /model, the
+	// picker or /think; empty follows the provider's config.
+	model, effort string
+	input         string
 
 	running bool
 	cancel  context.CancelFunc
@@ -239,9 +244,7 @@ func (a *App) newRun(s *agent.Session) *agentRun {
 	if s.Mode != "" {
 		r.mode = s.Mode
 	}
-	if s.Provider != "" {
-		r.provider = s.Provider
-	}
+	a.restoreModel(r, s)
 	r.todos.Set(s.Todos)
 	return r.with(s)
 }
@@ -420,7 +423,7 @@ func (a *App) agentFor(r *agentRun) (*agent.Agent, error) {
 	}
 	ctx := a.agentContext(r)
 	ag, err := a.agentHost().Build(host.Turn{
-		Session: s, Mode: r.mode, Provider: r.provider, Grants: r.grants,
+		Session: s, Mode: r.mode, Provider: r.provider, Model: r.model, Effort: r.effort, Grants: r.grants,
 		Env: agentEnv{a}, Context: ctx, Tools: a.agentTools(r),
 		Hooks: agent.Hooks{
 			Event: func(e agent.Event) { a.onUI(func() { a.agentEvent(r, e) }) },
@@ -781,7 +784,7 @@ func (a *App) agentAsk(ctx context.Context, r *agentRun, question string) (strin
 	}
 }
 
-// slashCommand runs /mode, /provider, /context, /compact, /tree, /fork,
+// slashCommand runs /mode, /provider, /model, /think, /context, /compact, /tree, /fork,
 // /label, /export, /share and /new, or else the prompt template of that
 // name.
 func (a *App) slashCommand(r *agentRun, text string) {
@@ -808,7 +811,11 @@ func (a *App) slashCommand(r *agentRun, text string) {
 			r.errText = "Unknown provider " + f[1]
 			return
 		}
-		r.provider, r.errText = f[1], ""
+		r.provider, r.model, r.errText = f[1], "", ""
+	case "/model":
+		a.modelCommand(r, strings.TrimSpace(text[len(f[0]):]))
+	case "/think":
+		a.thinkCommand(r, strings.TrimSpace(text[len(f[0]):]))
 	case "/new", "/clear":
 		a.newAgentSession()
 	case "/context":

@@ -109,7 +109,11 @@ func (o *OpenAI) body(req Request) ([]byte, error) {
 	}
 	if strings.Contains(o.base, "openrouter.ai") {
 		body["usage"] = map[string]any{"include": true} // OpenRouter reports cost
-		if req.Effort != "" {
+		switch req.Effort {
+		case "":
+		case "off":
+			body["reasoning"] = map[string]any{"enabled": false}
+		default:
 			body["reasoning"] = map[string]any{"effort": openRouterEffort(req.Effort)}
 		}
 	}

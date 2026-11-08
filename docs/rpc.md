@@ -41,14 +41,14 @@ A response has `ok`, an `error` when it failed, and `data` for the commands that
 | `approve` | `call_id`, `allow`, and optionally `for_session`, `note`, `edits` | At once. Fails unless that call is waiting for approval. |
 | `answer` | `call_id`, `text` | At once. Fails unless that call is waiting for an answer. |
 | `set_mode` | `mode` | At once; applies from the next turn. |
-| `set_model` | `provider` and/or `model` | At once; applies from the next turn. An empty provider keeps the current one, an empty model is the provider's configured one. |
+| `set_model` | `provider`, `model` and/or `effort` | At once; applies from the next turn. An empty provider keeps the current one, an empty model is the provider's configured one. `effort` (`off`, `low`, `medium`, `high`, `xhigh`, `max`, or `""` for the provider's) is kept when left out; with only `effort`, the model stays. |
 | `compact` | `focus` (optional) | When it is done, after `compaction_start` and `compaction_end`. Fails while a turn runs. |
 | `get_state` | | `data`: `session` (below), `running`, `pending_approvals` and `pending_questions` (call ids). |
 | `list_sessions` | `all` (optional) | `data.sessions`: the saved sessions of the workspace, or every one with `all`, newest first: `id`, `title`, `mode`, `provider`, `root`, `parent_id`, `fork_of`, `status`, `updated`, `turns`, `cost`. |
 | `fork` | `entry` (optional) | When it is idle only. The session goes on as a fork from `entry`, or from its latest message: a new saved session, which hm works in from then on and announces with a new `session_start`. `data` is the fork's `session`. |
 | `export` | `format` (`html`, `md` or `jsonl`; default `html`), `path`, `all_branches` | Writes the session to a file, with the secrets hm knows of and anything shaped like a key taken out. `path` is relative to the workspace; a folder or nothing gets the default name (in Downloads). `data`: `path`, and `redacted`, such as `["2 anthropic key"]`. |
 
-A `session` in `data` has `id`, `title`, `root`, `mode`, `provider`, `model`, `status`, `running`, `saved`, `context` (tokens the next model call about sends) and `usage` (`input`, `output`, `cache_read`, `cache_write`, `cost`).
+A `session` in `data` has `id`, `title`, `root`, `mode`, `provider`, `model`, `effort` (when set), `status`, `running`, `saved`, `context` (tokens the next model call about sends) and `usage` (`input`, `output`, `cache_read`, `cache_write`, `cost`).
 
 ## Approvals
 

@@ -90,8 +90,12 @@ type Request struct {
 	Messages  []Message
 	Tools     []Tool
 	MaxTokens int
-	Effort    string // low | medium | high | xhigh | max; "" keeps the model default
+	Effort    string // one of Efforts; "" keeps the model default
 }
+
+// Efforts are the effort levels a request may ask for, from none to the
+// most: off turns thinking off where the API can.
+var Efforts = []string{"off", "low", "medium", "high", "xhigh", "max"}
 
 // StopReason is why the model stopped.
 type StopReason string
@@ -184,3 +188,21 @@ func New(cfg Config) (Provider, error) {
 
 // ErrNoKey is returned when a provider that needs a key has none.
 var ErrNoKey = errors.New("no API key; add one in Settings → Agent")
+
+// toolID makes a tool call id that another provider wrote one that APIs
+// taking only letters, digits, _ and - accept, the same way for the call
+// and its result, so they still pair.
+func toolID(id string) string {
+	bad := func(r rune) bool {
+		return !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '_' || r == '-')
+	}
+	if id != "" && strings.IndexFunc(id, bad) < 0 {
+		return id
+	}
+	return "t_" + strings.Map(func(r rune) rune {
+		if bad(r) {
+			return '_'
+		}
+		return r
+	}, id)
+}

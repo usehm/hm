@@ -20,7 +20,7 @@ import (
 
 // builtinCommands are the slash commands hm runs itself. They win over
 // prompt templates of the same name.
-var builtinCommands = map[string]bool{"/mode": true, "/provider": true, "/context": true, "/compact": true,
+var builtinCommands = map[string]bool{"/mode": true, "/provider": true, "/model": true, "/think": true, "/context": true, "/compact": true,
 	"/tree": true, "/fork": true, "/label": true, "/export": true, "/share": true, "/new": true, "/clear": true}
 
 // promptTemplates is the prompt templates, read again when stale.
@@ -112,7 +112,9 @@ func (a *App) runTemplate(r *agentRun, cmd, args string) bool {
 	}
 	if fresh.Model != "" {
 		if p := a.providerFor(fresh.Model); p != "" {
-			r.provider = p
+			r.provider, r.model = p, ""
+		} else if m, err := a.resolveModel(r, fresh.Model); err == nil {
+			r.provider, r.model = m.prov, m.model
 		} else {
 			a.toast(fmt.Sprintf("%s asks for model %s, which no provider runs; using %s.", cmd, fresh.Model, providerLabel(r.provider)), ui.ToastWarning)
 		}

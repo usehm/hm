@@ -433,3 +433,17 @@ func TestAgentCompactionSettings(t *testing.T) {
 		}
 	}
 }
+
+func TestFavoriteModels(t *testing.T) {
+	cases := map[string]int{
+		"agent: { favorite_models: [anthropic/claude-opus-5-5, openrouter/openai/gpt-5] }\n": 0,
+		"agent: { favorite_models: [gpt-5] }\n":                                              1,
+		"agent: { favorite_models: [/gpt-5, openai/] }\n":                                    2,
+		"agent: { providers: { anthropic: { effort: off } } }\n":                             0,
+	}
+	for data, want := range cases {
+		if _, ps := Load(Layer{Name: "u", Data: []byte(data)}); len(ps) != want {
+			t.Errorf("%s: problems %v", data, ps)
+		}
+	}
+}

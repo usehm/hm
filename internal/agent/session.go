@@ -42,6 +42,9 @@ type Session struct {
 	// Model is the provider's model the session last ran with; empty for
 	// the provider's default.
 	Model string
+	// Effort is how hard the model was asked to think; empty for its
+	// default.
+	Effort string
 	// Root is the workspace the session works in.
 	Root string
 	// ProjectID is the project whose context the session starts with.
@@ -96,10 +99,12 @@ type Entry struct {
 	Message    *provider.Message `json:"message,omitempty"`
 	Usage      *provider.Usage   `json:"usage,omitempty"`
 	Compaction *Compaction       `json:"compaction,omitempty"`
-	// Mode, Provider and Model are what a mode or model change set.
+	// Mode, Provider, Model and Effort are what a mode or model change
+	// set.
 	Mode     string `json:"mode,omitempty"`
 	Provider string `json:"provider,omitempty"`
 	Model    string `json:"model,omitempty"`
+	Effort   string `json:"effort,omitempty"`
 	// Todos is the task list a KindTodos entry set; empty clears it.
 	Todos []tools.Todo `json:"todos,omitempty"`
 	// Forked marks an entry copied from the session this one was forked
@@ -240,7 +245,7 @@ func (s *Session) settle() {
 			}
 		case KindModelChange:
 			if !modelDone {
-				s.Provider, s.Model, modelDone = e.Provider, e.Model, true
+				s.Provider, s.Model, s.Effort, modelDone = e.Provider, e.Model, e.Effort, true
 			}
 		}
 	}
@@ -466,10 +471,10 @@ func (s *Session) SetTodos(items []tools.Todo) {
 	s.add(Entry{Kind: KindTodos, Todos: slices.Clone(items)})
 }
 
-// SetModel records the mode, provider and model the next turn uses. Each
-// change is an entry, so every branch keeps its own and going back to an
-// earlier point brings back what was used there.
-func (s *Session) SetModel(mode, prov, model string) {
+// SetModel records the mode, provider, model and effort the next turn
+// uses. Each change is an entry, so every branch keeps its own and going
+// back to an earlier point brings back what was used there.
+func (s *Session) SetModel(mode, prov, model, effort string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var cur Entry // the path's latest of each
@@ -480,14 +485,14 @@ func (s *Session) SetModel(mode, prov, model string) {
 		case e.Kind == KindModeChange && !hasMode:
 			cur.Mode, hasMode = e.Mode, true
 		case e.Kind == KindModelChange && !hasModel:
-			cur.Provider, cur.Model, hasModel = e.Provider, e.Model, true
+			cur.Provider, cur.Model, cur.Effort, hasModel = e.Provider, e.Model, e.Effort, true
 		}
 	}
 	if !hasMode || mode != cur.Mode {
 		s.add(Entry{Kind: KindModeChange, Mode: mode})
 	}
-	if !hasModel || prov != cur.Provider || model != cur.Model {
-		s.add(Entry{Kind: KindModelChange, Provider: prov, Model: model})
+	if !hasModel || prov != cur.Provider || model != cur.Model || effort != cur.Effort {
+		s.add(Entry{Kind: KindModelChange, Provider: prov, Model: model, Effort: effort})
 	}
 	s.file.state = true
 }

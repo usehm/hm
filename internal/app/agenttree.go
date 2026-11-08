@@ -269,9 +269,7 @@ func (a *App) branchTo(r *agentRun, id string) {
 	if s.Mode != "" {
 		r.mode = s.Mode
 	}
-	if s.Provider != "" {
-		r.provider = s.Provider
-	}
+	a.restoreModel(r, s)
 	r.todos.Set(s.Todos)
 	// The files the last turn changed belong to the branch left behind.
 	r.lastCheckpoint = nil

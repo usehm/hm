@@ -64,9 +64,10 @@ Fast where it can be, and quiet when you need to think.
 - Full screen, a sidebar replaces the explorer: New chat, Projects, Artifacts, a filterable history of every session (across all your folders, with sub-agents and forks nested under the session they came from) and Agent Settings.
 - Providers: Anthropic, OpenAI and any OpenAI-compatible endpoint. OpenRouter, Groq, Cerebras, Mistral, xAI, DeepSeek, Together, Fireworks, Hugging Face, Ollama and LM Studio are known by name (`type: groq`), so Settings → Agent → **Add a provider** only asks for a key.
 - A model registry: `~/.config/hm/models.json` and `.hm/models.json` add models or change what hm knows of them (context window, max output, prices, what they support, effort levels), the workspace's file winning. The context meter, compaction and the cost of each reply use it. Changes apply as soon as you save.
+- Switch models mid-session: `ctrl+l` (or the composer's model menu → All models…) searches every provider's models, `/model <name>` picks one by `provider/model`, model id or part of one, and `ctrl+p` steps through `agent.favorite_models`. The history goes along; thinking written by another provider is left out. `/think off|low|medium|high|xhigh|max` sets how hard the model thinks for the session (`/think default` goes back to the provider's), shown next to the model's name. A reopened session goes on with the model and thinking it last ran.
 - Projects: a title, description and context that the agent is given before every task in the project's sessions. Pick one in the composer.
 - Reads the instruction files other agents use: `AGENTS.md`, or `CLAUDE.md` when there is none, from `~/.config/hm` and from each folder between your home folder and the workspace, outer folders first. A `SYSTEM.md` (`.hm/SYSTEM.md`, else `~/.config/hm/SYSTEM.md`) replaces the base prompt, or adds to it when its first line is `<!-- append -->`. The book icon in the session header and `/context` list the files a session uses. A session reads them once when it starts, so its prompt stays cached.
-- Prompt templates: each `.md` file in `~/.config/hm/prompts`, `.hm/prompts`, `.claude/commands` or `.pi/prompts` is a `/name` command in the message box, listed in its completions with its description. `$ARGUMENTS` is what you type after the command, `$1`, `$2` … its words (quotes group them), and a line `@path` inlines a workspace file (guard.yaml rules apply). Front matter can set `description`, `argument-hint`, `mode` and `model` (a provider's name or the model it runs). Claude Code commands work as they are. Built-in commands win over a template of the same name.
+- Prompt templates: each `.md` file in `~/.config/hm/prompts`, `.hm/prompts`, `.claude/commands` or `.pi/prompts` is a `/name` command in the message box, listed in its completions with its description. `$ARGUMENTS` is what you type after the command, `$1`, `$2` … its words (quotes group them), and a line `@path` inlines a workspace file (guard.yaml rules apply). Front matter can set `description`, `argument-hint`, `mode` and `model` (a provider's name, the model it runs, or `provider/model`). Claude Code commands work as they are. Built-in commands win over a template of the same name.
 - Type while the agent works. Enter steers: the running tool call finishes, the rest of the batch is skipped and the model reads your message. Alt+Enter sends a follow-up that waits for the turn to end. Queued messages show above the message box with their kind, and can be edited or removed before they are sent.
 - Sessions are saved after every step, as an append-only JSON Lines file (older sessions convert when first opened; the original goes to `sessions/v1/`). If hm stops mid-task, the session reopens marked as interrupted, with a **Resume** button.
 - Replay a session one message at a time, with when each one happened.
@@ -179,6 +180,7 @@ macOS keys; on Windows and Linux `cmd` is `ctrl`, except where a column says oth
 | Toggle agent | `cmd+l` |
 | Ask the agent about the selection | `cmd+alt+l` |
 | While the agent works: steer / send after the turn | `enter` / `alt+enter` |
+| Agent: pick a model / next favourite model | `ctrl+l` / `ctrl+p` |
 | Terminal | `` ctrl+` `` |
 | Settings | `cmd+,` |
 | Zoom in / out / reset | `cmd+=` / `cmd+-` / `cmd+0` |
@@ -220,6 +222,7 @@ agent:
     openrouter: { type: openrouter, api_key: "${OPENROUTER_API_KEY}" } # a preset: base_url filled in
     ollama: { type: ollama, model: qwen3, context_window: 32768 }       # context_window: for models hm doesn't know
     work: { type: openai, base_url: "https://llm.example.com/v1", api_key: "keychain:work" }
+  favorite_models: [anthropic/claude-opus-5-5, openrouter/openai/gpt-5] # ctrl+p steps through them
   retry: { max_attempts: 5 }                       # retries after a failed model call; 0 = off
   compaction:                                      # summarise older messages near the window's limit
     enabled: true                                  # by itself; /compact works either way

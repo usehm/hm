@@ -530,7 +530,7 @@ agent:
 `)
 	h := newHarness(t, root, false)
 	for name, want := range map[string]int{"haiku": 200_000, "local": 0, "sized": 32768} {
-		if got := h.app.contextWindow(name); got != want {
+		if got := h.app.agentHost().ContextWindow(name); got != want {
 			t.Errorf("contextWindow(%s) = %d, want %d", name, got, want)
 		}
 	}

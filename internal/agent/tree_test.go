@@ -251,12 +251,12 @@ func TestLabels(t *testing.T) {
 
 func TestStatePerBranch(t *testing.T) {
 	s := NewSession("auto", "p")
-	s.SetModel("auto", "p", "m1")
+	s.SetModel("auto", "p", "m1", "")
 	s.append(ut("u1"))
 	s.appendReply(at(say("a1")), provider.Usage{Input: 100})
 	fork := s.Head
 	s.SetTodos([]tools.Todo{{Text: "x", Status: "pending"}})
-	s.SetModel("plan", "q", "m2")
+	s.SetModel("plan", "q", "m2", "low")
 	s.append(ut("u2"))
 	s.appendReply(at(say("a2")), provider.Usage{Input: 300, Output: 20})
 	compactAt(s, 2, "S")
@@ -266,10 +266,11 @@ func TestStatePerBranch(t *testing.T) {
 		context    int64
 		todos      int
 		mode, prov string
+		effort     string
 		forModel   int
 	}{
-		{"new branch", s.Head, 0, 1, "plan", "q", 2},
-		{"before todos", fork, 100, 0, "auto", "p", 2},
+		{"new branch", s.Head, 0, 1, "plan", "q", "low", 2},
+		{"before todos", fork, 100, 0, "auto", "p", "", 2},
 	}
 	st := NewStore(t.TempDir())
 	for _, tt := range tests {
@@ -283,9 +284,9 @@ func TestStatePerBranch(t *testing.T) {
 					want = s.CompactionsNow()[0].TokensAfter
 				}
 				if got.ContextUsed() != want || len(got.Todos) != tt.todos || got.Mode != tt.mode ||
-					got.Provider != tt.prov || len(got.ForModel()) != tt.forModel {
-					t.Fatalf("context %d todos %v mode %s/%s model sees %d", got.ContextUsed(), got.Todos,
-						got.Mode, got.Provider, len(got.ForModel()))
+					got.Provider != tt.prov || got.Effort != tt.effort || len(got.ForModel()) != tt.forModel {
+					t.Fatalf("context %d todos %v mode %s/%s/%s model sees %d", got.ContextUsed(), got.Todos,
+						got.Mode, got.Provider, got.Effort, len(got.ForModel()))
 				}
 			}
 		})

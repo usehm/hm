@@ -180,6 +180,10 @@ func (a *App) registerCommands(c *ui.Ctx) {
 			Enabled(a.agentOpen && len(a.agent.tabs) > 1).Run(func() { a.cycleAgentTab(-1) }),
 		ui.Cmd("agent.tabs").Title("Agent: Go to Tab…").Shortcut(a.key("agent.tabs")).Icon(icons.Layers).
 			Enabled(len(a.agent.tabs) > 0).Run(func() { c.Commands().ShowScope(scopeAgentTabs, "Go to agent tab") }),
+		ui.Cmd("agent.pickModel").Title("Agent: Pick a Model…").Shortcut(a.key("agent.pickModel")).Icon(icons.Cpu).
+			Enabled(a.agentOpen && a.run() != nil).Run(func() { a.openModelPicker(c) }),
+		ui.Cmd("agent.cycleModel").Title("Agent: Next Favourite Model").Shortcut(a.key("agent.cycleModel")).Icon(icons.Star).
+			Enabled(a.agentOpen && a.run() != nil).Run(func() { a.cycleModel(a.run()) }),
 		ui.Cmd("agent.projects").Title("Agent: Projects").Icon(icons.FolderKanban).Run(func() { a.openAgentPage(agentTabProjects, "") }),
 		ui.Cmd("agent.settings").Title("Agent: Settings").Icon(icons.Settings).Run(func() { a.openAgentPage(agentTabSettings, "") }),
 		ui.Cmd("agent.undo").Title("Agent: Undo Last Turn").Icon(icons.Undo2).Enabled(a.run() != nil && !a.run().running && a.run().hasPrompt()).Run(func() {
@@ -241,6 +245,7 @@ func (a *App) registerCommands(c *ui.Ctx) {
 		cmds = append(cmds, x.cmds...)
 	}
 	cmds = append(cmds, a.locations...)
+	cmds = append(cmds, a.modelItems(c)...)
 	// Keybindings go first: the first enabled command a key matches runs.
 	c.Commands().Register(append(a.keybindingCmds(c), cmds...)...)
 }
