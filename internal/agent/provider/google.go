@@ -102,6 +102,17 @@ type gPart struct {
 	ThoughtSignature string     `json:"thoughtSignature,omitempty"`
 	FunctionCall     *gCall     `json:"functionCall,omitempty"`
 	FunctionResponse *gResponse `json:"functionResponse,omitempty"`
+	InlineData       *gBlob     `json:"inlineData,omitempty"`
+}
+
+// gBlob is a picture sent inline.
+type gBlob struct {
+	MimeType string `json:"mimeType"`
+	Data     string `json:"data"` // base64
+}
+
+func geminiImage(im ImageData) gPart {
+	return gPart{InlineData: &gBlob{MimeType: im.MediaType, Data: im.Base64()}}
 }
 
 type gCall struct {
@@ -173,9 +184,17 @@ func (g *Google) body(req Request) ([]byte, error) {
 				}
 				c.Parts = append(c.Parts, gPart{FunctionResponse: &gResponse{ID: sentID(b.ToolID),
 					Name: names[b.ToolID], Response: map[string]any{key: b.Text}}})
+				// The pictures of a result go next to it in the same turn.
+				for _, im := range b.Images {
+					c.Parts = append(c.Parts, geminiImage(im))
+				}
 			case Text:
 				if b.Text != "" {
 					c.Parts = append(c.Parts, gPart{Text: b.Text})
+				}
+			case Image:
+				if b.Image != nil {
+					c.Parts = append(c.Parts, geminiImage(*b.Image))
 				}
 			}
 		}

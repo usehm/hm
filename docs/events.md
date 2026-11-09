@@ -79,11 +79,13 @@ The mode asks about this call. `call_id`, `tool`, `category` (`read`, `edit`, `d
 
 ### `tool_result`
 
-`tool`, `call_id`, `text` (what the model reads), `is_error` (bool).
+`tool`, `call_id`, `text` (what the model reads), `is_error` (bool), and `images` when the result showed the model pictures, such as `read` on a PNG.
+
+Each image is `{"media_type": "image/png", "data": "<base64>", "width": 1568, "height": 784}`; `media_type` is `image/png`, `image/jpeg`, `image/gif` or `image/webp`, and the size is what the model was sent.
 
 ### `message_end`
 
-A message joined the session. `role` is `user` (your message), `assistant` (a reply) or `tool` (tool results), and `text` its text; empty for a reply that only made tool calls.
+A message joined the session. `role` is `user` (your message), `assistant` (a reply) or `tool` (tool results), and `text` its text; empty for a reply that only made tool calls. `images` holds the pictures you sent, or the tool results gave back, as in `tool_result`.
 
 ### `usage`
 
@@ -92,6 +94,10 @@ One model call's tokens: `input`, `output`, `cache_read`, `cache_write`, and `co
 ### `retry`, `error`
 
 `text`: a model call failed and is retried soon, or something went wrong (the turn may go on).
+
+### `warning`
+
+`text`: something to know that does not stop the turn, such as the model having no vision, so its images are sent as `[image omitted: model has no vision]`. Given once per session.
 
 ### `compaction_start`, `compaction_end`
 

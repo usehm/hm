@@ -295,5 +295,6 @@ func (h *Host) Build(t Turn) (*agent.Agent, error) {
 		Tools:      ts.Reg, Policy: policy, Guard: grd, Env: t.Env,
 		Parallel: map[string]bool{"task": true},
 		Hooks:    t.Hooks, MaxSteps: t.MaxSteps,
+		NoVision: !h.Models().Vision(t.Provider, model),
 	}, nil
 }

@@ -154,6 +154,7 @@ var pageTemplate = template.Must(template.New("page").Funcs(template.FuncMap{
 	"isBr":   func(k itemKind) bool { return k == itemBranch },
 	"isText": func(k partKind) bool { return k == partText },
 	"isThk":  func(k partKind) bool { return k == partThinking },
+	"isImg":  func(k partKind) bool { return k == partImage },
 }).Parse(pageHTML))
 
 const pageHTML = `<!doctype html>
@@ -161,7 +162,7 @@ const pageHTML = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:">
 <meta name="generator" content="hm">
 <title>{{.Title}}</title>
 <style>
@@ -186,11 +187,12 @@ const pageHTML = `<!doctype html>
 </main>
 </body>
 </html>
+{{define "pic"}}<img class="pic" src="{{.URL}}" alt="image"{{with .Width}} width="{{.}}"{{end}}{{with .Height}} height="{{.}}"{{end}}>{{end}}
 {{define "items"}}{{range .}}
 {{- if isUser .Kind}}
 <section class="msg user">
 <div class="head"><span class="role">You</span>{{with .Label}}<span class="label">{{.}}</span>{{end}}<time>{{.When}}</time></div>
-{{range .Parts}}<div class="md">{{md .Text}}</div>{{end}}
+{{range .Parts}}{{if isImg .Kind}}{{template "pic" .Image}}{{else}}<div class="md">{{md .Text}}</div>{{end}}{{end}}
 </section>
 {{- else if isAsst .Kind}}
 <section class="msg assistant">
@@ -202,7 +204,7 @@ const pageHTML = `<!doctype html>
 {{- range .Diffs}}<div class="diff"><div class="path">{{.Path}}</div><pre>{{range .Lines}}<span class="{{cls .Op}}">{{op .Op}} {{.Text}}</span>
 {{end}}</pre>{{if .More}}<div class="muted">… {{.More}} more lines</div>{{end}}</div>{{end}}
 <details class="io"><summary>Input</summary><pre>{{.Input}}</pre></details>
-{{- if .Done}}<details class="io"{{if .Error}} open{{end}}><summary>Result</summary><pre>{{.Result}}</pre></details>{{end}}
+{{- if .Done}}<details class="io"{{if .Error}} open{{end}}><summary>Result</summary><pre>{{.Result}}</pre>{{range .Images}}{{template "pic" .}}{{end}}</details>{{end}}
 </details>{{end}}
 {{- end}}
 {{- end}}
@@ -243,6 +245,7 @@ code,pre{font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 pre{margin:6px 0;padding:10px 12px;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:6px;white-space:pre-wrap;word-break:break-word}
 details{margin:8px 0}
 summary{cursor:pointer;color:var(--muted);font-size:13px}
+.pic{display:block;max-width:100%;height:auto;margin:6px 0;border:1px solid var(--border);border-radius:6px}
 .tool,.thinking{border-left:3px solid var(--border);padding-left:10px}
 .tool.error{border-left-color:var(--error)}
 .tool .name{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--text)}

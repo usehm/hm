@@ -37,6 +37,10 @@ func mdItems(b *strings.Builder, items []item) {
 		case itemUser:
 			b.WriteString("\n## You" + mdHead("", it) + "\n\n")
 			for _, p := range it.Parts {
+				if p.Kind == partImage {
+					b.WriteString(p.Image.mark() + "\n")
+					continue
+				}
 				b.WriteString(strings.TrimSpace(p.Text) + "\n")
 			}
 		case itemAssistant:
@@ -132,6 +136,9 @@ func mdTool(b *strings.Builder, tc *toolCall) {
 	if tc.Done {
 		b.WriteString("Result:\n\n")
 		fenced(b, "", tc.Result)
+		for _, im := range tc.Images {
+			b.WriteString(im.mark() + "\n\n")
+		}
 	}
 	b.WriteString("</details>\n")
 }
@@ -196,4 +203,13 @@ func scrub(v any, t *tally) any {
 		}
 	}
 	return v
+}
+
+// mark stands for a picture in Markdown, where gists and most viewers
+// would not show one inline.
+func (p *picture) mark() string {
+	if p.Width > 0 {
+		return fmt.Sprintf("*[image %d×%d]*", p.Width, p.Height)
+	}
+	return "*[image]*"
 }

@@ -160,7 +160,7 @@ func (a *App) interruptedNotice(c *ui.Ctx, r *agentRun) ui.View {
 			"\"allow for session\" answers did not survive.").Grow(1),
 		ui.Button(r.wid("resume"), ui.Text("Resume")).Primary().OnClick(func() {
 			dismiss()
-			if err := a.startTurn(r, "hm stopped in the middle of your last turn. Check what was done, then continue the task where you left off."); err != nil {
+			if err := a.startTurn(r, agent.Input{Text: "hm stopped in the middle of your last turn. Check what was done, then continue the task where you left off."}); err != nil {
 				r.errText = err.Error()
 			}
 		}),
@@ -441,8 +441,14 @@ func (a *App) transcript(c *ui.Ctx, r *agentRun) ui.View {
 			rows = append(rows, a.compactionView(c, r, fmt.Sprintf("compact-%d-%d", i, k), cp))
 		}
 		if m.Role == provider.User {
-			if t := m.TextOf(); t != "" {
-				body := []ui.View{ui.Paragraph(userShown(t)).Selectable(r.wid(fmt.Sprintf("user-%d", i)))}
+			if t, pics := m.TextOf(), messageImages(m); t != "" || len(pics) > 0 {
+				var body []ui.View
+				if len(pics) > 0 {
+					body = append(body, a.imageRow(c, r.wid(fmt.Sprintf("user-pics-%d", i)), pics, thumbLarge))
+				}
+				if t != "" {
+					body = append(body, ui.Paragraph(userShown(t)).Selectable(r.wid(fmt.Sprintf("user-%d", i))))
+				}
 				if cmd := r.templateOf(m); cmd != "" {
 					body = append([]ui.View{ui.Caption("from " + cmd)}, body...)
 				}
@@ -634,8 +640,11 @@ func (a *App) toolCard(c *ui.Ctx, r *agentRun, call, res provider.Block, done bo
 		if lines := strings.Split(text, "\n"); len(lines) > maxResultLines {
 			text = strings.Join(lines[:maxResultLines], "\n") + fmt.Sprintf("\n… %d more lines", len(lines)-maxResultLines)
 		}
-		rows = append(rows, ui.Column(ui.Paragraph(text).Style(ui.Spec{}.TextColor(ui.TokenForegroundMuted)).
-			Selectable(id+"-result")).
+		result := []ui.View{ui.Paragraph(text).Style(ui.Spec{}.TextColor(ui.TokenForegroundMuted)).Selectable(id + "-result")}
+		if len(res.Images) > 0 {
+			result = append(result, a.imageRow(c, id+"-pics", res.Images, thumbLarge))
+		}
+		rows = append(rows, ui.Column(result...).Gap(th.Spacing.XS).
 			Padding(th.Spacing.S).Radius(th.Radius.Small).Background(ui.TokenSurface))
 	}
 	return ui.Column(rows...).Gap(th.Spacing.XXS).Radius(th.Radius.Medium).Border(ui.TokenBorder, th.Stroke.Thin).
@@ -884,7 +893,7 @@ func (a *App) composer(c *ui.Ctx, r *agentRun, fresh bool) ui.View {
 		DefaultFocus().FocusNow(r.focusInput).
 		Style(ui.Background(ui.TokenUnset).Border(ui.TokenUnset, 0).When(ui.Focused, ui.Spec{}.Border(ui.TokenUnset, 0)))
 	send := ui.Button(r.wid("send"), ui.Icon(icons.ArrowUp, th.Metrics.IconSizeSM, th.AccentForeground)).Primary().
-		Tooltip("Send (Enter)").Disabled(strings.TrimSpace(r.input) == "").OnClick(func() { a.sendRun(r) })
+		Tooltip("Send (Enter)").Disabled(strings.TrimSpace(r.input) == "" && len(r.attached) == 0).OnClick(func() { a.sendRun(r) })
 	controls := []ui.View{a.modePicker(r), a.composerModel(r), a.projectPicker(r), ui.Spacer()}
 	if m := a.contextMeter(r); m != nil {
 		controls = append(controls, m)
@@ -894,10 +903,12 @@ func (a *App) composer(c *ui.Ctx, r *agentRun, fresh bool) ui.View {
 		controls = append(controls, ui.IconButton(r.wid("stop"), icons.Square).Tooltip("Stop").OnClick(func() { a.stopRun(r) }))
 	}
 	controls = append(controls, send)
-	return ui.Column(
-		field,
-		ui.Row(controls...).Gap(th.Spacing.XS).PaddingXY(th.Spacing.XS, 0),
-	).Gap(th.Spacing.XXS).PaddingXY(0, th.Spacing.XS).Radius(th.Radius.XLarge).
+	rows := []ui.View{field}
+	if pics := a.attachedRow(c, r); pics != nil {
+		rows = append([]ui.View{pics}, rows...)
+	}
+	rows = append(rows, ui.Row(controls...).Gap(th.Spacing.XS).PaddingXY(th.Spacing.XS, 0))
+	return ui.Column(rows...).Gap(th.Spacing.XXS).PaddingXY(0, th.Spacing.XS).Radius(th.Radius.XLarge).
 		Border(border, th.Stroke.Thin).Background(ui.TokenSurface)
 }
 

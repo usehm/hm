@@ -36,6 +36,7 @@ const (
 	EvRetry                       // Text: a model call failed and is retried soon
 	EvCompacting                  // older messages are being summarised
 	EvCompacted                   // Text: how much it saved; empty when it failed
+	EvWarning                     // Text: something the user should know; the turn goes on
 )
 
 // Event is one report.
@@ -85,10 +86,10 @@ type Hooks struct {
 	// of tool calls skips the calls not yet started; it joins the
 	// conversation after the tool results, or starts another step when the
 	// model is done.
-	Steer func() []string
+	Steer func() []Input
 	// FollowUp returns, and forgets, messages that wait for the model to
 	// end its turn; they then start another step.
-	FollowUp func() []string
+	FollowUp func() []Input
 	// Persist is called each time a message joins the session, so a crash
 	// loses at most the step in progress.
 	Persist func()
@@ -116,6 +117,9 @@ type Agent struct {
 	Compaction *CompactConfig
 	// MaxSteps bounds the model calls of one turn; 0 is 80.
 	MaxSteps int
+	// NoVision says the model takes no pictures: each is sent as a
+	// placeholder instead, and the user is warned once per session.
+	NoVision bool
 }
 
 func (a *Agent) emit(e Event) {
@@ -134,28 +138,75 @@ const skippedText = "Skipped: the user sent a new message"
 // went back to the message that made it.
 const branchedText = "Skipped: the user went back to an earlier point of the conversation"
 
-// take returns the messages hook gives as text blocks.
-func take(hook func() []string) []provider.Block {
+// Input is a message for the model: text and the pictures pasted, dropped
+// or mentioned with it.
+type Input struct {
+	Text   string
+	Images []provider.ImageData
+}
+
+// Texts makes inputs of plain text.
+func Texts(texts ...string) []Input {
+	out := make([]Input, len(texts))
+	for i, t := range texts {
+		out[i].Text = t
+	}
+	return out
+}
+
+// Join makes one message of several, their texts apart by a blank line.
+func Join(ins []Input) Input {
+	var out Input
+	var texts []string
+	for _, in := range ins {
+		if t := strings.TrimSpace(in.Text); t != "" {
+			texts = append(texts, t)
+		}
+		out.Images = append(out.Images, in.Images...)
+	}
+	out.Text = strings.Join(texts, "\n\n")
+	return out
+}
+
+// Empty reports whether the message has neither text nor pictures.
+func (in Input) Empty() bool { return strings.TrimSpace(in.Text) == "" && len(in.Images) == 0 }
+
+// blocks are the message's content: its text, then its pictures.
+func (in Input) blocks() []provider.Block {
+	var out []provider.Block
+	if t := strings.TrimSpace(in.Text); t != "" || len(in.Images) == 0 {
+		out = append(out, provider.Block{Type: provider.Text, Text: in.Text})
+	}
+	for _, im := range in.Images {
+		out = append(out, provider.Block{Type: provider.Image, Image: &im})
+	}
+	return out
+}
+
+// take returns the messages hook gives as blocks; empty ones are dropped.
+func take(hook func() []Input) []provider.Block {
 	if hook == nil {
 		return nil
 	}
 	var out []provider.Block
 	for _, m := range hook() {
-		if m = strings.TrimSpace(m); m != "" {
-			out = append(out, provider.Block{Type: provider.Text, Text: m})
+		m.Text = strings.TrimSpace(m.Text)
+		if m.Text != "" || len(m.Images) > 0 {
+			out = append(out, m.blocks()...)
 		}
 	}
 	return out
 }
 
-// Run adds the user's message and works until the model ends its turn,
-// asking for approvals on the way. The session grows append-only: earlier
-// turns are never edited, so cached prefixes and thinking stay valid.
-func (a *Agent) Run(ctx context.Context, s *Session, input string) error {
+// Run adds the user's message, with any pictures, and works until the
+// model ends its turn, asking for approvals on the way. The session grows
+// append-only: earlier turns are never edited, so cached prefixes and
+// thinking stay valid.
+func (a *Agent) Run(ctx context.Context, s *Session, input string, images ...provider.ImageData) error {
 	// After going back to a message that made tool calls, they need
 	// results before the user's next message.
 	s.answerOpenCalls(branchedText, false)
-	s.addUserText(input)
+	s.addUser(Input{Text: input, Images: images})
 	a.emit(Event{Kind: EvMessage})
 	// overflowed is set once a request was too long and the session was
 	// compacted for it; a second overflow ends the turn.
@@ -174,7 +225,7 @@ func (a *Agent) Run(ctx context.Context, s *Session, input string) error {
 			}
 		}
 		req := provider.Request{
-			Model: a.Model, System: a.System, Messages: s.ForModel(),
+			Model: a.Model, System: a.System, Messages: a.forModel(s),
 			Tools: a.Tools.Specs(), Effort: a.Effort,
 		}
 		resp, err := a.Provider.Stream(ctx, req, func(e provider.Event) {
@@ -274,7 +325,7 @@ func (a *Agent) Run(ctx context.Context, s *Session, input string) error {
 					r = tools.Result{Text: "Cancelled by the user", IsError: true}
 				}
 				results = append(results, provider.Block{Type: provider.ToolResult, ToolID: call.ToolID,
-					ToolName: call.ToolName, Text: r.Text, IsError: r.IsError})
+					ToolName: call.ToolName, Text: r.Text, IsError: r.IsError, Images: r.Images})
 				a.emit(Event{Kind: EvToolResult, Tool: call.ToolName, CallID: call.ToolID, Result: r})
 			}
 			i = j
@@ -295,6 +346,20 @@ func (a *Agent) Run(ctx context.Context, s *Session, input string) error {
 	}
 	a.emit(Event{Kind: EvError, Text: fmt.Sprintf("Stopped after %d %s", maxSteps, steps)})
 	return fmt.Errorf("%w (%d)", ErrMaxSteps, maxSteps)
+}
+
+// forModel is the session as this model is sent it: without pictures
+// when it has no vision.
+func (a *Agent) forModel(s *Session) []provider.Message {
+	msgs := s.ForModel()
+	if !a.NoVision {
+		return msgs
+	}
+	msgs, found := provider.WithoutImages(msgs)
+	if found && s.warnNoVision() {
+		a.emit(Event{Kind: EvWarning, Text: a.Model + " cannot see images; they are sent as a placeholder"})
+	}
+	return msgs
 }
 
 // continueWithQueued starts another step with the waiting messages,

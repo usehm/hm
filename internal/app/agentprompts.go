@@ -128,12 +128,12 @@ func (a *App) runTemplate(r *agentRun, cmd, args string) bool {
 		r.errText = cmd + " is empty."
 		return true
 	}
-	text = a.expandContext(text)
+	in := a.expandContext(text)
 	if r.from == nil {
 		r.from = map[string]string{}
 	}
-	r.from[text] = cmd
-	a.sendText(r, text, false)
+	r.from[in.Text] = cmd
+	a.sendText(r, in, false)
 	return true
 }
 

@@ -190,16 +190,23 @@ func (s *Session) LastPrompt() (Entry, string, bool) {
 	return Entry{}, "", false
 }
 
-// PromptText is what the user typed in m: its text blocks, without the
-// tool results it may carry; "" for the model's messages.
+// ImageMark stands for a picture in a prompt's text.
+const ImageMark = "[image]"
+
+// PromptText is what the user typed in m: its text blocks, and ImageMark
+// for each picture, without the tool results it may carry; "" for the
+// model's messages.
 func PromptText(m provider.Message) string {
 	if m.Role != provider.User {
 		return ""
 	}
 	var parts []string
 	for _, b := range m.Blocks {
-		if b.Type == provider.Text && strings.TrimSpace(b.Text) != "" {
+		switch {
+		case b.Type == provider.Text && strings.TrimSpace(b.Text) != "":
 			parts = append(parts, b.Text)
+		case b.Type == provider.Image:
+			parts = append(parts, ImageMark)
 		}
 	}
 	return strings.Join(parts, "\n\n")

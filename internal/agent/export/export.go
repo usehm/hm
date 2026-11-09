@@ -5,7 +5,9 @@ package export
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
+	"html/template"
 	"os"
 	"path/filepath"
 	"strings"
@@ -160,12 +162,31 @@ const (
 	partText partKind = iota
 	partThinking
 	partTool
+	partImage
 )
 
 type part struct {
-	Kind partKind
-	Text string
-	Tool *toolCall
+	Kind  partKind
+	Text  string
+	Tool  *toolCall
+	Image *picture
+}
+
+// picture is an image in the conversation, its data inline.
+type picture struct {
+	MediaType     string
+	Data          []byte
+	Width, Height int
+}
+
+func imageOf(im provider.ImageData) *picture {
+	return &picture{MediaType: im.MediaType, Data: im.Data, Width: im.Width, Height: im.Height}
+}
+
+// URL is the picture as a data URL, which the page shows without making
+// a request.
+func (p *picture) URL() template.URL {
+	return template.URL("data:" + p.MediaType + ";base64," + base64.StdEncoding.EncodeToString(p.Data))
 }
 
 // toolCall is a tool the model called and what came back.
@@ -175,6 +196,7 @@ type toolCall struct {
 	Result    string
 	Done      bool // a result came back
 	Error     bool
+	Images    []*picture // what the result showed the model
 	Diffs     []fileDiff
 }
 
@@ -304,7 +326,14 @@ func (b *builder) item(e agent.Entry, model string) (item, bool) {
 				return it, false
 			}
 			it.Kind = itemUser
-			it.Parts = []part{{Kind: partText, Text: b.t.str(text)}}
+			for _, bl := range e.Message.Blocks {
+				switch {
+				case bl.Type == provider.Text && strings.TrimSpace(bl.Text) != "":
+					it.Parts = append(it.Parts, part{Kind: partText, Text: b.t.str(bl.Text)})
+				case bl.Type == provider.Image && bl.Image != nil:
+					it.Parts = append(it.Parts, part{Kind: partImage, Image: imageOf(*bl.Image)})
+				}
+			}
 			return it, true
 		}
 		it.Kind, it.Model = itemAssistant, model
@@ -383,6 +412,9 @@ func (b *builder) tool(bl provider.Block) *toolCall {
 	}
 	if r, ok := b.results[bl.ToolID]; ok {
 		tc.Done, tc.Error, tc.Result = true, r.IsError, b.t.str(r.Text)
+		for _, im := range r.Images {
+			tc.Images = append(tc.Images, imageOf(im))
+		}
 	}
 	tc.Diffs = b.diffs(bl.ToolName, bl.Input)
 	return tc

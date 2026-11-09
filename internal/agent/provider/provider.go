@@ -10,6 +10,9 @@ package provider
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -31,6 +34,7 @@ const (
 	Thinking   BlockType = "thinking"
 	ToolUse    BlockType = "tool_use"
 	ToolResult BlockType = "tool_result"
+	Image      BlockType = "image"
 )
 
 // Block is one piece of a message.
@@ -42,6 +46,74 @@ type Block struct {
 	ToolName string          `json:"tool_name,omitempty"`
 	Input    json.RawMessage `json:"input,omitempty"`
 	IsError  bool            `json:"is_error,omitempty"`
+	// Image is the picture of an Image block.
+	Image *ImageData `json:"image,omitempty"`
+	// Images are the pictures a tool result gives back with its text.
+	Images []ImageData `json:"images,omitempty"`
+}
+
+// ImageData is a picture in a user message or a tool result, already
+// sized for the APIs (see the images package).
+type ImageData struct {
+	MediaType string `json:"media_type"` // image/png, image/jpeg, image/gif or image/webp
+	// Data is the encoded picture. A saved session keeps it in a file of
+	// its own, named by Hash, and the line holds only the hash.
+	Data   []byte `json:"data,omitempty"`
+	Hash   string `json:"hash,omitempty"` // sha256 of Data, hex
+	Width  int    `json:"width,omitempty"`
+	Height int    `json:"height,omitempty"`
+}
+
+// HashOf names an image's data.
+func HashOf(data []byte) string {
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
+}
+
+// Base64 is the data as the APIs take it.
+func (im ImageData) Base64() string { return base64.StdEncoding.EncodeToString(im.Data) }
+
+// NoVision replaces the pictures sent to a model that cannot see them.
+const NoVision = "[image omitted: model has no vision]"
+
+// WithoutImages returns msgs with every picture replaced by the NoVision
+// text, and whether there was one. msgs is not changed.
+func WithoutImages(msgs []Message) ([]Message, bool) {
+	found := false
+	out := msgs
+	for i, m := range msgs {
+		if !m.hasImages() {
+			continue
+		}
+		if !found {
+			out = append([]Message(nil), msgs...)
+			found = true
+		}
+		blocks := make([]Block, 0, len(m.Blocks))
+		for _, b := range m.Blocks {
+			switch {
+			case b.Type == Image:
+				b = Block{Type: Text, Text: NoVision}
+			case len(b.Images) > 0:
+				b.Text += strings.Repeat("\n"+NoVision, len(b.Images))
+				b.Images = nil
+			}
+			blocks = append(blocks, b)
+		}
+		m.Blocks = blocks
+		m.Native = nil // the native copy may hold the pictures
+		out[i] = m
+	}
+	return out, found
+}
+
+func (m Message) hasImages() bool {
+	for _, b := range m.Blocks {
+		if b.Type == Image || len(b.Images) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // Message is one turn.

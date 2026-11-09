@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/mirzakhany/hm/internal/agent"
+	imgs "github.com/mirzakhany/hm/internal/agent/images"
 	"github.com/mirzakhany/hm/internal/agent/provider"
 	"github.com/mirzakhany/hm/internal/agent/tools"
 )
@@ -94,6 +95,7 @@ const (
 	EventUsage       EventKind = "usage"          // Usage: one model call's tokens
 	EventError       EventKind = "error"          // Text: what went wrong
 	EventRetry       EventKind = "retry"          // Text: a model call failed and is retried soon
+	EventWarning     EventKind = "warning"        // Text: something to know; the turn goes on
 	EventCompacting  EventKind = "compacting"     // older messages are being summarised
 	EventCompacted   EventKind = "compacted"      // Text: what it saved; empty when it failed
 	EventBlocked     EventKind = "blocked"        // Tool, Text: guard.yaml refused a call
@@ -135,12 +137,41 @@ type Event struct {
 type Message struct {
 	Role string
 	Text string
+	// Images are the pictures the user sent, or tool results gave back.
+	Images []Image
 }
 
 // ToolResult is what a tool call gave back to the model.
 type ToolResult struct {
 	Text    string
 	IsError bool
+	Images  []Image
+}
+
+// Image is a picture: PNG, JPEG, GIF or WebP. Prompt and Steer need only
+// Data; the type and size are filled in on the way out.
+type Image struct {
+	MediaType     string
+	Data          []byte
+	Width, Height int
+}
+
+// LoadImage checks data is a PNG, JPEG, GIF or WebP picture and fits it
+// to what the APIs take: at most 1568 pixels on the long side and 5 MB.
+func LoadImage(data []byte) (Image, error) {
+	im, err := imgs.Load(data)
+	if err != nil {
+		return Image{}, err
+	}
+	return Image{MediaType: im.MediaType, Data: im.Data, Width: im.Width, Height: im.Height}, nil
+}
+
+func imagesOf(ims []provider.ImageData) []Image {
+	var out []Image
+	for _, im := range ims {
+		out = append(out, Image{MediaType: im.MediaType, Data: im.Data, Width: im.Width, Height: im.Height})
+	}
+	return out
 }
 
 // Usage counts tokens; Cost is in USD, 0 when unknown.
@@ -168,7 +199,7 @@ var eventKinds = map[agent.EventKind]EventKind{
 	agent.EvText: EventText, agent.EvThinking: EventThinking, agent.EvToolStart: EventToolStart,
 	agent.EvToolCall: EventToolCall, agent.EvToolResult: EventToolResult, agent.EvMessage: EventMessage,
 	agent.EvUsage: EventUsage, agent.EvError: EventError, agent.EvRetry: EventRetry,
-	agent.EvCompacting: EventCompacting, agent.EvCompacted: EventCompacted,
+	agent.EvCompacting: EventCompacting, agent.EvCompacted: EventCompacted, agent.EvWarning: EventWarning,
 }
 
 // event converts one of the loop's events in session id.
@@ -176,7 +207,7 @@ func event(e agent.Event, id string) Event {
 	out := Event{Kind: eventKinds[e.Kind], Session: id, Text: e.Text, Tool: e.Tool, CallID: e.CallID, Summary: e.Summary, Input: e.Input}
 	switch e.Kind {
 	case agent.EvToolResult:
-		out.Result = &ToolResult{Text: e.Result.Text, IsError: e.Result.IsError}
+		out.Result = &ToolResult{Text: e.Result.Text, IsError: e.Result.IsError, Images: imagesOf(e.Result.Images)}
 	case agent.EvUsage:
 		u := e.Usage
 		out.Usage = &Usage{Input: u.Input, Output: u.Output, CacheRead: u.CacheRead, CacheWrite: u.CacheWrite, Cost: u.Cost}
@@ -193,5 +224,12 @@ func message(m provider.Message) *Message {
 	case len(m.Blocks) > 0 && m.Blocks[0].Type == provider.ToolResult:
 		role = "tool"
 	}
-	return &Message{Role: role, Text: m.TextOf()}
+	out := &Message{Role: role, Text: m.TextOf()}
+	for _, b := range m.Blocks {
+		if b.Image != nil {
+			out.Images = append(out.Images, imagesOf([]provider.ImageData{*b.Image})...)
+		}
+		out.Images = append(out.Images, imagesOf(b.Images)...)
+	}
+	return out
 }

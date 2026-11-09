@@ -77,6 +77,8 @@ type Plan struct {
 type Result struct {
 	Text    string
 	IsError bool
+	// Images go back to the model with the text, such as a picture read.
+	Images []provider.ImageData
 }
 
 // Tool is one capability offered to the model.

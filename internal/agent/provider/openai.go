@@ -107,7 +107,7 @@ func openAIEffort(model, e string) string {
 
 type oaMessage struct {
 	Role       string       `json:"role"`
-	Content    *string      `json:"content"`
+	Content    any          `json:"content"` // *string, or []oaPart with pictures
 	ToolCalls  []oaToolCall `json:"tool_calls,omitempty"`
 	ToolCallID string       `json:"tool_call_id,omitempty"`
 }
@@ -119,6 +119,22 @@ type oaToolCall struct {
 		Name      string `json:"name"`
 		Arguments string `json:"arguments"`
 	} `json:"function"`
+}
+
+// oaPart is one part of a message's content: text or a picture, which
+// goes as a data URL.
+type oaPart struct {
+	Type     string      `json:"type"`
+	Text     string      `json:"text,omitempty"`
+	ImageURL *oaImageURL `json:"image_url,omitempty"`
+}
+
+type oaImageURL struct {
+	URL string `json:"url"`
+}
+
+func imagePart(im ImageData) oaPart {
+	return oaPart{Type: "image_url", ImageURL: &oaImageURL{"data:" + im.MediaType + ";base64," + im.Base64()}}
 }
 
 func str(s string) *string { return &s }
@@ -146,7 +162,9 @@ func (o *OpenAI) body(req Request) ([]byte, error) {
 			msgs = append(msgs, om)
 			continue
 		}
-		var text strings.Builder
+		// A tool message takes only text, so the pictures of tool results
+		// follow them in a user message of their own.
+		var parts, shown []oaPart
 		for _, b := range m.Blocks {
 			switch b.Type {
 			case ToolResult:
@@ -155,12 +173,32 @@ func (o *OpenAI) body(req Request) ([]byte, error) {
 					content = "Error: " + content
 				}
 				msgs = append(msgs, oaMessage{Role: "tool", ToolCallID: b.ToolID, Content: str(content)})
+				if len(b.Images) > 0 {
+					shown = append(shown, oaPart{Type: "text", Text: "Images from tool call " + b.ToolID + ":"})
+					for _, im := range b.Images {
+						shown = append(shown, imagePart(im))
+					}
+				}
 			case Text:
-				text.WriteString(b.Text)
+				if n := len(parts); n > 0 && parts[n-1].Type == "text" {
+					parts[n-1].Text += b.Text
+				} else if b.Text != "" {
+					parts = append(parts, oaPart{Type: "text", Text: b.Text})
+				}
+			case Image:
+				if b.Image != nil {
+					parts = append(parts, imagePart(*b.Image))
+				}
 			}
 		}
-		if text.Len() > 0 {
-			msgs = append(msgs, oaMessage{Role: "user", Content: str(text.String())})
+		if len(shown) > 0 {
+			msgs = append(msgs, oaMessage{Role: "user", Content: shown})
+		}
+		switch {
+		case len(parts) == 1 && parts[0].Type == "text":
+			msgs = append(msgs, oaMessage{Role: "user", Content: str(parts[0].Text)})
+		case len(parts) > 0:
+			msgs = append(msgs, oaMessage{Role: "user", Content: parts})
 		}
 	}
 	body := map[string]any{

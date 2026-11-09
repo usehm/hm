@@ -46,32 +46,35 @@ type Supports struct {
 	Thinking *bool `json:"thinking,omitempty"`
 }
 
+// vision marks the models that take pictures.
+var vision = Supports{Images: new(true)}
+
 // builtin are the models hm knows. Prices are Anthropic first-party rates;
 // a 5-minute cache write costs 1.25x input. Override or add to them in
 // models.json.
 var builtin = []ModelInfo{
-	{ID: "claude-fable-5-1", ContextWindow: 1_000_000, MaxOutput: 128_000, Price: Price{10, 50, 0.25, 12.5}},
-	{ID: "claude-mythos-5-1", ContextWindow: 1_000_000, MaxOutput: 128_000, Price: Price{10, 50, 0.25, 12.5}},
-	{ID: "claude-fable-5", ContextWindow: 1_000_000, MaxOutput: 128_000, Price: Price{10, 50, 1, 12.5}},
-	{ID: "claude-mythos-5", ContextWindow: 1_000_000, MaxOutput: 128_000},
-	{ID: "claude-opus-5-5", ContextWindow: 1_000_000, MaxOutput: 128_000, Price: Price{4, 20, 0.20, 5}},
-	{ID: "claude-opus-5", ContextWindow: 1_000_000, MaxOutput: 128_000, Price: Price{5, 25, 0.5, 6.25}},
-	{ID: "claude-sonnet-5-5", ContextWindow: 1_000_000, MaxOutput: 64_000, Price: Price{2, 10, 0.20, 2.5}},
-	{ID: "claude-sonnet-5", ContextWindow: 1_000_000, MaxOutput: 64_000, Price: Price{2, 10, 0.20, 2.5}},
-	{ID: "claude-haiku-5-5", ContextWindow: 1_000_000, MaxOutput: 64_000, Price: Price{0.10, 0.50, 0.01, 0.125}},
-	{ID: "claude-haiku-5", ContextWindow: 1_000_000, MaxOutput: 64_000},
-	{ID: "claude-opus-4-8", ContextWindow: 1_000_000, MaxOutput: 128_000, Price: Price{5, 25, 0.5, 6.25}},
-	{ID: "claude-opus-4-7", ContextWindow: 1_000_000, MaxOutput: 128_000, Price: Price{5, 25, 0.5, 6.25}},
-	{ID: "claude-opus-4-6", ContextWindow: 1_000_000, MaxOutput: 128_000, Price: Price{5, 25, 0.5, 6.25}},
-	{ID: "claude-sonnet-4-6", ContextWindow: 1_000_000, MaxOutput: 64_000, Price: Price{3, 15, 0.3, 3.75}},
-	{ID: "claude-haiku-4-5", ContextWindow: 200_000, MaxOutput: 64_000, Price: Price{1, 5, 0.1, 1.25}},
-	{ID: "gemini-3", ContextWindow: 1_048_576, MaxOutput: 65_536},
-	{ID: "gemini-2.5", ContextWindow: 1_048_576, MaxOutput: 65_536},
-	{ID: "gpt-4o", ContextWindow: 128_000, MaxOutput: 16_384},
-	{ID: "gpt-4.1", ContextWindow: 1_047_576, MaxOutput: 32_768},
-	{ID: "gpt-5", ContextWindow: 400_000, MaxOutput: 128_000},
-	{ID: "o3", ContextWindow: 200_000, MaxOutput: 100_000},
-	{ID: "o4-mini", ContextWindow: 200_000, MaxOutput: 100_000},
+	{ID: "claude-fable-5-1", ContextWindow: 1_000_000, MaxOutput: 128_000, Price: Price{10, 50, 0.25, 12.5}, Supports: vision},
+	{ID: "claude-mythos-5-1", ContextWindow: 1_000_000, MaxOutput: 128_000, Price: Price{10, 50, 0.25, 12.5}, Supports: vision},
+	{ID: "claude-fable-5", ContextWindow: 1_000_000, MaxOutput: 128_000, Price: Price{10, 50, 1, 12.5}, Supports: vision},
+	{ID: "claude-mythos-5", ContextWindow: 1_000_000, MaxOutput: 128_000, Supports: vision},
+	{ID: "claude-opus-5-5", ContextWindow: 1_000_000, MaxOutput: 128_000, Price: Price{4, 20, 0.20, 5}, Supports: vision},
+	{ID: "claude-opus-5", ContextWindow: 1_000_000, MaxOutput: 128_000, Price: Price{5, 25, 0.5, 6.25}, Supports: vision},
+	{ID: "claude-sonnet-5-5", ContextWindow: 1_000_000, MaxOutput: 64_000, Price: Price{2, 10, 0.20, 2.5}, Supports: vision},
+	{ID: "claude-sonnet-5", ContextWindow: 1_000_000, MaxOutput: 64_000, Price: Price{2, 10, 0.20, 2.5}, Supports: vision},
+	{ID: "claude-haiku-5-5", ContextWindow: 1_000_000, MaxOutput: 64_000, Price: Price{0.10, 0.50, 0.01, 0.125}, Supports: vision},
+	{ID: "claude-haiku-5", ContextWindow: 1_000_000, MaxOutput: 64_000, Supports: vision},
+	{ID: "claude-opus-4-8", ContextWindow: 1_000_000, MaxOutput: 128_000, Price: Price{5, 25, 0.5, 6.25}, Supports: vision},
+	{ID: "claude-opus-4-7", ContextWindow: 1_000_000, MaxOutput: 128_000, Price: Price{5, 25, 0.5, 6.25}, Supports: vision},
+	{ID: "claude-opus-4-6", ContextWindow: 1_000_000, MaxOutput: 128_000, Price: Price{5, 25, 0.5, 6.25}, Supports: vision},
+	{ID: "claude-sonnet-4-6", ContextWindow: 1_000_000, MaxOutput: 64_000, Price: Price{3, 15, 0.3, 3.75}, Supports: vision},
+	{ID: "claude-haiku-4-5", ContextWindow: 200_000, MaxOutput: 64_000, Price: Price{1, 5, 0.1, 1.25}, Supports: vision},
+	{ID: "gemini-3", ContextWindow: 1_048_576, MaxOutput: 65_536, Supports: vision},
+	{ID: "gemini-2.5", ContextWindow: 1_048_576, MaxOutput: 65_536, Supports: vision},
+	{ID: "gpt-4o", ContextWindow: 128_000, MaxOutput: 16_384, Supports: vision},
+	{ID: "gpt-4.1", ContextWindow: 1_047_576, MaxOutput: 32_768, Supports: vision},
+	{ID: "gpt-5", ContextWindow: 400_000, MaxOutput: 128_000, Supports: vision},
+	{ID: "o3", ContextWindow: 200_000, MaxOutput: 100_000, Supports: vision},
+	{ID: "o4-mini", ContextWindow: 200_000, MaxOutput: 100_000, Supports: vision},
 }
 
 // Registry is a set of model entries: hm's own, then models.json files on
@@ -204,6 +207,14 @@ func (r *Registry) Lookup(prov, model string) (ModelInfo, bool) {
 		}
 	}
 	return out, true
+}
+
+// Vision reports whether provider prov's model takes pictures. A model
+// nothing is known of is trusted to; models.json says otherwise with
+// "supports": {"images": false}.
+func (r *Registry) Vision(prov, model string) bool {
+	m, _ := r.Lookup(prov, model)
+	return m.Supports.Images == nil || *m.Supports.Images
 }
 
 // Listed returns the models of entries scoped to provider prov, for a

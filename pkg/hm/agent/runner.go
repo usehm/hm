@@ -26,6 +26,7 @@ import (
 
 	"github.com/mirzakhany/hm/internal/agent"
 	"github.com/mirzakhany/hm/internal/agent/host"
+	imgs "github.com/mirzakhany/hm/internal/agent/images"
 	"github.com/mirzakhany/hm/internal/agent/mcp"
 	"github.com/mirzakhany/hm/internal/agent/provider"
 	"github.com/mirzakhany/hm/internal/agent/tools"
@@ -86,7 +87,7 @@ type Runner struct {
 	effort                string // empty for the provider's
 	running               bool
 	cancel                context.CancelFunc
-	steer, follow         []string
+	steer, follow         []agent.Input
 	resumed               bool // the session was saved before New
 
 	// For the top Runner only: base ends on Close, unblocking emit;
@@ -252,17 +253,23 @@ func (r *Runner) check(mode, prov string) error {
 	return nil
 }
 
-// Prompt sends text and works until the agent has nothing left to do:
-// the turn, the messages queued with Steer and FollowUp, and the reports
-// of sub-agents it started in the background. Cancelling ctx stops it.
-func (r *Runner) Prompt(ctx context.Context, text string) error {
-	ctx, err := r.begin(ctx)
+// Prompt sends text, with any images, and works until the agent has
+// nothing left to do: the turn, the messages queued with Steer and
+// FollowUp, and the reports of sub-agents it started in the background.
+// Cancelling ctx stops it. An image that is not PNG, JPEG, GIF or WebP is
+// an error; a large one is scaled down.
+func (r *Runner) Prompt(ctx context.Context, text string, images ...Image) error {
+	in, err := input(text, images)
+	if err != nil {
+		return err
+	}
+	ctx, err = r.begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer r.end()
 	for {
-		err := r.turn(ctx, text)
+		err := r.turn(ctx, in)
 		end := Event{Kind: EventTurnEnd, Session: r.session.ID}
 		if err != nil {
 			end.Text = err.Error()
@@ -271,15 +278,15 @@ func (r *Runner) Prompt(ctx context.Context, text string) error {
 		if err != nil {
 			return err
 		}
-		text = strings.Join(append(r.inbox(false), r.inbox(true)...), "\n\n")
-		for text == "" && r.bg.Load() > 0 {
+		in = agent.Join(append(r.inbox(false), r.inbox(true)...))
+		for in.Empty() && r.bg.Load() > 0 {
 			if m, ok := r.bus.Wait(ctx, r.session.ID, "", time.Minute); ok {
-				text = host.MailText(m)
+				in = agent.Input{Text: host.MailText(m)}
 			} else if ctx.Err() != nil {
 				return ctx.Err()
 			}
 		}
-		if text == "" {
+		if in.Empty() {
 			return nil
 		}
 	}
@@ -308,8 +315,8 @@ func (r *Runner) end() {
 	cancel()
 }
 
-// turn runs one turn of the agent on text.
-func (r *Runner) turn(ctx context.Context, text string) error {
+// turn runs one turn of the agent on in.
+func (r *Runner) turn(ctx context.Context, in agent.Input) error {
 	ag, err := r.build()
 	if err != nil {
 		return err
@@ -317,7 +324,7 @@ func (r *Runner) turn(ctx context.Context, text string) error {
 	s := r.session
 	s.SetStatus(agent.StatusRunning)
 	r.bus.SetRunning(s.ID, true)
-	err = ag.Run(ctx, s, text)
+	err = ag.Run(ctx, s, in.Text, in.Images...)
 	s.SetTodos(r.todos.Items())
 	s.SetStatus(agent.StatusIdle)
 	r.bus.SetRunning(s.ID, false)
@@ -353,8 +360,8 @@ func (r *Runner) build() (*agent.Agent, error) {
 				r.log.Warn("guard blocked " + tool + ": " + why)
 				r.top.emit(Event{Kind: EventBlocked, Session: s.ID, Tool: tool, Text: why})
 			},
-			Steer:    func() []string { return r.inbox(false) },
-			FollowUp: func() []string { return r.inbox(true) },
+			Steer:    func() []agent.Input { return r.inbox(false) },
+			FollowUp: func() []agent.Input { return r.inbox(true) },
 			Persist:  r.save,
 		},
 	})
@@ -369,32 +376,49 @@ func (r *Runner) save() {
 	}
 }
 
-// Steer sends text to the running turn: it joins after the tool call in
-// progress, and the calls not yet started are skipped. Sent while idle, it
-// waits for the next Prompt.
-func (r *Runner) Steer(text string) { r.queue(text, false) }
+// Steer sends text, with any images, to the running turn: it joins after
+// the tool call in progress, and the calls not yet started are skipped.
+// Sent while idle, it waits for the next Prompt. Images are checked as
+// Prompt checks them.
+func (r *Runner) Steer(text string, images ...Image) error { return r.queue(text, images, false) }
 
-// FollowUp sends text to be answered once the running turn ends.
-func (r *Runner) FollowUp(text string) { r.queue(text, true) }
+// FollowUp sends text, with any images, to be answered once the running
+// turn ends.
+func (r *Runner) FollowUp(text string, images ...Image) error { return r.queue(text, images, true) }
 
-func (r *Runner) queue(text string, followUp bool) {
-	if strings.TrimSpace(text) == "" {
-		return
+func (r *Runner) queue(text string, images []Image, followUp bool) error {
+	in, err := input(text, images)
+	if err != nil || in.Empty() {
+		return err
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if followUp {
-		r.follow = append(r.follow, text)
+		r.follow = append(r.follow, in)
 	} else {
-		r.steer = append(r.steer, text)
+		r.steer = append(r.steer, in)
 	}
+	return nil
+}
+
+// input is a message of text and images, the images fitted for the APIs.
+func input(text string, images []Image) (agent.Input, error) {
+	in := agent.Input{Text: text}
+	for i, im := range images {
+		d, err := imgs.Prepare(im.Data)
+		if err != nil {
+			return agent.Input{}, fmt.Errorf("image %d: %w", i+1, err)
+		}
+		in.Images = append(in.Images, d)
+	}
+	return in, nil
 }
 
 // inbox takes the follow-ups, or the steering messages, waiting for the
 // agent: the host's, then other agents' mail.
-func (r *Runner) inbox(followUp bool) []string {
+func (r *Runner) inbox(followUp bool) []agent.Input {
 	r.mu.Lock()
-	var out []string
+	var out []agent.Input
 	if followUp {
 		out, r.follow = r.follow, nil
 	} else {
@@ -402,7 +426,7 @@ func (r *Runner) inbox(followUp bool) []string {
 	}
 	r.mu.Unlock()
 	for _, m := range r.bus.Take(r.session.ID, followUp) {
-		out = append(out, host.MailText(m))
+		out = append(out, agent.Input{Text: host.MailText(m)})
 	}
 	return out
 }

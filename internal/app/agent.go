@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/mirzakhany/hm/internal/agent"
 	"github.com/mirzakhany/hm/internal/agent/host"
+	"github.com/mirzakhany/hm/internal/agent/images"
 	"github.com/mirzakhany/hm/internal/agent/mcp"
 	"github.com/mirzakhany/hm/internal/agent/prompts"
 	"github.com/mirzakhany/hm/internal/agent/provider"
@@ -33,6 +35,9 @@ type agentState struct {
 	projects    *agent.Projects
 	mcp         *mcp.Manager
 	borrowed    map[string]bool // buffers opened for the agent's language tools
+
+	// thumbs are pictures made small for the chat, by hash and size.
+	thumbs map[string][]byte
 
 	tabs   []*agentTab
 	active int
@@ -95,6 +100,9 @@ type agentRun struct {
 	// picker or /think; empty follows the provider's config.
 	model, effort string
 	input         string
+	// attached are the pictures pasted or dropped into the message box,
+	// sent with its text.
+	attached []provider.ImageData
 
 	running bool
 	cancel  context.CancelFunc
@@ -301,7 +309,7 @@ func (a *App) mailArrived(id string) {
 	if r.parent != nil {
 		return // a finished sub-agent is not woken
 	}
-	if err := a.startTurn(r, ""); err != nil {
+	if err := a.startTurn(r, agent.Input{}); err != nil {
 		r.errText = err.Error()
 	}
 }
@@ -357,6 +365,7 @@ func (a *App) modes() map[string]agent.Mode { return a.agentHost().Modes() }
 // started.
 type queuedMsg struct {
 	Text     string
+	Images   []provider.ImageData
 	FollowUp bool
 }
 
@@ -376,7 +385,7 @@ func (a *App) sendRun(r *agentRun) { a.sendRunAs(r, false) }
 // to end instead of steering.
 func (a *App) sendRunAs(r *agentRun, followUp bool) {
 	text := strings.TrimSpace(r.input)
-	if text == "" {
+	if text == "" && len(r.attached) == 0 {
 		return
 	}
 	r.info = ""
@@ -385,23 +394,26 @@ func (a *App) sendRunAs(r *agentRun, followUp bool) {
 		a.slashCommand(r, text)
 		return
 	}
-	a.sendText(r, a.expandContext(text), followUp)
+	in := a.expandContext(text)
+	in.Images = append(slices.Clone(r.attached), in.Images...)
+	a.sendText(r, in, followUp)
 }
 
-// sendText starts a turn with text, or queues it while a turn runs.
-func (a *App) sendText(r *agentRun, text string, followUp bool) {
+// sendText starts a turn with in, or queues it while a turn runs. The
+// message box and its pictures are cleared once it is on its way.
+func (a *App) sendText(r *agentRun, in agent.Input, followUp bool) {
 	if r.running {
-		r.input = ""
+		r.input, r.attached = "", nil
 		r.queueMu.Lock()
-		r.queue = append(r.queue, queuedMsg{Text: text, FollowUp: followUp})
+		r.queue = append(r.queue, queuedMsg{Text: in.Text, Images: in.Images, FollowUp: followUp})
 		r.queueMu.Unlock()
 		return
 	}
-	if err := a.startTurn(r, text); err != nil {
+	if err := a.startTurn(r, in); err != nil {
 		r.errText = err.Error()
 		return
 	}
-	r.input = ""
+	r.input, r.attached = "", nil
 }
 
 // agentFor builds the agent for one turn of r: the provider, guard, tools,
@@ -452,8 +464,8 @@ func (a *App) agentFor(r *agentRun) (*agent.Agent, error) {
 				}
 				return err
 			},
-			Steer:    func() []string { return a.inboxOf(r, false) },
-			FollowUp: func() []string { return a.inboxOf(r, true) },
+			Steer:    func() []agent.Input { return a.inboxOf(r, false) },
+			FollowUp: func() []agent.Input { return a.inboxOf(r, true) },
 			Persist:  func() { _ = store.Save(s) },
 		},
 	})
@@ -469,20 +481,19 @@ func (a *App) agentFor(r *agentRun) (*agent.Agent, error) {
 	return ag, nil
 }
 
-// startTurn runs the agent on prompt in the background.
-func (a *App) startTurn(r *agentRun, prompt string) error {
+// startTurn runs the agent on in in the background.
+func (a *App) startTurn(r *agentRun, in agent.Input) error {
 	ag, err := a.agentFor(r)
 	if err != nil {
 		return err
 	}
-	if prompt == "" {
+	if in.Empty() {
 		// Woken by mail: the mail is the message.
-		prompt = strings.Join(a.allQueued(r), "\n\n")
-		if prompt == "" {
+		if in = agent.Join(a.allQueued(r)); in.Empty() {
 			return nil
 		}
 	}
-	a.launch(r, func(ctx context.Context) error { return ag.Run(ctx, r.session, prompt) })
+	a.launch(r, func(ctx context.Context) error { return ag.Run(ctx, r.session, in.Text, in.Images...) })
 	return nil
 }
 
@@ -562,7 +573,7 @@ func (a *App) turnEnded(r *agentRun, err error) {
 			notifAction{label: "Open Agent", run: func() { a.focusRun(r) }})
 	}
 	if q := a.allQueued(r); len(q) > 0 && !errors.Is(err, context.Canceled) {
-		if serr := a.startTurn(r, strings.Join(q, "\n\n")); serr != nil {
+		if serr := a.startTurn(r, agent.Join(q)); serr != nil {
 			r.errText = serr.Error()
 		}
 	}
@@ -570,11 +581,11 @@ func (a *App) turnEnded(r *agentRun, err error) {
 
 // inboxOf is what reaches r's agent between steps, the follow-ups or the
 // steering messages: the user's queued messages, then other agents' mail.
-func (a *App) inboxOf(r *agentRun, followUp bool) []string {
+func (a *App) inboxOf(r *agentRun, followUp bool) []agent.Input {
 	out := r.takeQueue(followUp)
 	if a.agent.bus != nil {
 		for _, m := range a.agent.bus.Take(r.session.ID, followUp) {
-			out = append(out, host.MailText(m))
+			out = append(out, agent.Input{Text: host.MailText(m)})
 		}
 	}
 	return out
@@ -582,20 +593,20 @@ func (a *App) inboxOf(r *agentRun, followUp bool) []string {
 
 // allQueued takes every waiting message, steering then follow-ups, for a
 // new turn.
-func (a *App) allQueued(r *agentRun) []string {
+func (a *App) allQueued(r *agentRun) []agent.Input {
 	return append(a.inboxOf(r, false), a.inboxOf(r, true)...)
 }
 
 // takeQueue returns and removes the follow-ups, or the steering messages,
 // waiting for the agent.
-func (r *agentRun) takeQueue(followUp bool) []string {
+func (r *agentRun) takeQueue(followUp bool) []agent.Input {
 	r.queueMu.Lock()
 	defer r.queueMu.Unlock()
-	var out []string
+	var out []agent.Input
 	kept := r.queue[:0]
 	for _, m := range r.queue {
 		if m.FollowUp == followUp {
-			out = append(out, m.Text)
+			out = append(out, agent.Input{Text: m.Text, Images: m.Images})
 		} else {
 			kept = append(kept, m)
 		}
@@ -619,9 +630,10 @@ func (r *agentRun) editQueued(i int) {
 		r.queueMu.Unlock()
 		return
 	}
-	text := r.queue[i].Text
+	text, ims := r.queue[i].Text, r.queue[i].Images
 	r.queue = append(r.queue[:i], r.queue[i+1:]...)
 	r.queueMu.Unlock()
+	r.attached = append(r.attached, ims...)
 	if strings.TrimSpace(r.input) != "" {
 		text = strings.TrimRight(r.input, "\n") + "\n\n" + text
 	}
@@ -968,9 +980,11 @@ func (a *App) providerNames() []string {
 }
 
 // expandContext turns @file, @folder, @selection, @diagnostics and
-// @git-diff mentions into context attached after the message.
-func (a *App) expandContext(text string) string {
+// @git-diff mentions into context attached after the message. A mentioned
+// picture goes with the message as an image.
+func (a *App) expandContext(text string) agent.Input {
 	var extra []string
+	var pics []provider.ImageData
 	for _, w := range strings.Fields(text) {
 		if !strings.HasPrefix(w, "@") || len(w) < 2 {
 			continue
@@ -993,6 +1007,12 @@ func (a *App) expandContext(text string) string {
 			st, err := os.Stat(path)
 			switch {
 			case err != nil:
+			case !st.IsDir() && images.IsImagePath(path):
+				if im, err := a.loadImageFile(path); err == nil {
+					pics = append(pics, im)
+				} else {
+					a.toast("@"+name+": "+err.Error(), ui.ToastWarning)
+				}
 			case st.IsDir():
 				entries, _ := os.ReadDir(path)
 				var names []string
@@ -1015,10 +1035,10 @@ func (a *App) expandContext(text string) string {
 			}
 		}
 	}
-	if len(extra) == 0 {
-		return text
+	if len(extra) > 0 {
+		text += "\n\n" + strings.Join(extra, "\n\n")
 	}
-	return text + "\n\n" + strings.Join(extra, "\n\n")
+	return agent.Input{Text: text, Images: pics}
 }
 
 // diagnosticsNow is Diagnostics on the UI goroutine.

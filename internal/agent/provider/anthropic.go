@@ -167,7 +167,16 @@ func toAnthropic(m Message, name string) (anthropic.BetaMessageParam, error) {
 				ID: toolID(b.ToolID), Name: b.ToolName, Input: input,
 			}})
 		case ToolResult:
-			blocks = append(blocks, anthropic.NewBetaToolResultBlock(toolID(b.ToolID), b.Text, b.IsError))
+			tr := anthropic.NewBetaToolResultBlock(toolID(b.ToolID), b.Text, b.IsError)
+			for _, im := range b.Images {
+				tr.OfToolResult.Content = append(tr.OfToolResult.Content,
+					anthropic.BetaToolResultBlockParamContentUnion{OfImage: anthropicImage(im)})
+			}
+			blocks = append(blocks, tr)
+		case Image:
+			if b.Image != nil {
+				blocks = append(blocks, anthropic.BetaContentBlockParamUnion{OfImage: anthropicImage(*b.Image)})
+			}
 		}
 	}
 	role := anthropic.BetaMessageParamRoleUser
@@ -175,6 +184,15 @@ func toAnthropic(m Message, name string) (anthropic.BetaMessageParam, error) {
 		role = anthropic.BetaMessageParamRoleAssistant
 	}
 	return anthropic.BetaMessageParam{Role: role, Content: blocks}, nil
+}
+
+// anthropicImage is an image content block, sent inline as base64.
+func anthropicImage(im ImageData) *anthropic.BetaImageBlockParam {
+	return &anthropic.BetaImageBlockParam{Source: anthropic.BetaImageBlockParamSourceUnion{
+		OfBase64: &anthropic.BetaBase64ImageSourceParam{
+			Data: im.Base64(), MediaType: anthropic.BetaBase64ImageSourceMediaType(im.MediaType),
+		},
+	}}
 }
 
 // Models lists the models the key can use, newest first.

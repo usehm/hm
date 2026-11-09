@@ -71,7 +71,7 @@ func TestQueuedMessagesEditAndKinds(t *testing.T) {
 		followUp bool
 	}{{"steer one", false}, {"after one", true}, {"steer two", false}}
 	for _, tt := range tests {
-		a.sendText(r, tt.text, tt.followUp)
+		a.sendText(r, agent.Input{Text: tt.text}, tt.followUp)
 	}
 	q := r.queued()
 	if len(q) != 3 || q[1].Text != "after one" || !q[1].FollowUp || q[2].FollowUp {
@@ -82,11 +82,11 @@ func TestQueuedMessagesEditAndKinds(t *testing.T) {
 	if r.input != "draft\n\nsteer two" || !r.focusInput {
 		t.Fatalf("input %q", r.input)
 	}
-	if got := r.takeQueue(false); len(got) != 1 || got[0] != "steer one" {
-		t.Fatalf("steering %q", got)
+	if got := r.takeQueue(false); len(got) != 1 || got[0].Text != "steer one" {
+		t.Fatalf("steering %+v", got)
 	}
-	if got := r.takeQueue(true); len(got) != 1 || got[0] != "after one" {
-		t.Fatalf("follow-ups %q", got)
+	if got := r.takeQueue(true); len(got) != 1 || got[0].Text != "after one" {
+		t.Fatalf("follow-ups %+v", got)
 	}
 	if len(r.queued()) != 0 {
 		t.Fatal("the queue should be empty")
@@ -164,7 +164,7 @@ func TestInterruptedSessionResumes(t *testing.T) {
 		t.Fatalf("dangling call not answered: %+v", last)
 	}
 	h.frame() // the notice renders
-	if err := h.app.startTurn(r, "continue"); err != nil {
+	if err := h.app.startTurn(r, agent.Input{Text: "continue"}); err != nil {
 		t.Fatal(err)
 	}
 	h.until("turn end", 10*time.Second, func() bool { return !r.running })

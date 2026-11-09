@@ -191,6 +191,7 @@ func (a *App) Body(c *ui.Ctx) ui.View {
 	a.pumpSearch(c)
 	a.pumpGit(c)
 	a.pumpCompletion(c)
+	a.takeDrops(c)
 	if a.cfg.TakeChange() {
 		a.reloadConfig()
 	}
@@ -219,8 +220,11 @@ func (a *App) modalOpen(c *ui.Ctx) bool {
 
 // OnKey handles global chords a focused editor would otherwise eat. Command
 // shortcuts already ran by the time it is called.
-func (a *App) OnKey(_ *ui.Ctx, k input.KeyEvent) bool {
+func (a *App) OnKey(c *ui.Ctx, k input.KeyEvent) bool {
 	if a.recordKeyEvent(k) {
+		return true
+	}
+	if a.pasteImage(c, k) {
 		return true
 	}
 	if k.Key == input.KeyV && k.Mods.Primary() {

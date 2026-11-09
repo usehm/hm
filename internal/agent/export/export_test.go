@@ -104,10 +104,14 @@ func TestNoSecretsOrRequests(t *testing.T) {
 			if f != HTML {
 				continue
 			}
-			for _, bad := range []string{"<script", "<img", "src=", "<link", "@import", "url("} {
+			for _, bad := range []string{"<script", "<link", "@import", "url("} {
 				if strings.Contains(out, bad) {
 					t.Errorf("HTML holds %q", bad)
 				}
+			}
+			// Pictures are inline: every src is a data URL.
+			if n, inline := strings.Count(out, "src="), strings.Count(out, `src="data:image/`); n != inline || n == 0 {
+				t.Errorf("HTML has %d src attributes, %d of them inline images", n, inline)
 			}
 		}
 	}

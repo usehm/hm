@@ -27,22 +27,41 @@ type rpcCommand struct {
 	ID   any    `json:"id"`
 	Type string `json:"type"`
 
-	Text        string    `json:"text"`
-	CallID      string    `json:"call_id"`
-	Allow       bool      `json:"allow"`
-	ForSession  bool      `json:"for_session"`
-	Note        string    `json:"note"`
-	Edits       []rpcEdit `json:"edits"`
-	Provider    string    `json:"provider"`
-	Model       string    `json:"model"`
-	Effort      *string   `json:"effort"`
-	Mode        string    `json:"mode"`
-	Focus       string    `json:"focus"`
-	Entry       string    `json:"entry"`
-	Format      string    `json:"format"`
-	Path        string    `json:"path"`
-	AllBranches bool      `json:"all_branches"`
-	All         bool      `json:"all"`
+	Text        string     `json:"text"`
+	Images      []rpcImage `json:"images"`
+	CallID      string     `json:"call_id"`
+	Allow       bool       `json:"allow"`
+	ForSession  bool       `json:"for_session"`
+	Note        string     `json:"note"`
+	Edits       []rpcEdit  `json:"edits"`
+	Provider    string     `json:"provider"`
+	Model       string     `json:"model"`
+	Effort      *string    `json:"effort"`
+	Mode        string     `json:"mode"`
+	Focus       string     `json:"focus"`
+	Entry       string     `json:"entry"`
+	Format      string     `json:"format"`
+	Path        string     `json:"path"`
+	AllBranches bool       `json:"all_branches"`
+	All         bool       `json:"all"`
+}
+
+// rpcImage is a picture sent with prompt, steer or follow_up.
+type rpcImage struct {
+	Data []byte `json:"data"` // base64; the type is read from the data
+}
+
+// images are the command's pictures, checked and fitted for the model.
+func (c rpcCommand) images() ([]agent.Image, error) {
+	var out []agent.Image
+	for i, im := range c.Images {
+		ai, err := agent.LoadImage(im.Data)
+		if err != nil {
+			return nil, fmt.Errorf("image %d: %w", i+1, err)
+		}
+		out = append(out, ai)
+	}
+	return out, nil
 }
 
 // rpcEdit is a file an approval keeps, with its whole new content.
@@ -318,26 +337,32 @@ func (p *rpc) run(ctx context.Context, c rpcCommand) (any, error) {
 	r := p.r
 	switch c.Type {
 	case "prompt":
-		if c.Text == "" {
+		if c.Text == "" && len(c.Images) == 0 {
 			return nil, errors.New("prompt needs text")
 		}
+		ims, err := c.images()
+		if err != nil {
+			return nil, err
+		}
 		// The turn reports its end in turn_end; Ctrl-C aborts it.
-		return nil, p.start(c, true, func() { _ = r.Prompt(context.WithoutCancel(ctx), c.Text) })
+		return nil, p.start(c, true, func() { _ = r.Prompt(context.WithoutCancel(ctx), c.Text, ims...) })
 	case "compact":
 		return nil, p.start(c, false, func() {
 			err := r.Compact(context.WithoutCancel(ctx), c.Focus)
 			p.respond(c, nil, err)
 		})
 	case "steer", "follow_up":
-		if c.Text == "" {
+		if c.Text == "" && len(c.Images) == 0 {
 			return nil, errors.New(c.Type + " needs text")
 		}
-		if c.Type == "steer" {
-			r.Steer(c.Text)
-		} else {
-			r.FollowUp(c.Text)
+		ims, err := c.images()
+		if err != nil {
+			return nil, err
 		}
-		return nil, nil
+		if c.Type == "steer" {
+			return nil, r.Steer(c.Text, ims...)
+		}
+		return nil, r.FollowUp(c.Text, ims...)
 	case "abort":
 		r.Abort()
 		return nil, nil

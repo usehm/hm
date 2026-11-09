@@ -77,9 +77,21 @@ type Session struct {
 	// path caches the active path as positions in entries.
 	path   []int
 	pathOK bool
+	// visionWarned says the user was told the model cannot see images.
+	visionWarned bool
 
 	file fileState
 	mu   sync.Mutex
+}
+
+// warnNoVision reports whether the no-vision warning is still to give,
+// and marks it given.
+func (s *Session) warnNoVision() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	first := !s.visionWarned
+	s.visionWarned = true
+	return first
 }
 
 // ForkRef names the session and entry a fork started from.
@@ -288,18 +300,21 @@ func (s *Session) appendReply(m provider.Message, u provider.Usage) {
 	s.add(Entry{Kind: KindMessage, Message: &m, Usage: &u})
 }
 
-// addUserText puts text in the last message when it is the user's and has
-// not been answered yet, such as tool results of a cancelled turn, and in
-// a new user message otherwise. Two user messages in a row are refused by
-// some providers.
-func (s *Session) addUserText(text string) {
+// addUserText is addUser with text alone.
+func (s *Session) addUserText(text string) { s.addUser(Input{Text: text}) }
+
+// addUser puts the user's message in the last message when it is the
+// user's and has not been answered yet, such as tool results of a
+// cancelled turn, and in a new user message otherwise. Two user messages
+// in a row are refused by some providers.
+func (s *Session) addUser(in Input) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	block := provider.Block{Type: provider.Text, Text: text}
+	blocks := in.blocks()
 	if _, ents := s.messages(); len(ents) > 0 && ents[len(ents)-1].Message.Role == provider.User {
 		e := *ents[len(ents)-1]
 		m := *e.Message
-		m.Blocks = append(slices.Clone(m.Blocks), block)
+		m.Blocks = append(slices.Clone(m.Blocks), blocks...)
 		e.Message = &m
 		if s.hasChildren(e.ID) {
 			// Another branch goes on from it: change a copy next to it.
@@ -312,7 +327,7 @@ func (s *Session) addUserText(text string) {
 		s.titleFrom(m)
 		return
 	}
-	m := provider.Message{Role: provider.User, Blocks: []provider.Block{block}}
+	m := provider.Message{Role: provider.User, Blocks: blocks}
 	s.add(Entry{Kind: KindMessage, Message: &m})
 	s.titleFrom(m)
 }

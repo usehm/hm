@@ -105,7 +105,7 @@ func TestSteeringJoinsAfterToolResults(t *testing.T) {
 	)
 	queue := []string{"also check b.go"}
 	saves := 0
-	h.agent.Hooks.Steer = func() []string { q := queue; queue = nil; return q }
+	h.agent.Hooks.Steer = func() []Input { q := queue; queue = nil; return Texts(q...) }
 	h.agent.Hooks.Persist = func() { saves++ }
 	h.run(t, "read a")
 	// The note was waiting before the call started, so the call was
@@ -175,8 +175,8 @@ func TestSteerSkipsRestFollowUpWaits(t *testing.T) {
 					event(e)
 				}
 			}
-			h.agent.Hooks.Steer = func() []string { q := steer; steer = nil; return q }
-			h.agent.Hooks.FollowUp = func() []string { q := follow; follow = nil; return q }
+			h.agent.Hooks.Steer = func() []Input { q := steer; steer = nil; return Texts(q...) }
+			h.agent.Hooks.FollowUp = func() []Input { q := follow; follow = nil; return Texts(q...) }
 			h.run(t, "read a three times")
 
 			res := h.results()

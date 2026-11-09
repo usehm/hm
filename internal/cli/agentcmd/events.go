@@ -88,15 +88,24 @@ type (
 	}
 	toolResult struct {
 		envelope
-		Tool    string `json:"tool"`
-		CallID  string `json:"call_id"`
-		Text    string `json:"text"`
-		IsError bool   `json:"is_error"`
+		Tool    string      `json:"tool"`
+		CallID  string      `json:"call_id"`
+		Text    string      `json:"text"`
+		IsError bool        `json:"is_error"`
+		Images  []imageLine `json:"images,omitempty"`
 	}
 	messageEnd struct {
 		envelope
-		Role string `json:"role"`
-		Text string `json:"text"`
+		Role   string      `json:"role"`
+		Text   string      `json:"text"`
+		Images []imageLine `json:"images,omitempty"`
+	}
+	// imageLine is a picture, its data in base64.
+	imageLine struct {
+		MediaType string `json:"media_type"`
+		Data      []byte `json:"data"`
+		Width     int    `json:"width,omitempty"`
+		Height    int    `json:"height,omitempty"`
 	}
 	usageFields struct {
 		Input      int64   `json:"input"`
@@ -162,6 +171,14 @@ func (w *jsonWriter) sessionEnd(info agent.SessionInfo, answer string, code int,
 	w.write("session_end", info.ID, &sessionEnd{Answer: answer, ExitCode: code, Refused: refused, Usage: usageOf(info.Usage)})
 }
 
+func imageLines(ims []agent.Image) []imageLine {
+	var out []imageLine
+	for _, im := range ims {
+		out = append(out, imageLine{MediaType: im.MediaType, Data: im.Data, Width: im.Width, Height: im.Height})
+	}
+	return out
+}
+
 func usageOf(u agent.Usage) usageFields {
 	return usageFields{Input: u.Input, Output: u.Output, CacheRead: u.CacheRead, CacheWrite: u.CacheWrite, Cost: u.Cost}
 }
@@ -179,7 +196,7 @@ func (w *jsonWriter) event(e agent.Event) {
 		}
 	}
 	switch e.Kind {
-	case agent.EventText, agent.EventThinking, agent.EventRetry, agent.EventError:
+	case agent.EventText, agent.EventThinking, agent.EventRetry, agent.EventError, agent.EventWarning:
 		w.write(string(e.Kind), s, &textLine{Text: e.Text})
 	case agent.EventToolStart:
 		w.write("tool_start", s, &toolStart{Tool: e.Tool})
@@ -196,11 +213,12 @@ func (w *jsonWriter) event(e agent.Event) {
 	case agent.EventBlocked:
 		w.write("blocked", s, &blockedLine{Tool: e.Tool, Reason: e.Text})
 	case agent.EventToolResult:
-		w.write("tool_result", s, &toolResult{Tool: e.Tool, CallID: e.CallID, Text: e.Result.Text, IsError: e.Result.IsError})
+		w.write("tool_result", s, &toolResult{Tool: e.Tool, CallID: e.CallID, Text: e.Result.Text, IsError: e.Result.IsError,
+			Images: imageLines(e.Result.Images)})
 	case agent.EventMessage:
 		delete(w.streaming, s)
 		if m := e.Message; m != nil {
-			w.write("message_end", s, &messageEnd{Role: m.Role, Text: m.Text})
+			w.write("message_end", s, &messageEnd{Role: m.Role, Text: m.Text, Images: imageLines(m.Images)})
 		}
 	case agent.EventUsage:
 		w.write("usage", s, &usageLine{usageFields: usageOf(*e.Usage)})

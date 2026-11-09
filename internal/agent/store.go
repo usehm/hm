@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -323,9 +324,16 @@ func (st *Store) Save(s *Session) error {
 	taken := len(s.file.pending)
 	s.file.state = false
 	size, nl := s.file.size, s.file.nl
+	recs, blobs := withoutImageData(recs)
 	data, err := lines(recs)
 	s.mu.Unlock()
 	if err != nil || len(recs) == 0 {
+		return err
+	}
+	if err := st.writeImages(blobs); err != nil {
+		s.mu.Lock()
+		s.file.state = true
+		s.mu.Unlock()
 		return err
 	}
 
@@ -348,6 +356,140 @@ func (st *Store) Save(s *Session) error {
 	}
 	s.file.nl = false
 	return nil
+}
+
+// Pictures are kept out of the session file, which is read whole to list
+// sessions: each goes in the images folder once, named by its hash, and
+// the line keeps the hash. Sessions share the files; forks and branches
+// point at the same ones.
+
+// withoutImageData returns recs with the pictures' data taken out of the
+// entries, and the pictures to write.
+func withoutImageData(recs []any) ([]any, []provider.ImageData) {
+	var blobs []provider.ImageData
+	out, copied := recs, false
+	for i, r := range recs {
+		er, ok := r.(entryRecord)
+		if !ok || er.Message == nil {
+			continue
+		}
+		m, found := stripMessage(*er.Message, &blobs)
+		if !found {
+			continue
+		}
+		if !copied {
+			out, copied = slices.Clone(recs), true
+		}
+		er.Message = &m
+		out[i] = er
+	}
+	return out, blobs
+}
+
+// stripMessage copies m with its pictures' data left out, adding them to
+// blobs.
+func stripMessage(m provider.Message, blobs *[]provider.ImageData) (provider.Message, bool) {
+	strip := func(im provider.ImageData) provider.ImageData {
+		if im.Hash == "" {
+			im.Hash = provider.HashOf(im.Data)
+		}
+		if len(im.Data) > 0 {
+			*blobs = append(*blobs, im)
+		}
+		im.Data = nil
+		return im
+	}
+	found := false
+	var blocks []provider.Block
+	for i, b := range m.Blocks {
+		if b.Image == nil && len(b.Images) == 0 {
+			continue
+		}
+		if !found {
+			blocks = slices.Clone(m.Blocks)
+			found = true
+		}
+		if b.Image != nil {
+			im := strip(*b.Image)
+			blocks[i].Image = &im
+		}
+		if len(b.Images) > 0 {
+			ims := make([]provider.ImageData, len(b.Images))
+			for k, im := range b.Images {
+				ims[k] = strip(im)
+			}
+			blocks[i].Images = ims
+		}
+	}
+	if found {
+		m.Blocks = blocks
+	}
+	return m, found
+}
+
+func (st *Store) imageFile(im provider.ImageData) string {
+	ext := strings.TrimPrefix(im.MediaType, "image/")
+	if ext == "jpeg" {
+		ext = "jpg"
+	}
+	return filepath.Join(st.dir, "images", filepath.Base(im.Hash)+"."+ext)
+}
+
+// writeImages puts each picture in its file, unless it is there.
+func (st *Store) writeImages(ims []provider.ImageData) error {
+	for _, im := range ims {
+		path := st.imageFile(im)
+		if _, err := os.Stat(path); err == nil {
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			return err
+		}
+		tmp := path + ".tmp"
+		if err := os.WriteFile(tmp, im.Data, 0o600); err != nil {
+			return err
+		}
+		if err := os.Rename(tmp, path); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// imageGone stands for a picture whose file was deleted.
+const imageGone = "[image no longer on disk]"
+
+// readImages loads the pictures of s's entries from their files. One
+// whose file is gone becomes a note saying so.
+func (st *Store) readImages(s *Session) {
+	load := func(im *provider.ImageData) bool {
+		if len(im.Data) == 0 {
+			im.Data, _ = os.ReadFile(st.imageFile(*im))
+		}
+		return len(im.Data) > 0
+	}
+	for _, e := range s.entries {
+		if e.Message == nil {
+			continue
+		}
+		for i := range e.Message.Blocks {
+			b := &e.Message.Blocks[i]
+			if b.Image != nil && !load(b.Image) {
+				*b = provider.Block{Type: provider.Text, Text: imageGone}
+			}
+			kept := b.Images[:0]
+			for k := range b.Images {
+				if load(&b.Images[k]) {
+					kept = append(kept, b.Images[k])
+				} else {
+					b.Text += "\n" + imageGone
+				}
+			}
+			if len(b.Images) > 0 {
+				b.Images = kept
+			}
+		}
+	}
 }
 
 // write puts data in id's file: as the whole file, or after the good
@@ -387,7 +529,11 @@ func (st *Store) write(id string, data []byte, whole bool, size int64, nl bool) 
 func (st *Store) Load(id string) (*Session, error) {
 	data, err := os.ReadFile(st.file(id))
 	if err == nil {
-		return decodeSession(data)
+		s, err := decodeSession(data)
+		if err == nil {
+			st.readImages(s)
+		}
+		return s, err
 	}
 	if !errors.Is(err, os.ErrNotExist) {
 		return nil, err

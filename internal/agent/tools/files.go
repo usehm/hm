@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mirzakhany/hm/internal/agent/images"
 	"github.com/mirzakhany/hm/internal/agent/provider"
 	"github.com/mirzakhany/hm/internal/search"
 )
@@ -23,7 +24,8 @@ const readMaxLines = 2000
 
 func (readTool) Spec() provider.Tool {
 	return provider.Tool{Name: "read", Description: "Read a text file. Lines come numbered (1-based). " +
-		"Open buffers are read with their unsaved changes. Use offset and limit for large files.",
+		"Open buffers are read with their unsaved changes. Use offset and limit for large files. " +
+		"PNG, JPEG, GIF and WebP files come back as images you can see.",
 		Schema: schema(map[string]any{
 			"path":   str("File path, relative to the workspace root or absolute"),
 			"offset": integer("First line to read, 1-based (default 1)"),
@@ -45,8 +47,13 @@ func (readTool) Prepare(env Env, input json.RawMessage) (Plan, error) {
 		if err != nil {
 			return fail("%v", err)
 		}
+		if images.IsImagePath(path) || images.Sniff(data) != "" {
+			if r, ok := readImage(rel(env, path), data); ok {
+				return r
+			}
+		}
 		if isBinary(data) {
-			return fail("%s is a binary file", rel(env, path))
+			return ok("%s is a binary file (%s)", rel(env, path), size(len(data)))
 		}
 		lines := strings.Split(string(data), "\n")
 		if len(lines) > 0 && lines[len(lines)-1] == "" {
@@ -74,6 +81,30 @@ func (readTool) Prepare(env Env, input json.RawMessage) (Plan, error) {
 		}
 		return ok("%s", b.String())
 	}}, nil
+}
+
+// readImage gives the model a picture, scaled down when it is large.
+func readImage(name string, data []byte) (Result, bool) {
+	im, err := images.Load(data)
+	if err != nil {
+		return Result{}, false
+	}
+	text := fmt.Sprintf("Image %s, %d×%d", name, im.OrigWidth, im.OrigHeight)
+	if im.Resized() {
+		text += fmt.Sprintf(" (sent scaled to %d×%d)", im.Width, im.Height)
+	}
+	return Result{Text: text, Images: []provider.ImageData{im.Message()}}, true
+}
+
+// size is a byte count for people.
+func size(n int) string {
+	switch {
+	case n >= 1<<20:
+		return fmt.Sprintf("%.1f MB", float64(n)/(1<<20))
+	case n >= 1<<10:
+		return fmt.Sprintf("%d KB", n>>10)
+	}
+	return fmt.Sprintf("%d bytes", n)
 }
 
 func isBinary(data []byte) bool {

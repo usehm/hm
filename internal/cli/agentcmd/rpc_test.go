@@ -4,8 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/png"
 	"io"
 	"os"
 	"path/filepath"
@@ -387,5 +390,43 @@ func TestRPCFlags(t *testing.T) {
 		if code := Run(context.Background(), append([]string{"--cwd", root}, args...), nil, &out, &errb); code != exitUsage || out.Len() > 0 {
 			t.Errorf("%v: exit %d, stdout %q", args, code, out.String())
 		}
+	}
+}
+
+func TestRPCImages(t *testing.T) {
+	root, model := agenttest.Workspace(t, []agenttest.Reply{
+		{Calls: []agenttest.Call{{Name: "read", Input: `{"path":"shot.png"}`}}},
+		{Text: "two blank pictures"},
+	}, "")
+	var b bytes.Buffer
+	if err := png.Encode(&b, image.NewRGBA(image.Rect(0, 0, 6, 3))); err != nil {
+		t.Fatal(err)
+	}
+	pic := b.Bytes()
+	agenttest.WriteFile(t, filepath.Join(root, "shot.png"), string(pic))
+	h := startRPC(t, root, "--no-session", "--approve", "all")
+
+	h.send(map[string]any{"id": "bad", "type": "prompt", "text": "look", "images": []any{map[string]any{"data": []byte("not a picture")}}})
+	if r := h.response("bad"); r["ok"] != false || !strings.Contains(fmt.Sprint(r["error"]), "image 1") {
+		t.Fatalf("a bad image was taken: %v", r)
+	}
+
+	h.send(map[string]any{"id": "p", "type": "prompt", "text": "what are these?", "images": []any{map[string]any{"data": pic}}})
+	h.ok("p")
+	b64 := base64.StdEncoding.EncodeToString(pic)
+	user := h.until("the user's message", func(m map[string]any) bool { return m["type"] == "message_end" && m["role"] == "user" })
+	if got := fmt.Sprint(user["images"]); !strings.Contains(got, b64) || !strings.Contains(got, "image/png") {
+		t.Fatalf("message_end images %s", got)
+	}
+	res := h.until("tool_result", is("tool_result"))
+	if got := fmt.Sprint(res["images"]); !strings.Contains(got, b64) {
+		t.Fatalf("tool_result images %s", got)
+	}
+	h.until("turn_end", is("turn_end"))
+	if !model.Sent(b64) {
+		t.Fatal("the picture did not reach the model")
+	}
+	if _, code := h.end(); code != 0 {
+		t.Fatalf("exit %d", code)
 	}
 }

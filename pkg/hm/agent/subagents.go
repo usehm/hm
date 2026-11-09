@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/mirzakhany/hm/internal/agent"
 	"github.com/mirzakhany/hm/internal/agent/host"
 	"github.com/mirzakhany/hm/internal/agent/tools"
 )
@@ -58,7 +59,7 @@ func (c *Runner) work(ctx context.Context, prompt string) tools.Result {
 	defer func() { <-parent.subSem }()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	err := c.turn(ctx, prompt)
+	err := c.turn(ctx, agent.Input{Text: prompt})
 	end := Event{Kind: EventSubagentEnd, Session: c.session.ID}
 	if err != nil {
 		end.Text = err.Error()

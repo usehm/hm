@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mirzakhany/hm/internal/agent/images"
 	"github.com/mirzakhany/hm/internal/agent/provider"
 	"github.com/mirzakhany/hm/internal/agent/tools"
 )
@@ -176,6 +177,13 @@ func transcript(msgs []provider.Message) string {
 					label = "error"
 				}
 				fmt.Fprintf(&b, "[%s %s]\n%s\n\n", bl.ToolName, label, cut(strings.TrimSpace(bl.Text), maxResultChars))
+				for range bl.Images {
+					b.WriteString("[image]\n\n")
+				}
+			case provider.Image:
+				// The summary model is sent no pictures: a note keeps
+				// the place.
+				fmt.Fprintf(&b, "[%s]\n[image]\n\n", m.Role)
 			}
 		}
 	}
@@ -254,13 +262,21 @@ func cutPoint(msgs []provider.Message, from, keep int) int {
 	return -1
 }
 
-// estimate guesses a message's tokens at four characters each.
+// estimate guesses a message's tokens at four characters each, and a
+// picture's by its size.
 func estimate(m provider.Message) int64 {
 	n := 4 // the message's own framing
+	var pics int64
 	for _, b := range m.Blocks {
 		n += 4 + len(b.Text) + len(b.Input)
+		if b.Image != nil {
+			pics += images.Tokens(b.Image.Width, b.Image.Height)
+		}
+		for _, im := range b.Images {
+			pics += images.Tokens(im.Width, im.Height)
+		}
 	}
-	return int64(n / 4)
+	return int64(n/4) + pics
 }
 
 func estimateAll(msgs []provider.Message) int64 {

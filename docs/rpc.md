@@ -34,9 +34,9 @@ A response has `ok`, an `error` when it failed, and `data` for the commands that
 
 | command | fields | answers |
 |---|---|---|
-| `prompt` | `text` | When the turn starts. Fails while another runs. |
-| `steer` | `text` | At once. The message reaches the model after the tool call in progress; the calls of that batch not yet started are skipped. Sent while idle, it waits for the next prompt. |
-| `follow_up` | `text` | At once. The message waits for the turn to end, then starts another step. |
+| `prompt` | `text`, `images` | When the turn starts. Fails while another runs, or when an image is not one. |
+| `steer` | `text`, `images` | At once. The message reaches the model after the tool call in progress; the calls of that batch not yet started are skipped. Sent while idle, it waits for the next prompt. |
+| `follow_up` | `text`, `images` | At once. The message waits for the turn to end, then starts another step. |
 | `abort` | | At once. Stops the turn and background sub-agents; calls waiting for approval are refused and questions go unanswered. Queued messages are dropped. |
 | `approve` | `call_id`, `allow`, and optionally `for_session`, `note`, `edits` | At once. Fails unless that call is waiting for approval. |
 | `answer` | `call_id`, `text` | At once. Fails unless that call is waiting for an answer. |
@@ -47,6 +47,8 @@ A response has `ok`, an `error` when it failed, and `data` for the commands that
 | `list_sessions` | `all` (optional) | `data.sessions`: the saved sessions of the workspace, or every one with `all`, newest first: `id`, `title`, `mode`, `provider`, `root`, `parent_id`, `fork_of`, `status`, `updated`, `turns`, `cost`. |
 | `fork` | `entry` (optional) | When it is idle only. The session goes on as a fork from `entry`, or from its latest message: a new saved session, which hm works in from then on and announces with a new `session_start`. `data` is the fork's `session`. |
 | `export` | `format` (`html`, `md` or `jsonl`; default `html`), `path`, `all_branches` | Writes the session to a file, with the secrets hm knows of and anything shaped like a key taken out. `path` is relative to the workspace; a folder or nothing gets the default name (in Downloads). `data`: `path`, and `redacted`, such as `["2 anthropic key"]`. |
+
+`images` is a list of `{"data": "<base64>"}`: PNG, JPEG, GIF or WebP, told apart by their bytes. A picture over 1568 pixels on its long side or 5 MB is scaled down before the model sees it. A prompt may be images alone, with no `text`.
 
 A `session` in `data` has `id`, `title`, `root`, `mode`, `provider`, `model`, `effort` (when set), `status`, `running`, `saved`, `context` (tokens the next model call about sends) and `usage` (`input`, `output`, `cache_read`, `cache_write`, `cost`).
 

@@ -284,10 +284,10 @@ func (a *App) editAndResend(r *agentRun, e agent.Entry) {
 	if e.Message == nil || r.running {
 		return
 	}
-	text := typedText(agent.PromptText(*e.Message))
+	text, pics := promptInput(*e.Message)
 	a.branchTo(r, e.ParentID)
 	if r.session.Head == e.ParentID {
-		r.input, r.focusInput = text, true
+		r.input, r.attached, r.focusInput = text, pics, true
 	}
 }
 
@@ -325,10 +325,10 @@ func (a *App) forkAt(r *agentRun, id string) {
 		return
 	}
 	at, text := id, ""
-	if e.Message != nil {
-		if t := agent.PromptText(*e.Message); t != "" {
-			at, text = e.ParentID, typedText(t)
-		}
+	var pics []provider.ImageData
+	if e.Message != nil && agent.PromptText(*e.Message) != "" {
+		at = e.ParentID
+		text, pics = promptInput(*e.Message)
 	}
 	f, err := s.Fork(at)
 	if err != nil {
@@ -341,7 +341,7 @@ func (a *App) forkAt(r *agentRun, id string) {
 	}
 	a.agent.sessionsStale = true
 	nr := a.newRun(f)
-	nr.input = text
+	nr.input, nr.attached = text, pics
 	a.openRunTab(nr)
 	a.toast("Forked into a new session", ui.ToastSuccess)
 }
