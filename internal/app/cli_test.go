@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -62,6 +63,36 @@ func TestCLIScriptResolvesPath(t *testing.T) {
 
 	if err := exec.Command(launcher, filepath.Join(dir, "missing")).Run(); err == nil {
 		t.Error("hm on a missing folder succeeded")
+	}
+}
+
+// `hm agent` runs the binary itself, in the foreground: arguments, piped
+// input, output and exit code all go through, and no folder is checked.
+func TestCLIScriptRunsAgent(t *testing.T) {
+	if !cliSupported() {
+		t.Skip("no shell command on " + runtime.GOOS)
+	}
+	dir := t.TempDir()
+	fake := filepath.Join(dir, "fake-hm")
+	script := "#!/bin/sh\nprintf '%s|' \"$@\"\ncat\nexit 3\n"
+	if err := os.WriteFile(fake, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	launcher := filepath.Join(dir, "hm")
+	// A bundle path that doesn't exist: agent must not go through `open`.
+	if err := os.WriteFile(launcher, []byte(cliScript(fake, filepath.Join(dir, "Hm.app"), bundleID)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(launcher, "agent", "-p", "review this")
+	cmd.Dir = dir
+	cmd.Stdin = strings.NewReader("diff")
+	out, err := cmd.Output()
+	var exit *exec.ExitError
+	if !errors.As(err, &exit) || exit.ExitCode() != 3 {
+		t.Fatalf("hm agent: err = %v, want exit code 3", err)
+	}
+	if want := "agent|-p|review this|diff"; string(out) != want {
+		t.Errorf("hm agent wrote %q, want %q", out, want)
 	}
 }
 

@@ -49,7 +49,9 @@ func appBundle(exe string) string {
 // cliScript is the launcher: it turns its argument into an absolute path
 // (a file opens its folder) and starts a new hm window on it. On macOS it
 // goes through `open` so the app gets its Dock icon and bundle; anywhere
-// else it starts the binary detached from the terminal.
+// else it starts the binary detached from the terminal. `hm agent ...`
+// runs the binary in the foreground instead, so it keeps the terminal's
+// standard input, output and exit code.
 func cliScript(exe, bundle, bundleID string) string {
 	var launch string
 	if bundle != "" {
@@ -68,7 +70,16 @@ exec open -n -b %s --args "$@"`, shellQuote(bundle), shellQuote(bundleID))
 #   hm .          open the current folder
 #   hm PATH       open PATH (a file opens its folder)
 #   hm            reopen the last session
+#   hm agent ...  run the agent in this terminal (hm ./agent opens a folder named agent)
 set -e
+if [ "${1-}" = agent ]; then
+	exe=` + shellQuote(exe) + `
+	if [ ! -x "$exe" ]; then
+		echo "hm: $exe: not found; reinstall the hm command from the app" >&2
+		exit 1
+	fi
+	exec "$exe" "$@"
+fi
 if [ $# -gt 0 ]; then
 	target=$1
 	shift
