@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package app
 
 // navLoc is a place the caret was: a file and a byte offset in it.

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package diff compares texts line by line, for the editor's change bars
 // and the agent's edit review.
 package diff

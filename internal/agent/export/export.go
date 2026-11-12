@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package export turns a session into one file to read or send: a
 // self-contained HTML page, Markdown, or the raw JSON Lines the session is
 // stored as. Secrets are redacted on the way out.

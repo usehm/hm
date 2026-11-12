@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package images turns pictures from the clipboard, a drop or a file into
 // what model APIs take: PNG, JPEG, GIF or WebP, at most MaxSide pixels on
 // the long side and MaxBytes in size.

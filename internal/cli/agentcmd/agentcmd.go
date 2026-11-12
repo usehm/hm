@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package agentcmd is `hm agent`: hm's coding agent on the command line,
 // without the window. It needs no display, and does not import the UI
 // toolkit.

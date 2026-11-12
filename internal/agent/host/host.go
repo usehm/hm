@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package host wires hm's agent together from config: the provider, the
 // guard, the tools of a mode, skills, MCP, instruction files and
 // sub-agents. The editor and the headless runner (pkg/hm/agent) both build

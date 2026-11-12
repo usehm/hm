@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package secrets keeps API keys in the OS keychain (macOS Keychain,
 // Windows Credential Manager, the Secret Service on Linux). Config files
 // refer to them as "keychain:<name>".

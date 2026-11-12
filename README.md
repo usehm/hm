@@ -278,3 +278,17 @@ artifacts:
 - A diff option to ignore whitespace-only changes (`ignore_trim_whitespace`).
 - Full-color file icons, once Yoga can draw multi-color SVG icons in the tree.
 - Prebuilt, signed releases for macOS, Linux and Windows.
+
+## Contributing
+
+Bug reports, ideas and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). Pull requests need a one-time [Contributor License Agreement](CLA.md).
+
+## License
+
+Copyright (C) 2026 Mohsen Mirzakhani.
+
+Hm is free software: you can redistribute it and/or modify it under the terms of the [GNU Affero General Public License v3.0](LICENSE). If you distribute a modified Hm, or let others use it over a network, you must make its source available under the same license.
+
+For a commercial license without the AGPL's obligations, for example to embed `pkg/hm/agent` in a closed-source product, open an issue or contact the maintainer through GitHub.
+
+The name "Hm" and the Hm logo are trademarks and are not covered by the license; see [TRADEMARKS.md](TRADEMARKS.md).

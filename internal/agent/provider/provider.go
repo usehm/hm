@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package provider talks to language model APIs: Anthropic's Messages API
 // through its SDK, Google's Gemini (on the Gemini API or Vertex AI), and
 // any OpenAI-compatible chat completions endpoint (OpenAI, Azure OpenAI,

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package guard checks what the agent is about to do against rules the user
 // writes in guard.yaml, before any approval is asked for. A deny rule blocks
 // a call outright, whatever the mode or the user's earlier answers; an ask

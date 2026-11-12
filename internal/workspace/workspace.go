@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package workspace holds the open folder and the tab strip: which files are
 // open, in what order, which one is active, and which have unsaved changes.
 package workspace

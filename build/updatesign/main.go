@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Copied from chapar build/updatesign/main.go (github.com/chapar-rest/chapar@2342e52a).
 
 // Command updatesign makes and uses the key that signs release assets, so

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package lang
 
 // Adapted from chapar ui/langsrv/install.go (github.com/chapar-rest/chapar@2342e52a).

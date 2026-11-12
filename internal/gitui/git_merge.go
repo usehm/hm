@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Adapted from chapar ui/pages/git_merge.go (github.com/chapar-rest/chapar@2342e52a).
 
 package gitui

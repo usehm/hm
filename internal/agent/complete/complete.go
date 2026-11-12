@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package complete asks a language model for an inline completion at the
 // caret: it builds the prompt from the text around the caret and cleans the
 // reply into the text to insert.

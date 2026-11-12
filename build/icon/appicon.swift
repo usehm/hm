@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Draws the hm app icon: "Hm" on an ink squircle with a coral dot.
 //
 //   swift build/icon/appicon.swift build/appicon-1024.png

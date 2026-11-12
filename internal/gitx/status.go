@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Copied from chapar internal/gitx/status.go (github.com/chapar-rest/chapar@2342e52a).
 
 package gitx

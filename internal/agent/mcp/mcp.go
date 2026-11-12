@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package mcp connects the agent to Model Context Protocol servers from the
 // config, over stdio or streamable HTTP, and offers their tools as agent
 // tools named mcp__<server>__<tool>.

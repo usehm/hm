@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package lang turns the languages section of the config into language
 // servers, highlighters and formatter chains, and reports what goes wrong
 // with them.

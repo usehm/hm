@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package agent runs hm's coding agent without the editor: from scripts,
 // CI, other editors or other Go programs. It reads the same config,
 // guard.yaml, skills, MCP servers and instruction files as the app, and

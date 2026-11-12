@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package agenttest has a scripted fake model and a workspace using it,
 // for tests of the agent's hosts.
 package agenttest

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package search finds and replaces text across a workspace, with ripgrep
 // when it is installed and a Go walker that honors .gitignore otherwise.
 package search

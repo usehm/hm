@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 //go:build nogpu
 
 // Command hm, built with -tags nogpu, lays out one frame without a window and

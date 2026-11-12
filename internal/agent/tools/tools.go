@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package tools holds the agent's built-in tools. A tool turns its input
 // into a Plan: what it would do, described for the approval card, and either
 // file edits for the harness to apply or a function to run. Nothing touches

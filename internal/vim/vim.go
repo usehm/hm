@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package vim is a Vim keymap for an editor: normal, insert, visual and
 // visual-line modes, counts, operators with motions and text objects,
 // registers, repeat with ".", search with "/" and a few ex commands. It is a

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package config loads hm's YAML configuration: built-in defaults, then the
 // user file, then the project file, later layers winning. It validates each
 // layer with file positions, watches the files, and edits them through

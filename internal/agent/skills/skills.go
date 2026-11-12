@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package skills loads agent skills: folders holding a SKILL.md with name
 // and description front matter, plus any files the skill refers to. Every
 // skill's description goes into the system prompt; the body loads when the

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package editor owns the one *ui.Editor each open file has. The tab, the
 // search dialog's preview and the agent all edit the buffer they get here, so
 // an open file never exists twice.

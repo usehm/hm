@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package prompts loads prompt templates: Markdown files that become slash
 // commands in the agent's message box. The file name is the command, the
 // body is the message sent, with $ARGUMENTS, $1, $2 ... filled from what is

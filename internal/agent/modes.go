@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package agent runs hm's coding agent: modes, the tool-calling loop,
 // approvals and saved sessions. It knows the editor only through tools.Env
 // and the hooks the app passes in, never UI types.

@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 Mohsen Mirzakhani
+# SPDX-License-Identifier: AGPL-3.0-only
+
 """Drive hm's agent over RPC: send a prompt, show what it does, approve
 its calls and answer its questions, then print the answer.
 

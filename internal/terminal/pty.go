@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package terminal runs shells in pseudo-terminals and draws them: a PTY per
 // session, charmbracelet's VT emulator for the screen and scrollback, and a
 // yoga widget that paints the cell grid and turns keys and mouse into input.

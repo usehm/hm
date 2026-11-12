@@ -1,4 +1,7 @@
 #!/bin/sh
+# Copyright (C) 2026 Mohsen Mirzakhani
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # Creates a new app from this skill's template.
 #   scaffold.sh <target-dir> <app-name> <go-module-path>
 # Example: scaffold.sh ./shop shop github.com/acme/shop

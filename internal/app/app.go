@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Package app is hm's window: the shell around the editor, its commands, and
 // the wiring between the packages below it.
 package app
