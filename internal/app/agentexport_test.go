@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mirzakhany/hm/internal/agent/export"
+	"github.com/usehm/hm/internal/agent/export"
 )
 
 func TestParseExportArgs(t *testing.T) {

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mirzakhany/hm/internal/agent"
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/agent/tools"
+	"github.com/usehm/hm/internal/agent"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/tools"
 )
 
 // SubagentPrompt tells a sub-agent what it is.

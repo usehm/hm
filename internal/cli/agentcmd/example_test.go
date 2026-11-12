@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mirzakhany/hm/internal/agent/agenttest"
+	"github.com/usehm/hm/internal/agent/agenttest"
 )
 
 // TestPythonExample runs examples/rpc_client.py against a built hm and the

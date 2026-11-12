@@ -15,8 +15,8 @@ import (
 
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/workspace"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/workspace"
 )
 
 // toolCall is a scripted call the fake model makes.

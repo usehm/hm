@@ -7,8 +7,8 @@ import (
 
 	"github.com/mirzakhany/yoga/input"
 
-	"github.com/mirzakhany/hm/internal/config"
-	"github.com/mirzakhany/hm/internal/workspace"
+	"github.com/usehm/hm/internal/config"
+	"github.com/usehm/hm/internal/workspace"
 )
 
 func TestKeybindingsWithConditionsAndSequences(t *testing.T) {

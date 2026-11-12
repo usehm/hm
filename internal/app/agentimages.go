@@ -10,8 +10,8 @@ import (
 	"github.com/mirzakhany/yoga/input"
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/agent/images"
-	"github.com/mirzakhany/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/images"
+	"github.com/usehm/hm/internal/agent/provider"
 )
 
 // Pictures reach the agent three ways: pasted into the message box,

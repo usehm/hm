@@ -12,8 +12,8 @@ import (
 	"github.com/mirzakhany/yoga/icons"
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/search"
-	"github.com/mirzakhany/hm/internal/workspace"
+	"github.com/usehm/hm/internal/search"
+	"github.com/usehm/hm/internal/workspace"
 )
 
 // searchDebounce waits for typing to pause before searching.

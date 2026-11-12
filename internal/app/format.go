@@ -8,7 +8,7 @@ import (
 	"github.com/mirzakhany/yoga/lsp"
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/lang"
+	"github.com/usehm/hm/internal/lang"
 )
 
 // syncFormatTimeout bounds formatting that blocks the UI, before a tab

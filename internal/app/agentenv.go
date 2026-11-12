@@ -13,9 +13,9 @@ import (
 	"github.com/mirzakhany/yoga/lsp"
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/agent/tools"
-	"github.com/mirzakhany/hm/internal/search"
-	"github.com/mirzakhany/hm/internal/workspace"
+	"github.com/usehm/hm/internal/agent/tools"
+	"github.com/usehm/hm/internal/search"
+	"github.com/usehm/hm/internal/workspace"
 )
 
 // uiCallTimeout bounds how long the agent waits for the UI goroutine.

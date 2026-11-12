@@ -13,8 +13,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/search"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/search"
 )
 
 // Category groups tools for approval policies: a mode's approval map may

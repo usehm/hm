@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/usehm/hm/internal/config"
 )
 
 // Mode is a resolved mode: its prompt, the tools it may use and how each

@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mirzakhany/hm/internal/agent/agenttest"
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/usehm/hm/internal/agent/agenttest"
+	"github.com/usehm/hm/internal/config"
 )
 
 type (

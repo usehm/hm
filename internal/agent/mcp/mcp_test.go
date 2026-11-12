@@ -11,7 +11,7 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/usehm/hm/internal/config"
 )
 
 type echoIn struct {

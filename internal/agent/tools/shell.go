@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mirzakhany/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/provider"
 )
 
 const (

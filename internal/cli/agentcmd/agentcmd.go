@@ -16,7 +16,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/mirzakhany/hm/pkg/hm/agent"
+	"github.com/usehm/hm/pkg/hm/agent"
 )
 
 // Output formats for --output.

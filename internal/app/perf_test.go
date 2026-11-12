@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/usehm/hm/internal/config"
 )
 
 // The OS keychain runs a process per read, so Body must never read it:

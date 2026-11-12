@@ -7,7 +7,7 @@ import (
 	"github.com/mirzakhany/yoga/icons"
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/agent/host"
+	"github.com/usehm/hm/internal/agent/host"
 )
 
 func userGuardPath() string { return host.UserGuardPath() }

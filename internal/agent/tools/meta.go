@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/mirzakhany/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/provider"
 )
 
 // --- todo -------------------------------------------------------------------

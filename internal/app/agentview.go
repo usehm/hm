@@ -10,9 +10,9 @@ import (
 	"github.com/mirzakhany/yoga/icons"
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/agent"
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/diff"
+	"github.com/usehm/hm/internal/agent"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/diff"
 )
 
 func sortStrings(s []string) { sort.Strings(s) }

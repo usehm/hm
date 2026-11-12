@@ -6,10 +6,10 @@ import (
 
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/agent/host"
-	"github.com/mirzakhany/hm/internal/agent/mcp"
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/usehm/hm/internal/agent/host"
+	"github.com/usehm/hm/internal/agent/mcp"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/config"
 )
 
 // agentHost is what the app's agents are built from, with the config as

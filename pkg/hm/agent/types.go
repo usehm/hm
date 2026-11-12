@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/mirzakhany/hm/internal/agent"
-	imgs "github.com/mirzakhany/hm/internal/agent/images"
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/agent/tools"
+	"github.com/usehm/hm/internal/agent"
+	imgs "github.com/usehm/hm/internal/agent/images"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/tools"
 )
 
 // ErrBusy is returned when a turn is already running; send more with Steer

@@ -23,7 +23,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/mirzakhany/hm/internal/update"
+	"github.com/usehm/hm/internal/update"
 )
 
 const pubKeyPath = "internal/update/release_key.pub"

@@ -8,10 +8,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/mirzakhany/hm/internal/agent/tools"
-	"github.com/mirzakhany/hm/internal/config"
-	"github.com/mirzakhany/hm/internal/search"
-	"github.com/mirzakhany/hm/internal/trash"
+	"github.com/usehm/hm/internal/agent/tools"
+	"github.com/usehm/hm/internal/config"
+	"github.com/usehm/hm/internal/search"
+	"github.com/usehm/hm/internal/trash"
 )
 
 // diskEnv is the agent's workspace without an editor: files are read from

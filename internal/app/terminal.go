@@ -9,7 +9,7 @@ import (
 	"github.com/mirzakhany/yoga/input"
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/terminal"
+	"github.com/usehm/hm/internal/terminal"
 )
 
 // termTab is one terminal in the bottom panel.

@@ -30,7 +30,7 @@ icon:
 .PHONY: app
 app:
 	$(YOGA) package -os darwin -arch $(ARCH) -version $(TAG_NAME) \
-		-ldflags "-X github.com/mirzakhany/hm/internal/version.Version=dev"
+		-ldflags "-X github.com/usehm/hm/internal/version.Version=dev"
 
 # Builds Hm.app, copies it to /Applications and installs the `hm` command.
 # Inside the app, "Install 'hm' Command in PATH" does the same last step.

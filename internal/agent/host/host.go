@@ -12,13 +12,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mirzakhany/hm/internal/agent"
-	"github.com/mirzakhany/hm/internal/agent/guard"
-	"github.com/mirzakhany/hm/internal/agent/mcp"
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/agent/skills"
-	"github.com/mirzakhany/hm/internal/agent/tools"
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/usehm/hm/internal/agent"
+	"github.com/usehm/hm/internal/agent/guard"
+	"github.com/usehm/hm/internal/agent/mcp"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/skills"
+	"github.com/usehm/hm/internal/agent/tools"
+	"github.com/usehm/hm/internal/config"
 )
 
 // Host is what agents of one workspace are built from. It is cheap to

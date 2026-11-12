@@ -12,7 +12,7 @@ func TestNoUIToolkit(t *testing.T) {
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("no go command")
 	}
-	for _, pkg := range []string{"github.com/mirzakhany/hm/pkg/hm/agent", "github.com/mirzakhany/hm/internal/agent/host"} {
+	for _, pkg := range []string{"github.com/usehm/hm/pkg/hm/agent", "github.com/usehm/hm/internal/agent/host"} {
 		out, err := exec.Command("go", "list", "-deps", pkg).CombinedOutput()
 		if err != nil {
 			t.Fatalf("go list %s: %v\n%s", pkg, err, out)

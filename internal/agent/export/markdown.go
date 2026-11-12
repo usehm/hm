@@ -7,7 +7,7 @@ import (
 	"html"
 	"strings"
 
-	"github.com/mirzakhany/hm/internal/agent"
+	"github.com/usehm/hm/internal/agent"
 )
 
 // markdown renders d as GitHub-flavoured Markdown. What the HTML page

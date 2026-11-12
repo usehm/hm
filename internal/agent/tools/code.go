@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mirzakhany/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/provider"
 )
 
 // Location is a place in a file; Line and Col are 1-based.

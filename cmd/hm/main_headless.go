@@ -17,9 +17,9 @@ import (
 	"github.com/mirzakhany/yoga/shape"
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/app"
-	"github.com/mirzakhany/hm/internal/cli/agentcmd"
-	"github.com/mirzakhany/hm/internal/gitx"
+	"github.com/usehm/hm/internal/app"
+	"github.com/usehm/hm/internal/cli/agentcmd"
+	"github.com/usehm/hm/internal/gitx"
 )
 
 func main() {

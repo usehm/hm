@@ -6,8 +6,8 @@ import (
 	"github.com/mirzakhany/yoga"
 	"github.com/mirzakhany/yoga/theme"
 
-	"github.com/mirzakhany/hm/internal/config"
-	"github.com/mirzakhany/hm/internal/update"
+	"github.com/usehm/hm/internal/config"
+	"github.com/usehm/hm/internal/update"
 )
 
 // Run opens the window. It must be called from the main goroutine.

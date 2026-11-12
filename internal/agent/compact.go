@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mirzakhany/hm/internal/agent/images"
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/agent/tools"
+	"github.com/usehm/hm/internal/agent/images"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/tools"
 )
 
 // Compaction keeps long sessions inside the model's window: older messages

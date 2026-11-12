@@ -10,12 +10,12 @@ import (
 
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/agent"
-	"github.com/mirzakhany/hm/internal/agent/guard"
-	"github.com/mirzakhany/hm/internal/agent/prompts"
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/agent/tools"
-	"github.com/mirzakhany/hm/internal/workspace"
+	"github.com/usehm/hm/internal/agent"
+	"github.com/usehm/hm/internal/agent/guard"
+	"github.com/usehm/hm/internal/agent/prompts"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/tools"
+	"github.com/usehm/hm/internal/workspace"
 )
 
 // builtinCommands are the slash commands hm runs itself. They win over

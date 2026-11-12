@@ -13,7 +13,7 @@ import (
 	"github.com/mirzakhany/yoga/highlight"
 	"github.com/mirzakhany/yoga/lsp"
 
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/usehm/hm/internal/config"
 )
 
 func script(t *testing.T, body string) string {

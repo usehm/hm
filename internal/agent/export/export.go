@@ -14,9 +14,9 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/mirzakhany/hm/internal/agent"
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/diff"
+	"github.com/usehm/hm/internal/agent"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/diff"
 )
 
 // Format is the kind of file an export writes.

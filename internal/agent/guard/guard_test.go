@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/mirzakhany/hm/internal/agent/tools"
+	"github.com/usehm/hm/internal/agent/tools"
 )
 
 func TestSplit(t *testing.T) {

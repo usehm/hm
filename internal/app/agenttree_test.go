@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mirzakhany/hm/internal/agent"
-	"github.com/mirzakhany/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent"
+	"github.com/usehm/hm/internal/agent/provider"
 )
 
 func userMsg(t string) provider.Message {

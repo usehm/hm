@@ -17,7 +17,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/usehm/hm/internal/config"
 )
 
 // Template is one loaded prompt template.

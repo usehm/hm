@@ -1,4 +1,4 @@
-module github.com/mirzakhany/hm
+module github.com/usehm/hm
 
 go 1.26.2
 

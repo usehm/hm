@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mirzakhany/hm/internal/agent/agenttest"
+	"github.com/usehm/hm/internal/agent/agenttest"
 )
 
 // rpcHarness drives hm agent --rpc in-process: commands go in through a

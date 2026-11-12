@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/mirzakhany/hm/pkg/hm/agent"
+	"github.com/usehm/hm/pkg/hm/agent"
 )
 
 // Approval policies for --approve.

@@ -14,8 +14,8 @@ import (
 
 	"golang.org/x/net/html"
 
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/config"
 )
 
 const (
@@ -23,7 +23,7 @@ const (
 	webBodyMax     = 5 << 20
 	webTextMax     = 60000
 	webSearchCount = 8
-	userAgent      = "Mozilla/5.0 (compatible; hm-agent/1.0; +https://github.com/mirzakhany/hm)"
+	userAgent      = "Mozilla/5.0 (compatible; hm-agent/1.0; +https://github.com/usehm/hm)"
 )
 
 // untrusted heads anything the web returns: it is data for the model.

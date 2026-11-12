@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mirzakhany/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/provider"
 )
 
 func testPNG(t *testing.T, w, h int) []byte {

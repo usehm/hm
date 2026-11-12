@@ -7,7 +7,7 @@ import (
 
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/agent/guard"
+	"github.com/usehm/hm/internal/agent/guard"
 )
 
 func TestNotificationActionAndDismiss(t *testing.T) {

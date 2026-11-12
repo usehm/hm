@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mirzakhany/hm/internal/gitx"
+	"github.com/usehm/hm/internal/gitx"
 )
 
 func run(t *testing.T, dir string, args ...string) string {

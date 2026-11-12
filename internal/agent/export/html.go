@@ -13,7 +13,7 @@ import (
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
 
-	"github.com/mirzakhany/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/provider"
 )
 
 // Colors are one theme's colours for the page, as CSS colour values.

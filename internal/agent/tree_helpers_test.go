@@ -1,6 +1,6 @@
 package agent
 
-import "github.com/mirzakhany/hm/internal/agent/provider"
+import "github.com/usehm/hm/internal/agent/provider"
 
 // addMessages appends msgs to s's active path.
 func addMessages(s *Session, msgs ...provider.Message) {

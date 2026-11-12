@@ -5,7 +5,7 @@ import (
 
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/usehm/hm/internal/config"
 )
 
 var autoIndentModes = map[string]ui.AutoIndent{

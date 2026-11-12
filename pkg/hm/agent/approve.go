@@ -5,8 +5,8 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/mirzakhany/hm/internal/agent"
-	"github.com/mirzakhany/hm/internal/agent/tools"
+	"github.com/usehm/hm/internal/agent"
+	"github.com/usehm/hm/internal/agent/tools"
 )
 
 // noApprover is why a call is refused when nobody can approve it; the

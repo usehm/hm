@@ -8,10 +8,10 @@ import (
 
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/agent/complete"
-	"github.com/mirzakhany/hm/internal/agent/host"
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/usehm/hm/internal/agent/complete"
+	"github.com/usehm/hm/internal/agent/host"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/config"
 )
 
 // complState follows the active editor and asks for an inline completion

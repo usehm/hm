@@ -14,7 +14,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/usehm/hm/internal/config"
 )
 
 // Call is a tool call the fake model makes.

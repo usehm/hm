@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/usehm/hm/internal/config"
 )
 
 // formatTimeout bounds one formatter run.

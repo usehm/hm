@@ -17,7 +17,7 @@ import (
 
 // LatestURL is the GitHub API endpoint for the newest published release.
 // Drafts and prereleases never show up there.
-const LatestURL = "https://api.github.com/repos/mirzakhany/hm/releases/latest"
+const LatestURL = "https://api.github.com/repos/usehm/hm/releases/latest"
 
 // Release is a published hm release.
 type Release struct {

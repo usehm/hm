@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/agent/tools"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/tools"
 )
 
 // fakeCompactor answers with a fixed summary and records what it was asked.

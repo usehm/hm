@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mirzakhany/hm/pkg/hm/agent"
+	"github.com/usehm/hm/pkg/hm/agent"
 )
 
 // approveAsk sends calls that need approval to the RPC client; only

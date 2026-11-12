@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/agent/tools"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/tools"
 )
 
 // Session statuses. A session saved as running when hm stops was cut off

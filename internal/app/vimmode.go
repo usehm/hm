@@ -7,8 +7,8 @@ import (
 	"github.com/mirzakhany/yoga/input"
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/config"
-	"github.com/mirzakhany/hm/internal/vim"
+	"github.com/usehm/hm/internal/config"
+	"github.com/usehm/hm/internal/vim"
 )
 
 // vimOn reports whether editors use the Vim keymap (editor.keymap: vim).

@@ -24,14 +24,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/mirzakhany/hm/internal/agent"
-	"github.com/mirzakhany/hm/internal/agent/host"
-	imgs "github.com/mirzakhany/hm/internal/agent/images"
-	"github.com/mirzakhany/hm/internal/agent/mcp"
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/agent/tools"
-	"github.com/mirzakhany/hm/internal/config"
-	"github.com/mirzakhany/hm/internal/secrets"
+	"github.com/usehm/hm/internal/agent"
+	"github.com/usehm/hm/internal/agent/host"
+	imgs "github.com/usehm/hm/internal/agent/images"
+	"github.com/usehm/hm/internal/agent/mcp"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/tools"
+	"github.com/usehm/hm/internal/config"
+	"github.com/usehm/hm/internal/secrets"
 )
 
 // Options configure a Runner. Every field may be left empty.

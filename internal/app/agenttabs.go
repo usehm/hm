@@ -10,8 +10,8 @@ import (
 	"github.com/mirzakhany/yoga/render"
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/agent"
-	"github.com/mirzakhany/hm/internal/workspace"
+	"github.com/usehm/hm/internal/agent"
+	"github.com/usehm/hm/internal/workspace"
 )
 
 // Agent tab kinds. A session tab is keyed by its session's ID, a project

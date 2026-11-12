@@ -12,7 +12,7 @@ import (
 	"github.com/mirzakhany/yoga/icons"
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/gitx"
+	"github.com/usehm/hm/internal/gitx"
 )
 
 // --- branches -----------------------------------------------------------------

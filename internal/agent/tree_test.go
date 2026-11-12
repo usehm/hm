@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/agent/tools"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/tools"
 )
 
 // texts is each message's text, for comparing paths briefly.

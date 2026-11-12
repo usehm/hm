@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mirzakhany/hm/internal/agent/agenttest"
+	"github.com/usehm/hm/internal/agent/agenttest"
 )
 
 var update = flag.Bool("update", false, "rewrite the golden files in testdata")

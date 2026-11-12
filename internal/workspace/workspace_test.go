@@ -10,8 +10,8 @@ import (
 	"github.com/mirzakhany/yoga/render"
 	"github.com/mirzakhany/yoga/shape"
 
-	"github.com/mirzakhany/hm/internal/config"
-	"github.com/mirzakhany/hm/internal/editor"
+	"github.com/usehm/hm/internal/config"
+	"github.com/usehm/hm/internal/editor"
 )
 
 func setup(t *testing.T) (*Workspace, string) {

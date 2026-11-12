@@ -13,8 +13,8 @@ import (
 	"github.com/mirzakhany/yoga/shape"
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/config"
-	"github.com/mirzakhany/hm/internal/secrets"
+	"github.com/usehm/hm/internal/config"
+	"github.com/usehm/hm/internal/secrets"
 )
 
 // harness drives App frames the way yoga's GPU loop does.

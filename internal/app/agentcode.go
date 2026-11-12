@@ -10,8 +10,8 @@ import (
 	"github.com/mirzakhany/yoga/lsp"
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/agent/tools"
-	"github.com/mirzakhany/hm/internal/lang"
+	"github.com/usehm/hm/internal/agent/tools"
+	"github.com/usehm/hm/internal/lang"
 )
 
 // agentCode gives the agent the editor's language servers and formatters.

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mirzakhany/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/provider"
 )
 
 func TestStoreMigratesWorkspaceSessions(t *testing.T) {

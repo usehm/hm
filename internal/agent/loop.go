@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mirzakhany/hm/internal/agent/guard"
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/agent/tools"
+	"github.com/usehm/hm/internal/agent/guard"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/tools"
 )
 
 // defaultMaxSteps bounds model calls in one turn, so a confused loop

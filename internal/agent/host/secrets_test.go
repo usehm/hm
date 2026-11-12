@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/usehm/hm/internal/config"
 )
 
 func TestSecretName(t *testing.T) {

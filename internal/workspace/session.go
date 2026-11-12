@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/mirzakhany/hm/internal/config"
-	"github.com/mirzakhany/hm/internal/trash"
+	"github.com/usehm/hm/internal/config"
+	"github.com/usehm/hm/internal/trash"
 )
 
 // Session is what hm remembers between runs: app state, not configuration.

@@ -6,7 +6,7 @@ import (
 
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/workspace"
+	"github.com/usehm/hm/internal/workspace"
 )
 
 // closeOthers closes every tab but i.

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/mirzakhany/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/provider"
 )
 
 // How much of the file goes into the prompt, in bytes on each side.

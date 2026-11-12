@@ -6,10 +6,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/mirzakhany/hm/internal/agent"
-	"github.com/mirzakhany/hm/internal/agent/export"
-	"github.com/mirzakhany/hm/internal/agent/host"
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/usehm/hm/internal/agent"
+	"github.com/usehm/hm/internal/agent/export"
+	"github.com/usehm/hm/internal/agent/host"
+	"github.com/usehm/hm/internal/config"
 )
 
 // SessionSummary describes a saved session.

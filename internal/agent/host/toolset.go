@@ -1,9 +1,9 @@
 package host
 
 import (
-	"github.com/mirzakhany/hm/internal/agent"
-	"github.com/mirzakhany/hm/internal/agent/skills"
-	"github.com/mirzakhany/hm/internal/agent/tools"
+	"github.com/usehm/hm/internal/agent"
+	"github.com/usehm/hm/internal/agent/skills"
+	"github.com/usehm/hm/internal/agent/tools"
 )
 
 // ReadOnlyTools are what a sub-agent without write may use: reading,

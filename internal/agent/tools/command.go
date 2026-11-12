@@ -10,8 +10,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/config"
 )
 
 // commandTool is a tool the user defined in the config: a command template

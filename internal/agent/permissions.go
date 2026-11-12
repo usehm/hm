@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/mirzakhany/hm/internal/agent/tools"
+	"github.com/usehm/hm/internal/agent/tools"
 )
 
 // Decision is what the policy says about a tool call.

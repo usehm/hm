@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mirzakhany/hm/internal/search"
+	"github.com/usehm/hm/internal/search"
 )
 
 type env struct{ root string }

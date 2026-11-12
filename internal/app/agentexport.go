@@ -14,11 +14,11 @@ import (
 	"github.com/mirzakhany/yoga/theme"
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/agent"
-	"github.com/mirzakhany/hm/internal/agent/export"
-	"github.com/mirzakhany/hm/internal/agent/host"
-	"github.com/mirzakhany/hm/internal/gitx"
-	"github.com/mirzakhany/hm/internal/secrets"
+	"github.com/usehm/hm/internal/agent"
+	"github.com/usehm/hm/internal/agent/export"
+	"github.com/usehm/hm/internal/agent/host"
+	"github.com/usehm/hm/internal/gitx"
+	"github.com/usehm/hm/internal/secrets"
 )
 
 // Export and share: /export writes a session as one file, and /share puts

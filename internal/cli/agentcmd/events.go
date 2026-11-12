@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mirzakhany/hm/pkg/hm/agent"
+	"github.com/usehm/hm/pkg/hm/agent"
 )
 
 // eventsVersion is the "v" of every line; docs/events.md describes it.

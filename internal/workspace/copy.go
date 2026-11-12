@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mirzakhany/hm/internal/trash"
+	"github.com/usehm/hm/internal/trash"
 )
 
 // CopyInto copies the file or folder src into dir and returns the new path.

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mirzakhany/hm/internal/agent/agenttest"
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/usehm/hm/internal/agent/agenttest"
+	"github.com/usehm/hm/internal/config"
 )
 
 // sum is a shell command whose output, 3345, appears nowhere in it, so a
@@ -174,7 +174,7 @@ func TestNoUIToolkit(t *testing.T) {
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("no go command")
 	}
-	out, err := exec.Command("go", "list", "-deps", "github.com/mirzakhany/hm/internal/cli/agentcmd").CombinedOutput()
+	out, err := exec.Command("go", "list", "-deps", "github.com/usehm/hm/internal/cli/agentcmd").CombinedOutput()
 	if err != nil {
 		t.Fatalf("go list: %v\n%s", err, out)
 	}

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mirzakhany/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/provider"
 )
 
 // CatAgent is for tools that start or talk to other agents.

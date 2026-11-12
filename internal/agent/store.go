@@ -15,8 +15,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/agent/tools"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/tools"
 )
 
 // A session file holds one JSON object per line: a header, then entries,

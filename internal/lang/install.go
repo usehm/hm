@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/usehm/hm/internal/config"
 )
 
 // installTimeout bounds one install; package managers can be slow, but a

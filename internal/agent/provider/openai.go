@@ -347,7 +347,7 @@ func (o *OpenAI) Stream(ctx context.Context, req Request, onEvent func(Event)) (
 	hr.Header.Set("Content-Type", "application/json")
 	hr.Header.Set("Accept", "text/event-stream")
 	o.auth(hr)
-	hr.Header.Set("HTTP-Referer", "https://github.com/mirzakhany/hm")
+	hr.Header.Set("HTTP-Referer", "https://github.com/usehm/hm")
 	hr.Header.Set("X-Title", "hm")
 	resp, err := o.http.Do(hr)
 	if err != nil {

@@ -11,9 +11,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mirzakhany/hm/internal/agent/images"
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/search"
+	"github.com/usehm/hm/internal/agent/images"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/search"
 )
 
 // --- read -------------------------------------------------------------------

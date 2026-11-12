@@ -3,9 +3,9 @@ package app
 import (
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/config"
-	"github.com/mirzakhany/hm/internal/vim"
-	"github.com/mirzakhany/hm/internal/workspace"
+	"github.com/usehm/hm/internal/config"
+	"github.com/usehm/hm/internal/vim"
+	"github.com/usehm/hm/internal/workspace"
 )
 
 // key is the shortcut keys: gives command id, or "" when a keybinding

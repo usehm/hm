@@ -16,7 +16,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mirzakhany/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/provider"
 	"golang.org/x/image/draw"
 	_ "golang.org/x/image/webp" // decoder
 )

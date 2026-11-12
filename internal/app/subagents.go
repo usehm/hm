@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/mirzakhany/hm/internal/agent"
-	"github.com/mirzakhany/hm/internal/agent/host"
-	"github.com/mirzakhany/hm/internal/agent/tools"
+	"github.com/usehm/hm/internal/agent"
+	"github.com/usehm/hm/internal/agent/host"
+	"github.com/usehm/hm/internal/agent/tools"
 )
 
 // agentLink is how one run's tools reach other agents.

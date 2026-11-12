@@ -4,7 +4,7 @@ import (
 	"github.com/mirzakhany/yoga/theme"
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/usehm/hm/internal/config"
 )
 
 // The config checks theme names and shortcuts against the UI toolkit, which

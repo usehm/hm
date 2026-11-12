@@ -14,9 +14,9 @@ import (
 
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/gitx"
-	"github.com/mirzakhany/hm/internal/update"
-	"github.com/mirzakhany/hm/internal/version"
+	"github.com/usehm/hm/internal/gitx"
+	"github.com/usehm/hm/internal/update"
+	"github.com/usehm/hm/internal/version"
 )
 
 func gitRun(t *testing.T, dir string, args ...string) {

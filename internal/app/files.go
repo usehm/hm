@@ -12,8 +12,8 @@ import (
 	"github.com/mirzakhany/yoga/input"
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/config"
-	"github.com/mirzakhany/hm/internal/workspace"
+	"github.com/usehm/hm/internal/config"
+	"github.com/usehm/hm/internal/workspace"
 )
 
 // hiddenNames are left out of the tree and the file index.

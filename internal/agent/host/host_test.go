@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mirzakhany/hm/internal/agent"
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/agent/tools"
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/usehm/hm/internal/agent"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/tools"
+	"github.com/usehm/hm/internal/config"
 )
 
 // testHost is a host over a temp workspace with extra config on top of

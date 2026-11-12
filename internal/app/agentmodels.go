@@ -10,9 +10,9 @@ import (
 	"github.com/mirzakhany/yoga/ui"
 	"gopkg.in/yaml.v3"
 
-	"github.com/mirzakhany/hm/internal/agent/host"
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/usehm/hm/internal/agent/host"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/config"
 )
 
 // providerLabel is how a provider is shown: the two built-in ones by what

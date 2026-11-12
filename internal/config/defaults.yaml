@@ -373,7 +373,7 @@ terminal:
 
 updates:
   channel: stable             # stable | prerelease | off
-  repo: mirzakhany/hm         # GitHub repository releases come from
+  repo: usehm/hm         # GitHub repository releases come from
 
 agent:
   default_provider: anthropic

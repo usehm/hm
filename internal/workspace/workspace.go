@@ -8,7 +8,7 @@ import (
 
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/editor"
+	"github.com/usehm/hm/internal/editor"
 )
 
 // Kind tells file tabs apart from app pages shown as tabs.

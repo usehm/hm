@@ -11,10 +11,10 @@ import (
 	"github.com/mirzakhany/yoga/theme"
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/diff"
-	"github.com/mirzakhany/hm/internal/gitui"
-	"github.com/mirzakhany/hm/internal/gitx"
-	"github.com/mirzakhany/hm/internal/workspace"
+	"github.com/usehm/hm/internal/diff"
+	"github.com/usehm/hm/internal/gitui"
+	"github.com/usehm/hm/internal/gitx"
+	"github.com/usehm/hm/internal/workspace"
 )
 
 // gitPollInterval is how often git status is read while nothing on disk

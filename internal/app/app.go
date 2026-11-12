@@ -14,12 +14,12 @@ import (
 	"github.com/mirzakhany/yoga/input"
 	"github.com/mirzakhany/yoga/ui"
 
-	"github.com/mirzakhany/hm/internal/config"
-	"github.com/mirzakhany/hm/internal/editor"
-	"github.com/mirzakhany/hm/internal/lang"
-	"github.com/mirzakhany/hm/internal/secrets"
-	"github.com/mirzakhany/hm/internal/vim"
-	"github.com/mirzakhany/hm/internal/workspace"
+	"github.com/usehm/hm/internal/config"
+	"github.com/usehm/hm/internal/editor"
+	"github.com/usehm/hm/internal/lang"
+	"github.com/usehm/hm/internal/secrets"
+	"github.com/usehm/hm/internal/vim"
+	"github.com/usehm/hm/internal/workspace"
 )
 
 // App holds everything that outlives a frame.

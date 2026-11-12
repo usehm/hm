@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mirzakhany/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/provider"
 )
 
 // The session tree: Branch goes back to an earlier entry, so the next

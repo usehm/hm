@@ -20,9 +20,9 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/agent/tools"
-	"github.com/mirzakhany/hm/internal/config"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/tools"
+	"github.com/usehm/hm/internal/config"
 )
 
 //go:embed all:builtin

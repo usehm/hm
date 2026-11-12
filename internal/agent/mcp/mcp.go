@@ -18,10 +18,10 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/mirzakhany/hm/internal/agent/provider"
-	"github.com/mirzakhany/hm/internal/agent/tools"
-	"github.com/mirzakhany/hm/internal/config"
-	"github.com/mirzakhany/hm/internal/version"
+	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/agent/tools"
+	"github.com/usehm/hm/internal/config"
+	"github.com/usehm/hm/internal/version"
 )
 
 // CatMCP is the approval category of MCP tools; they ask by default, since
