@@ -1,0 +1,280 @@
+# Pushing a tag like v0.1.0 (or v0.2.0-rc.1, a prerelease) releases hm:
+#
+#   1. test        the same checks as CI
+#   2. draft       a draft GitHub release with generated notes
+#   3. macos       signed, notarized DMGs for arm64 and amd64
+#      linux       tar.xz for amd64 and arm64
+#      windows     zip for amd64
+#   4. publish     checks every asset and its .sig are attached, then
+#                  publishes the release, which is when the in-app updater
+#                  and `releases/latest` first see it
+#   5. homebrew    renders build/homebrew/hm.rb into usehm/homebrew-tap
+#                  (not for prereleases)
+#
+# A release never shows up half-built: until step 4 it is a draft. A failed
+# job can be rerun; uploads replace what an earlier attempt left.
+#
+# Secrets (Settings → Secrets and variables → Actions):
+#   UPDATE_SIGNING_KEY            seed from `go run ./build/updatesign genkey`
+#   APPLE_DEVELOPER_CERTIFICATE_P12, APPLE_DEVELOPER_CERTIFICATE_PASSWORD,
+#   APPLE_SIGNING_IDENTITY, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD,
+#   APPLE_TEAM_ID                 Developer ID signing and notarization
+#   HOMEBREW_TAP_TOKEN            fine-grained token: contents read/write
+#                                 on usehm/homebrew-tap only
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.ref_name }}
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the tag and secrets
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+          APPLE_DEVELOPER_CERTIFICATE_P12: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_P12 }}
+          APPLE_DEVELOPER_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::tag $TAG is not vMAJOR.MINOR.PATCH[-PRERELEASE]"; exit 1
+          fi
+          missing=""
+          for s in UPDATE_SIGNING_KEY APPLE_DEVELOPER_CERTIFICATE_P12 APPLE_DEVELOPER_CERTIFICATE_PASSWORD \
+                   APPLE_SIGNING_IDENTITY APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID HOMEBREW_TAP_TOKEN; do
+            [ -n "${!s}" ] || missing="$missing $s"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::missing repository secrets:$missing"; exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet -tags nogpu ./...
+      - run: go test -tags nogpu ./...
+
+  draft:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      prerelease: ${{ steps.draft.outputs.prerelease }}
+    steps:
+      - name: Create the draft release
+        id: draft
+        run: |
+          pre=false
+          [[ "$TAG" == *-* ]] && pre=true
+          echo "prerelease=$pre" >> "$GITHUB_OUTPUT"
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release $TAG exists; reusing it"
+            exit 0
+          fi
+          flags=(--draft --verify-tag --generate-notes --title "hm $TAG")
+          $pre && flags+=(--prerelease)
+          gh release create "$TAG" -R "$GITHUB_REPOSITORY" "${flags[@]}"
+
+  macos:
+    needs: draft
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install yoga CLI
+        # The yoga version go.mod builds the app with.
+        run: go install github.com/mirzakhany/yoga/cmd/yoga@$(go list -m -f '{{.Version}}' github.com/mirzakhany/yoga)
+
+      - name: Import Developer ID certificate
+        env:
+          CERTIFICATE_P12: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 20)
+          echo "$CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$RUNNER_TEMP/certificate.p12" \
+            -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          rm "$RUNNER_TEMP/certificate.p12"
+
+      # yoga signs the app with the hardened runtime, notarizes and staples
+      # it, then wraps it in the DMG.
+      - name: Build, sign and notarize
+        env:
+          IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          BUILD_NUMBER=$(date +%Y%m%d%H%M)
+          for arch in arm64 amd64; do
+            yoga package -os darwin -arch "$arch" -version "$TAG" \
+              -build-number "$BUILD_NUMBER" -sign "$IDENTITY" -notarize
+          done
+
+      # The in-app updater refuses an asset without a valid .sig beside it.
+      - name: Sign update assets
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+        run: go run ./build/updatesign sign dist/darwin/hm-macos-"$TAG"-*.dmg
+
+      - name: Upload
+        run: gh release upload "$TAG" --clobber dist/darwin/hm-macos-"$TAG"-*.dmg dist/darwin/hm-macos-"$TAG"-*.dmg.sig
+
+  linux:
+    needs: draft
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: write
+    steps:
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxxf86vm-dev libgl1-mesa-dev xz-utils
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install yoga CLI
+        run: go install github.com/mirzakhany/yoga/cmd/yoga@$(go list -m -f '{{.Version}}' github.com/mirzakhany/yoga)
+      - name: Build
+        run: yoga package -os linux -arch ${{ matrix.arch }} -version "$TAG"
+      - name: Sign update asset
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+        run: go run ./build/updatesign sign dist/linux/hm-linux-"$TAG"-${{ matrix.arch }}.tar.xz
+      - name: Upload
+        run: |
+          f=dist/linux/hm-linux-"$TAG"-${{ matrix.arch }}.tar.xz
+          gh release upload "$TAG" --clobber "$f" "$f.sig"
+
+  windows:
+    needs: draft
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install yoga CLI
+        run: go install github.com/mirzakhany/yoga/cmd/yoga@$(go list -m -f '{{.Version}}' github.com/mirzakhany/yoga)
+      # amd64 only: the prebuilt wgpu-native has no windows/386 library, and
+      # its windows/arm64 one needs the MSVC C++ runtime, which cgo's MinGW
+      # toolchain cannot link. Windows on ARM runs the amd64 build emulated.
+      - name: Build
+        run: yoga package -os windows -arch amd64 -version "$TAG"
+      - name: Sign update asset
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+        run: go run ./build/updatesign sign dist/windows/hm-windows-"$TAG"-amd64.zip
+      - name: Upload
+        run: |
+          f=dist/windows/hm-windows-"$TAG"-amd64.zip
+          gh release upload "$TAG" --clobber "$f" "$f.sig"
+
+  publish:
+    needs: [draft, macos, linux, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check every asset is attached
+        run: |
+          have=$(gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
+          missing=""
+          for f in hm-macos-"$TAG"-arm64.dmg hm-macos-"$TAG"-amd64.dmg \
+                   hm-linux-"$TAG"-amd64.tar.xz hm-linux-"$TAG"-arm64.tar.xz \
+                   hm-windows-"$TAG"-amd64.zip; do
+            for g in "$f" "$f.sig"; do
+              grep -qxF "$g" <<<"$have" || missing="$missing $g"
+            done
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::missing release assets:$missing"; exit 1
+          fi
+      - name: Publish
+        run: |
+          if [ "${{ needs.draft.outputs.prerelease }}" = true ]; then
+            gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --draft=false --prerelease
+          else
+            gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --draft=false --latest
+          fi
+
+  homebrew:
+    needs: [draft, publish]
+    if: needs.draft.outputs.prerelease != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Render the cask
+        run: |
+          digest() {
+            gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json assets \
+              --jq ".assets[] | select(.name == \"$1\") | .digest" | sed 's/^sha256://'
+          }
+          arm=$(digest hm-macos-"$TAG"-arm64.dmg)
+          intel=$(digest hm-macos-"$TAG"-amd64.dmg)
+          if ! [[ "$arm" =~ ^[0-9a-f]{64}$ && "$intel" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::no sha256 digests for the DMGs (arm64='$arm' amd64='$intel')"; exit 1
+          fi
+          sed -e "s/@VERSION@/${TAG#v}/" -e "s/@SHA256_ARM@/$arm/" -e "s/@SHA256_INTEL@/$intel/" \
+            build/homebrew/hm.rb > "$RUNNER_TEMP/hm.rb"
+          cat "$RUNNER_TEMP/hm.rb"
+      - uses: actions/checkout@v4
+        with:
+          repository: usehm/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+      - name: Commit and push
+        working-directory: tap
+        run: |
+          mkdir -p Casks
+          cp "$RUNNER_TEMP/hm.rb" Casks/hm.rb
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/hm.rb
+          if git diff --staged --quiet; then
+            echo "cask already at $TAG"; exit 0
+          fi
+          git commit -m "hm ${TAG#v}"
+          git push

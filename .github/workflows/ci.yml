@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: gofmt
+        run: |
+          out=$(gofmt -l . | grep -v '/_template/' || true)
+          if [ -n "$out" ]; then
+            echo "::error::these files need gofmt:"; echo "$out"; exit 1
+          fi
+      # nogpu swaps Yoga's GLFW/WebGPU window for a headless stub, so the
+      # UI tests run without X11 or GL headers.
+      - name: Vet
+        run: go vet -tags nogpu ./...
+      - name: Test
+        run: go test -tags nogpu ./...
+
+  # Builds the real app on every platform a release ships, so a release
+  # tag never finds a broken build.
+  build:
+    name: Build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxxf86vm-dev libgl1-mesa-dev
+      - name: Build
+        shell: bash
+        run: go build -o "$RUNNER_TEMP/hm-ci" ./cmd/hm

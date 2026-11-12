@@ -187,7 +187,15 @@ macOS keys; on Windows and Linux `cmd` is `ctrl`, except where a column says oth
 | Settings | `cmd+,` |
 | Zoom in / out / reset | `cmd+=` / `cmd+-` / `cmd+0` |
 
-## Build and install
+## Install
+
+- **macOS:** `brew install --cask usehm/tap/hm`, or the DMG for your Mac (Apple silicon: `arm64`, Intel: `amd64`) from [Releases](https://github.com/usehm/hm/releases/latest). The cask also installs the `hm` command.
+- **Linux:** the `tar.xz` for your architecture from [Releases](https://github.com/usehm/hm/releases/latest).
+- **Windows:** the `zip` from [Releases](https://github.com/usehm/hm/releases/latest).
+
+Hm updates itself from inside the app; Homebrew installs update through `brew upgrade --cask hm`. Maintainers: see [RELEASING.md](RELEASING.md).
+
+## Build from source
 
 Hm needs Go (see `go.mod` for the version).
 
@@ -277,7 +285,7 @@ artifacts:
 - Artifact storage in a GCS or S3 bucket or a git repository (the settings exist; the Artifacts tab is empty for now).
 - A diff option to ignore whitespace-only changes (`ignore_trim_whitespace`).
 - Full-color file icons, once Yoga can draw multi-color SVG icons in the tree.
-- Prebuilt, signed releases for macOS, Linux and Windows.
+- An Authenticode-signed Windows build.
 
 ## Contributing
 
