@@ -61,15 +61,20 @@ func TestTerminalPanel(t *testing.T) {
 	})
 	h.paint(h.frame())
 
-	// Ctrl chords belong to the shell, Cmd chords to the app.
-	h.press(input.KeyP, input.ModCtrl) // recalls the last command
-	if h.c.Commands().Open {
-		t.Fatal("ctrl+p must go to the shell, not the palette")
+	// On macOS, Ctrl chords belong to the shell and Cmd chords to the app.
+	// Elsewhere Ctrl is the app's primary modifier, as in other editors.
+	primary := input.ModCtrl
+	if runtime.GOOS == "darwin" {
+		primary = input.ModSuper
+		h.press(input.KeyP, input.ModCtrl) // recalls the last command
+		if h.c.Commands().Open {
+			t.Fatal("ctrl+p must go to the shell, not the palette")
+		}
+		h.press(input.KeyC, input.ModCtrl) // and Ctrl+C drops it
 	}
-	h.press(input.KeyC, input.ModCtrl) // and Ctrl+C drops it
-	h.press(input.KeyP, input.ModSuper|input.ModShift)
+	h.press(input.KeyP, primary|input.ModShift)
 	if !h.c.Commands().Open {
-		t.Fatal("⌘⇧P should still open the palette")
+		t.Fatal("the palette chord should still open the palette")
 	}
 	h.press(input.KeyEscape, 0)
 

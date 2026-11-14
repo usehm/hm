@@ -64,7 +64,7 @@ Fast where it can be, and quiet when you need to think.
 - Full screen, a sidebar replaces the explorer: New chat, Projects, Artifacts, a filterable history of every session (across all your folders, with sub-agents and forks nested under the session they came from) and Agent Settings.
 - Providers: Anthropic, Google Gemini (with an API key, or on Vertex AI with your gcloud sign-in), OpenAI, Azure OpenAI (a deployment with `api_version`, or the v1 API) and any OpenAI-compatible endpoint. `/think` sets `reasoning_effort` on OpenAI's reasoning models (o-series, gpt-5) on OpenAI and Azure. OpenRouter, Groq, Cerebras, Mistral, xAI, DeepSeek, Together, Fireworks, Hugging Face, Ollama and LM Studio are known by name (`type: groq`), so Settings → Agent → **Add a provider** only asks for a key. Gemini streams its thinking, and its thought signatures go back with the history as the API requires.
 - A model registry: `~/.config/hm/models.json` and `.hm/models.json` add models or change what hm knows of them (context window, max output, prices, what they support, effort levels), the workspace's file winning. The context meter, compaction and the cost of each reply use it. Changes apply as soon as you save.
-- Switch models mid-session: `ctrl+l` (or the composer's model menu → All models…) searches every provider's models, `/model <name>` picks one by `provider/model`, model id or part of one, and `ctrl+p` steps through `agent.favorite_models`. The history goes along; thinking written by another provider is left out. `/think off|low|medium|high|xhigh|max` sets how hard the model thinks for the session (`/think default` goes back to the provider's), shown next to the model's name. A reopened session goes on with the model and thinking it last ran.
+- Switch models mid-session: `ctrl+l` (`alt+m` on Windows and Linux, or the composer's model menu → All models…) searches every provider's models, `/model <name>` picks one by `provider/model`, model id or part of one, and `ctrl+p` (`alt+n` on Windows and Linux) steps through `agent.favorite_models`. The history goes along; thinking written by another provider is left out. `/think off|low|medium|high|xhigh|max` sets how hard the model thinks for the session (`/think default` goes back to the provider's), shown next to the model's name. A reopened session goes on with the model and thinking it last ran.
 - Projects: a title, description and context that the agent is given before every task in the project's sessions. Pick one in the composer.
 - Reads the instruction files other agents use: `AGENTS.md`, or `CLAUDE.md` when there is none, from `~/.config/hm` and from each folder between your home folder and the workspace, outer folders first. A `SYSTEM.md` (`.hm/SYSTEM.md`, else `~/.config/hm/SYSTEM.md`) replaces the base prompt, or adds to it when its first line is `<!-- append -->`. The book icon in the session header and `/context` list the files a session uses. A session reads them once when it starts, so its prompt stays cached.
 - Prompt templates: each `.md` file in `~/.config/hm/prompts`, `.hm/prompts`, `.claude/commands` or `.pi/prompts` is a `/name` command in the message box, listed in its completions with its description. `$ARGUMENTS` is what you type after the command, `$1`, `$2` … its words (quotes group them), and a line `@path` inlines a workspace file (guard.yaml rules apply). Front matter can set `description`, `argument-hint`, `mode` and `model` (a provider's name, the model it runs, or `provider/model`). Claude Code commands work as they are. Built-in commands win over a template of the same name.
@@ -173,19 +173,19 @@ macOS keys; on Windows and Linux `cmd` is `ctrl`, except where a column says oth
 
 ### App
 
-| Action | macOS |
-|---|---|
-| Command palette | `cmd+shift+p` |
-| Go to file | `cmd+p` |
-| Go to symbol in file | `cmd+shift+o` |
-| Toggle sidebar | `cmd+b` |
-| Toggle agent | `cmd+l` |
-| Ask the agent about the selection | `cmd+alt+l` |
-| While the agent works: steer / send after the turn | `enter` / `alt+enter` |
-| Agent: pick a model / next favourite model | `ctrl+l` / `ctrl+p` |
-| Terminal | `` ctrl+` `` |
-| Settings | `cmd+,` |
-| Zoom in / out / reset | `cmd+=` / `cmd+-` / `cmd+0` |
+| Action | macOS | Windows/Linux |
+|---|---|---|
+| Command palette | `cmd+shift+p` | `ctrl+shift+p` |
+| Go to file | `cmd+p` | `ctrl+p` |
+| Go to symbol in file | `cmd+shift+o` | `ctrl+shift+o` |
+| Toggle sidebar | `cmd+b` | `ctrl+b` |
+| Toggle agent | `cmd+l` | `ctrl+l` |
+| Ask the agent about the selection | `cmd+alt+l` | `ctrl+alt+l` |
+| While the agent works: steer / send after the turn | `enter` / `alt+enter` | `enter` / `alt+enter` |
+| Agent: pick a model / next favourite model | `ctrl+l` / `ctrl+p` | `alt+m` / `alt+n` |
+| Terminal | `` ctrl+` `` | `` ctrl+` `` |
+| Settings | `cmd+,` | `ctrl+,` |
+| Zoom in / out / reset | `cmd+=` / `cmd+-` / `cmd+0` | `ctrl+=` / `ctrl+-` / `ctrl+0` |
 
 ## Install
 
@@ -235,7 +235,7 @@ agent:
     vertex: { type: google, project: "${GOOGLE_CLOUD_PROJECT}", location: us-central1, model: gemini-2.5-pro } # gcloud auth application-default login
     azure: { type: azure, base_url: "https://my-resource.openai.azure.com", api_key: "keychain:azure", api_version: "2024-10-21", model: my-gpt-5 } # model: the deployment
     work: { type: openai, base_url: "https://llm.example.com/v1", api_key: "keychain:work" }
-  favorite_models: [anthropic/claude-opus-5-5, openrouter/openai/gpt-5] # ctrl+p steps through them
+  favorite_models: [anthropic/claude-opus-5-5, openrouter/openai/gpt-5] # ctrl+p (alt+n off macOS) steps through them
   retry: { max_attempts: 5 }                       # retries after a failed model call; 0 = off
   compaction:                                      # summarise older messages near the window's limit
     enabled: true                                  # by itself; /compact works either way

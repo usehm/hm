@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -98,11 +99,34 @@ func ReadLayer(path string) (Layer, error) {
 	return Layer{Name: path, Data: data}, err
 }
 
+// keysOffMac moves the agent's model keys off Ctrl+L and Ctrl+P outside
+// macOS. There Ctrl is the primary modifier, so those chords are already
+// the agent toggle (cmd+l) and quick open (cmd+p); Alt+L and Alt+P belong
+// to the find bar.
+const keysOffMac = `keys:
+  agent.pickModel: alt+m
+  agent.cycleModel: alt+n
+`
+
+// platformDefaults are the built-in settings that differ on goos, applied
+// over defaults.yaml and under the user's files.
+func platformDefaults(goos string) []Layer {
+	if goos == "darwin" {
+		return nil
+	}
+	return []Layer{{Name: "defaults", Data: []byte(keysOffMac)}}
+}
+
 // Load merges the defaults and layers in order. A layer with problems is left
 // out of the result, so the returned Config is always usable; callers that
 // must not apply a partly broken set check len(problems).
 func Load(layers ...Layer) (Config, []Problem) {
-	all := append([]Layer{{Name: "defaults", Data: defaultsYAML}}, layers...)
+	return load(runtime.GOOS, layers...)
+}
+
+func load(goos string, layers ...Layer) (Config, []Problem) {
+	all := append([]Layer{{Name: "defaults", Data: defaultsYAML}}, platformDefaults(goos)...)
+	all = append(all, layers...)
 	var merged *yaml.Node
 	var problems []Problem
 	for _, l := range all {

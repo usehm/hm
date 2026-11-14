@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -163,9 +164,14 @@ func TestModelPickerAndFavourites(t *testing.T) {
 	h.app.agent.registry = nil
 	r := h.app.run()
 
-	h.press(input.KeyL, input.ModCtrl)
+	// ctrl+l picks a model; off macOS, where ctrl+l toggles the agent, alt+m.
+	pick, pickMods := input.KeyM, input.ModAlt
+	if runtime.GOOS == "darwin" {
+		pick, pickMods = input.KeyL, input.ModCtrl
+	}
+	h.press(pick, pickMods)
 	if !h.c.Commands().Open || !h.app.agent.picking {
-		t.Fatal("ctrl+l did not open the model picker")
+		t.Fatal("the pick-model chord did not open the model picker")
 	}
 	h.until("model lists", 10*time.Second, func() bool { return !h.app.loadModelLists() })
 	items := h.app.modelItems(h.c)
@@ -193,14 +199,19 @@ func TestModelPickerAndFavourites(t *testing.T) {
 		t.Fatal("picker entries stay after it closed")
 	}
 
-	// ctrl+p steps through the favourites whose provider is set up.
+	// ctrl+p (alt+n off macOS) steps through the favourites whose provider
+	// is set up.
+	key, mods := input.KeyN, input.ModAlt
+	if runtime.GOOS == "darwin" {
+		key, mods = input.KeyP, input.ModCtrl
+	}
 	var seen []string
 	for range 3 {
-		h.press(input.KeyP, input.ModCtrl)
+		h.press(key, mods)
 		seen = append(seen, r.provider+"/"+h.app.runModel(r))
 	}
 	if got := strings.Join(seen, " "); got != "router/router-b claude/claude-sonnet-4-6 router/router-b" {
-		t.Fatalf("ctrl+p went %s", got)
+		t.Fatalf("cycling went %s", got)
 	}
 }
 

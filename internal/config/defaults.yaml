@@ -45,8 +45,8 @@ keys:                         # command id -> chord; overrides built-ins
   agent.nextTab: ctrl+tab
   agent.prevTab: ctrl+shift+tab
   agent.followUp: alt+enter   # in the message box: send after the running turn (Enter steers it)
-  agent.pickModel: ctrl+l     # while the agent shows: pick any provider's model for this session
-  agent.cycleModel: ctrl+p    # while the agent shows: next of agent.favorite_models
+  agent.pickModel: ctrl+l     # alt+m off macOS. While the agent shows: pick any provider's model for this session
+  agent.cycleModel: ctrl+p    # alt+n off macOS. While the agent shows: next of agent.favorite_models
   editor.definition: f12
   editor.references: shift+f12
   editor.rename: f2

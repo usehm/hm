@@ -150,10 +150,15 @@ func TestManySearchResultsKeepFramesFast(t *testing.T) {
 	h.app.runSearch()
 	waitSearch(t, h, 4000)
 	h.frame()
-	t0 := time.Now()
-	h.frame()
-	d := time.Since(t0)
-	if d > 30*time.Millisecond { // building every row took ~90ms
+	// The fastest of a few frames: building every row made each one slow
+	// (~90ms), while a busy machine or CI runner only slows some.
+	d := time.Hour
+	for range 5 {
+		t0 := time.Now()
+		h.frame()
+		d = min(d, time.Since(t0))
+	}
+	if d > 30*time.Millisecond {
 		t.Fatalf("a frame with 4000 results took %v", d)
 	}
 }

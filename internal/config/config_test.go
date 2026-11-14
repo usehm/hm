@@ -450,3 +450,29 @@ func TestFavoriteModels(t *testing.T) {
 		}
 	}
 }
+
+// Off macOS, Ctrl is the primary modifier, so the agent's model keys move
+// off ctrl+l and ctrl+p (the agent toggle and quick open there); the
+// user's files still win.
+func TestPlatformKeys(t *testing.T) {
+	for goos, want := range map[string][2]string{
+		"darwin":  {"ctrl+l", "ctrl+p"},
+		"linux":   {"alt+m", "alt+n"},
+		"windows": {"alt+m", "alt+n"},
+	} {
+		cfg, ps := load(goos)
+		if len(ps) > 0 {
+			t.Fatalf("%s: %v", goos, ps)
+		}
+		if got := [2]string{cfg.Keys["agent.pickModel"], cfg.Keys["agent.cycleModel"]}; got != want {
+			t.Errorf("%s: pick, cycle = %v, want %v", goos, got, want)
+		}
+		if cfg.Keys["file.quickOpen"] != "cmd+p" {
+			t.Errorf("%s: quick open = %q", goos, cfg.Keys["file.quickOpen"])
+		}
+	}
+	cfg, _ := load("linux", Layer{Name: "user", Data: []byte("keys:\n  agent.cycleModel: ctrl+alt+p\n")})
+	if got := cfg.Keys["agent.cycleModel"]; got != "ctrl+alt+p" {
+		t.Errorf("user key on linux = %q, want ctrl+alt+p", got)
+	}
+}
