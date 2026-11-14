@@ -10,8 +10,7 @@ cask "hm" do
   sha256 arm:   "@SHA256_ARM@",
          intel: "@SHA256_INTEL@"
 
-  url "https://github.com/usehm/hm/releases/download/v#{version}/hm-macos-v#{version}-#{arch}.dmg",
-      verified: "github.com/usehm/hm/"
+  url "https://github.com/usehm/hm/releases/download/v#{version}/hm-macos-v#{version}-#{arch}.dmg"
   name "Hm"
   desc "Native code editor with a built-in AI coding agent"
   homepage "https://usehm.dev/"
