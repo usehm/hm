@@ -58,8 +58,11 @@ cask "hm" do
   zap trash: [
     "~/.config/hm",
     "~/Library/Application Support/hm",
+    "~/Library/Caches/dev.usehm.hm",
     "~/Library/Caches/me.mirzakhani.hm",
+    "~/Library/Preferences/dev.usehm.hm.plist",
     "~/Library/Preferences/me.mirzakhani.hm.plist",
+    "~/Library/Saved Application State/dev.usehm.hm.savedState",
     "~/Library/Saved Application State/me.mirzakhani.hm.savedState",
   ]
 end

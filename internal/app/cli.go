@@ -21,7 +21,7 @@ const cliName = "hm"
 
 // bundleID matches id in yoga.toml; the launcher falls back to it when the
 // app moved after the command was installed.
-const bundleID = "me.mirzakhani.hm"
+const bundleID = "dev.usehm.hm"
 
 // cliSupported reports whether this platform gets the shell command.
 // Windows users run hm.exe directly.
