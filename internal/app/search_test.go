@@ -5,6 +5,7 @@ package app
 
 import (
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -154,6 +155,23 @@ func TestStepWithNoMatchesLeft(t *testing.T) {
 	h.app.step(-1)
 	if len(s.results) != 1 {
 		t.Fatalf("results %+v", s.results)
+	}
+}
+
+// TestSearchFieldDeletesByWord types in the search box and deletes a word
+// with the platform's chord, ⌥⌫ on macOS and Ctrl+Backspace elsewhere (#1).
+func TestSearchFieldDeletesByWord(t *testing.T) {
+	h, _ := searchProject(t)
+	h.app.openSearch()
+	h.frame()
+	h.typeText("call foo")
+	mods := input.ModCtrl
+	if runtime.GOOS == "darwin" {
+		mods = input.ModAlt
+	}
+	h.press(input.KeyBackspace, mods)
+	if p := h.app.search.q.Pattern; p != "call " {
+		t.Fatalf("pattern %q", p)
 	}
 }
 
