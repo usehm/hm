@@ -4,8 +4,10 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/mirzakhany/yoga/lsp"
@@ -120,22 +122,57 @@ func (a *App) finishFormat(ed *ui.Editor, rev uint64, out []byte, err error) {
 
 // saveFile writes path, formatting it first when format_on_save is on.
 // Saving a config file applies it.
-func (a *App) saveFile(path string) error {
+func (a *App) saveFile(path string) error { return a.saveFileWith(path, true) }
+
+// saveFileWith is saveFile; actions false skips code_actions_on_save, for
+// auto save while typing pauses, where organizing imports would drop the
+// ones not used yet.
+func (a *App) saveFileWith(path string, actions bool) error {
 	ed := a.bufs.Get(path)
-	if ed == nil {
-		return nil
+	if ed == nil || a.saving[path] {
+		return nil // the save in flight writes the file when formatting ends
 	}
 	if a.editorSettings(path).FormatOnSave && !a.isConfigPath(path) {
+		if run, ok := a.saveActions(ed); ok && actions {
+			a.formatting[path]++
+			a.saving[path] = true
+			rev := ed.Revision()
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), saveActionsTimeout)
+				defer cancel()
+				out, err := run(ctx)
+				a.onUI(func() {
+					if a.formatting[path]--; a.formatting[path] <= 0 {
+						delete(a.formatting, path)
+					}
+					a.finishSaveActions(ed, rev, out, err)
+					if a.bufs.Get(path) != ed {
+						delete(a.saving, path)
+						return
+					}
+					a.formatThenWrite(ed)
+				})
+			}()
+			return nil
+		}
 		if _, ok := a.formatRequest(ed, "save"); ok {
-			a.format(ed, "save", func() {
-				if a.bufs.Get(path) == ed {
-					a.fail("Save failed", a.writeFile(path))
-				}
-			})
+			a.formatThenWrite(ed)
 			return nil
 		}
 	}
 	return a.writeFile(path)
+}
+
+// formatThenWrite formats ed for a save in the background, then writes it.
+func (a *App) formatThenWrite(ed *ui.Editor) {
+	path := ed.Path
+	a.saving[path] = true
+	a.format(ed, "save", func() {
+		delete(a.saving, path)
+		if a.bufs.Get(path) == ed {
+			a.fail("Save failed", a.writeFile(path))
+		}
+	})
 }
 
 // saveFileNow is saveFile that has written the file when it returns.
@@ -145,9 +182,77 @@ func (a *App) saveFileNow(path string) error {
 		return nil
 	}
 	if a.editorSettings(path).FormatOnSave && !a.isConfigPath(path) {
+		if run, ok := a.saveActions(ed); ok {
+			ctx, cancel := context.WithTimeout(context.Background(), saveActionsTimeout)
+			out, err := run(ctx)
+			cancel()
+			a.finishSaveActions(ed, ed.Revision(), out, err)
+		}
 		a.formatNow(ed, "save")
 	}
 	return a.writeFile(path)
+}
+
+// saveActionsTimeout bounds the code actions run before a save, so a busy
+// server delays the save only briefly.
+const saveActionsTimeout = 3 * time.Second
+
+// saveActions returns a request for the language's code_actions_on_save on
+// ed's text, or false when there are none or its server is not ready. The
+// request returns the edited text, or nil when nothing changes.
+func (a *App) saveActions(ed *ui.Editor) (func(ctx context.Context) ([]byte, error), bool) {
+	path := ed.Path
+	l, ok := a.lang.For(path)
+	if !ok || l.LSP == nil || len(l.LSP.CodeActionsOnSave) == 0 {
+		return nil, false
+	}
+	m, kinds := a.lang.Manager(), l.LSP.CodeActionsOnSave
+	if !m.Supports(path, "codeActionProvider") { // also false until the server is ready
+		return nil, false
+	}
+	src, enc := bytes.Clone(ed.Bytes()), m.Encoding(path)
+	return func(ctx context.Context) ([]byte, error) {
+		whole := lsp.Range{End: lsp.PositionAt(src, len(src), enc)}
+		cas, err := m.CodeActionsOf(ctx, path, whole, nil, kinds)
+		if err != nil {
+			return nil, err
+		}
+		// The edits are against src, so they are applied together: one
+		// action per kind, in the configured order.
+		var edits []lsp.TextEdit
+		for _, kind := range kinds {
+			for _, ca := range cas {
+				if ca.Kind != kind && !strings.HasPrefix(ca.Kind, kind+".") {
+					continue
+				}
+				if ca.Edit == nil && len(ca.Data) > 0 {
+					if ca, err = m.ResolveCodeAction(ctx, path, ca); err != nil {
+						return nil, err
+					}
+				}
+				if ca.Edit != nil {
+					edits = append(edits, ca.Edit.Edits()[path]...)
+					break
+				}
+			}
+		}
+		if len(edits) == 0 {
+			return nil, nil
+		}
+		return lsp.ApplyEdits(src, edits, enc)
+	}, true
+}
+
+// finishSaveActions applies the save's code actions, unless the buffer
+// changed meanwhile; a failure is logged and the save goes on.
+func (a *App) finishSaveActions(ed *ui.Editor, rev uint64, out []byte, err error) {
+	switch {
+	case err != nil:
+		a.appendOutput("Code actions on save for " + a.ws.Rel(ed.Path) + " failed: " + err.Error())
+	case out == nil || ed.Revision() != rev || bytes.Equal(out, ed.Bytes()):
+	default:
+		ed.ApplyText(string(out))
+	}
 }
 
 func (a *App) writeFile(path string) error {

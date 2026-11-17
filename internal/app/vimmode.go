@@ -28,6 +28,35 @@ func (a *App) attachVim(ed *ui.Editor) {
 	ed.TextFilter = func(r []rune) bool { return a.vimOn() && st.Text(r) }
 }
 
+// keymapButton is the footer's keymap switch.
+func (a *App) keymapButton() ui.View {
+	label := "Default"
+	if a.vimOn() {
+		label = "Vim"
+	}
+	return footerMenu("ft-keymap", label, a.keymapMenu()).Tooltip("Keymap")
+}
+
+func (a *App) keymapMenu() []ui.MenuItem {
+	on := a.vimOn()
+	return []ui.MenuItem{
+		{Label: "Default", Checked: !on, OnSelect: func() { a.setKeymap("default") }},
+		{Label: "Vim", Checked: on, OnSelect: func() { a.setKeymap("vim") }},
+	}
+}
+
+// setKeymap writes editor.keymap to the user file, or to the project file
+// when that one sets it and would win.
+func (a *App) setKeymap(v string) {
+	if a.cfg.Current().Editor.Keymap == v {
+		return
+	}
+	a.setUserSetting([]string{"editor", "keymap"}, v)
+	if a.cfg.Current().Editor.Keymap != v {
+		a.writeSetting(true, []string{"editor", "keymap"}, v)
+	}
+}
+
 // vimState is the active editor's keymap, when Vim is on.
 func (a *App) vimState() *vim.State {
 	ed := a.curEditor()

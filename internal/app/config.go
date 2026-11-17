@@ -322,7 +322,7 @@ func (a *App) autoSave(c *ui.Ctx) {
 				c.Animate(wait)
 				continue
 			}
-			a.fail("Auto save failed", a.saveFile(t.Path))
+			a.fail("Auto save failed", a.saveFileWith(t.Path, false))
 		}
 	case config.AutoSaveFocusChange:
 		cur := ""

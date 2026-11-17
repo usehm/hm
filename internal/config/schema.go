@@ -160,6 +160,9 @@ type LSP struct {
 	// Install lists commands that install the server, in order of
 	// preference; the first whose tool is on PATH is offered.
 	Install []Installer `yaml:"install"`
+	// CodeActionsOnSave are code action kinds applied before formatting
+	// on save, such as source.organizeImports.
+	CodeActionsOnSave []string `yaml:"code_actions_on_save"`
 	// Disabled turns the server off without deleting its settings.
 	Disabled bool `yaml:"disabled"`
 }

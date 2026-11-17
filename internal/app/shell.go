@@ -12,6 +12,7 @@ import (
 	"github.com/mirzakhany/yoga/lsp"
 	"github.com/mirzakhany/yoga/ui"
 
+	"github.com/usehm/hm/internal/lang"
 	"github.com/usehm/hm/internal/workspace"
 )
 
@@ -318,8 +319,8 @@ func (a *App) footer(c *ui.Ctx) ui.View {
 		}
 		line, col := ed.LineCol(ed.Caret())
 		items = append(items,
-			ui.Caption(languageName(a.curPath())),
-			a.serverStatus(c, a.curPath()),
+			a.keymapButton(),
+			a.languageButton(c, a.curPath()),
 			ui.Caption(fmt.Sprintf("Ln %d, Col %d", line+1, col+1)).MarginXY(th.Spacing.S, 0),
 		)
 	}
@@ -351,22 +352,59 @@ func (a *App) footer(c *ui.Ctx) ui.View {
 		Background(ui.TokenChrome).BorderTop(ui.TokenBorder, th.Stroke.Thin)
 }
 
-// serverStatus shows the language server state for path.
-func (a *App) serverStatus(c *ui.Ctx, path string) ui.View {
+// languageButton shows path's language and its server's state; its menu
+// installs a missing server or restarts a running one.
+func (a *App) languageButton(c *ui.Ctx, path string) ui.View {
+	b := footerMenu("ft-lang", languageName(path), a.languageMenu(path))
 	if !a.lang.HasServer(path) {
-		return nil
+		return b.Tooltip("No language server")
 	}
 	th := c.Theme()
 	cfg, _ := lsp.ForPath(path)
 	icon, color, tip := icons.CircleDashed, th.ForegroundMuted, cfg.Command+" starting"
-	if a.lang.Running(path) {
+	switch {
+	case a.lang.MissingServer(path) != nil:
+		icon, color, tip = icons.CircleAlert, th.WarningForeground, cfg.Command+" not installed"
+	case a.lang.Running(path):
 		icon, color, tip = icons.CircleCheck, th.SuccessForeground, cfg.Command+" running"
 	}
-	return ui.Button("ft-lsp", ui.Caption(cfg.Command)).Ghost().HoverFill().
-		Tooltip(tip + " · click to restart").
-		IconStart(icon).
-		OnClick(func() { a.lang.Restart(); a.toast("Language servers restarted", ui.ToastInfo) }).
-		Style(ui.Spec{}.TextColorLit(color))
+	return b.IconStart(icon).Tooltip(tip).Style(ui.Spec{}.TextColorLit(color))
+}
+
+func (a *App) languageMenu(path string) []ui.MenuItem {
+	if !a.lang.HasServer(path) {
+		return []ui.MenuItem{{Label: "No language server configured", Disabled: true}}
+	}
+	cfg, _ := lsp.ForPath(path)
+	if m := a.lang.MissingServer(path); m != nil {
+		items := []ui.MenuItem{{Label: cfg.Command + " is not installed", Disabled: true}}
+		if len(m.Install) == 0 {
+			return append(items, ui.MenuItem{Label: "No installer configured", Disabled: true})
+		}
+		busy := a.installing[m.Command]
+		for _, inst := range m.Install {
+			items = append(items, ui.MenuItem{Label: "Install with " + lang.InstallerString(inst),
+				Icon: icons.Download, Disabled: busy, OnSelect: func() { a.install(m, inst) }})
+		}
+		return items
+	}
+	state := " starting"
+	if a.lang.Running(path) {
+		state = " running"
+	}
+	return []ui.MenuItem{
+		{Label: cfg.Command + state, Disabled: true},
+		{Label: "Restart " + cfg.Command, Icon: icons.RotateCw, OnSelect: func() {
+			a.lang.RestartFor(path)
+			a.toast(cfg.Command+" restarted", ui.ToastInfo)
+		}},
+		{Label: "Show Output", Icon: icons.ScrollText, OnSelect: func() { a.showPanel(panelOutput) }},
+	}
+}
+
+// footerMenu is a footer item that opens a menu above it.
+func footerMenu(id, label string, items []ui.MenuItem) *ui.Node {
+	return ui.MenuButton(id, label, items).Ghost().HoverFill().NoChevron().CaptionText().Placement(ui.PlacementTop)
 }
 
 // branchButton shows the branch, how far it is from its upstream and how

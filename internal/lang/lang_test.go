@@ -195,3 +195,34 @@ func TestHighlightQueriesExtendTheGrammar(t *testing.T) {
 	}
 	t.Fatal("no tokens")
 }
+
+func TestMissingServerUntilRestart(t *testing.T) {
+	cfg, ps := config.Load(config.Layer{Name: "user", Data: []byte(`
+languages:
+  zig:
+    extensions: [.zig]
+    lsp:
+      command: zls-not-here
+      install: [{ tool: brew, args: [install, zls] }]
+`)})
+	if len(ps) > 0 {
+		t.Fatal(ps)
+	}
+	s := New(nil)
+	s.Apply(cfg.Languages)
+	defer s.Apply(nil)
+	s.pathDone = true
+
+	if s.MissingServer("a.zig") != nil {
+		t.Fatal("missing before any error")
+	}
+	s.onError(&lsp.ServerError{Kind: lsp.ErrNotFound, LanguageID: "zig", Command: "zls-not-here"})
+	m := s.MissingServer("a.zig")
+	if m == nil || m.Language != "zig" || len(m.Install) != 1 || m.Install[0].Tool != "brew" {
+		t.Fatalf("missing: %+v", m)
+	}
+	s.RestartFor("a.zig")
+	if s.MissingServer("a.zig") != nil {
+		t.Fatal("restart should forget the missing server")
+	}
+}

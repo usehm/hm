@@ -45,6 +45,7 @@ type Service struct {
 	wake     func()
 	pathDone bool
 	missing  []*lsp.ServerError // not-found errors held until PATH is fixed
+	notFound map[string]bool    // server commands last reported not found
 }
 
 // Notice is a language problem for the notification center.
@@ -68,13 +69,14 @@ type Missing struct {
 // New returns a service using the editor's shared language-server manager.
 func New(wake func()) *Service {
 	s := &Service{
-		mgr:     ui.LanguageServers(),
-		langs:   map[string]config.Language{},
-		byExt:   map[string]string{},
-		lspExts: map[string]bool{},
-		hlExts:  map[string]bool{},
-		last:    map[string]time.Time{},
-		wake:    wake,
+		mgr:      ui.LanguageServers(),
+		langs:    map[string]config.Language{},
+		byExt:    map[string]string{},
+		lspExts:  map[string]bool{},
+		hlExts:   map[string]bool{},
+		last:     map[string]time.Time{},
+		notFound: map[string]bool{},
+		wake:     wake,
 	}
 	s.mgr.OnError(s.onError)
 	s.mgr.OnActivity(func() {
@@ -100,7 +102,7 @@ func (s *Service) FixPathAsync() {
 		s.mu.Unlock()
 		for _, e := range missing {
 			if _, err := exec.LookPath(e.Command); err == nil {
-				s.mgr.Restart(e.LanguageID)
+				s.restart(e.LanguageID, e.Command)
 			} else {
 				s.queue(e)
 			}
@@ -120,6 +122,9 @@ func (s *Service) MarkPathReady() {
 
 func (s *Service) onError(e *lsp.ServerError) {
 	s.mu.Lock()
+	if e.Kind == lsp.ErrNotFound {
+		s.notFound[e.Command] = true
+	}
 	if e.Kind == lsp.ErrNotFound && !s.pathDone {
 		s.missing = append(s.missing, e)
 		s.mu.Unlock()
@@ -327,7 +332,50 @@ func (s *Service) HasServer(path string) bool {
 }
 
 // Restart restarts every language server.
-func (s *Service) Restart() { s.mgr.Restart("") }
+func (s *Service) Restart() { s.restart("", "") }
+
+// RestartFor restarts path's language server.
+func (s *Service) RestartFor(path string) {
+	if cfg, ok := lsp.ForPath(path); ok {
+		s.restart(cfg.LanguageID, cfg.Command)
+	}
+}
+
+// restart restarts languageID's servers, or every one for "", and forgets
+// that command was missing (every command for "") so a failed start reports
+// it again.
+func (s *Service) restart(languageID, command string) {
+	s.mu.Lock()
+	if languageID == "" {
+		clear(s.notFound)
+	} else {
+		delete(s.notFound, command)
+	}
+	s.mu.Unlock()
+	s.mgr.Restart(languageID)
+}
+
+// MissingServer returns path's language server when it was reported not
+// installed, with ways to install it; nil otherwise.
+func (s *Service) MissingServer(path string) *Missing {
+	cfg, ok := lsp.ForPath(path)
+	if !ok {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.notFound[cfg.Command] {
+		return nil
+	}
+	m := &Missing{Language: cfg.LanguageID, Command: cfg.Command}
+	for n, l := range s.langs {
+		if l.LSP != nil && l.LSP.Command == cfg.Command {
+			m.Language, m.Install = n, l.LSP.Install
+			break
+		}
+	}
+	return m
+}
 
 // toastInterval spaces out repeated toasts for one problem.
 const toastInterval = 2 * time.Minute

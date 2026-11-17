@@ -63,7 +63,8 @@ type App struct {
 
 	lang        *lang.Service
 	uiq         chan func()
-	formatting  map[string]int // in-flight formatter runs by path
+	formatting  map[string]int  // in-flight formatter runs by path
+	saving      map[string]bool // saves formatting before they write
 	installing  map[string]bool
 	locations   []*ui.Command // last references/symbols list
 	pasted      *pasteMark
@@ -113,7 +114,7 @@ func Build(opts Options) *App {
 	ui.LiteralCtrl = true
 	a := &App{
 		sideOpen: true, noSession: opts.NoSession, lastEdit: map[string]editSeen{},
-		uiq: make(chan func(), 256), formatting: map[string]int{}, installing: map[string]bool{},
+		uiq: make(chan func(), 256), formatting: map[string]int{}, saving: map[string]bool{}, installing: map[string]bool{},
 		upd: &updater{}, noUpdates: opts.NoUpdates,
 	}
 	a.agent.keys = opts.Keys

@@ -104,6 +104,8 @@ languages:
   # formatters. "on" picks when a formatter runs: save, manual, paste.
   # {file} is the file being formatted; stdin: true pipes the buffer in and
   # takes stdout back. With no formatters, the server's formatting is used.
+  # lsp.code_actions_on_save lists code action kinds the server applies
+  # before the formatters on save, such as source.organizeImports.
   # editor overrides the editor section for that language's files: tab_width,
   # insert_spaces, auto_indent, soft_wrap, format_on_save and
   # trim_trailing_whitespace.
@@ -113,6 +115,7 @@ languages:
       command: gopls
       args: [serve]
       root_markers: [go.work, go.mod]
+      code_actions_on_save: [source.organizeImports]
       install:
         - { tool: go, args: [install, golang.org/x/tools/gopls@latest] }
         - { tool: brew, args: [install, gopls] }

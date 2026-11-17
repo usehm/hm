@@ -1,0 +1,80 @@
+// Copyright (C) 2026 Mohsen Mirzakhani
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package app
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/mirzakhany/yoga/ui"
+)
+
+func menuItem(t *testing.T, items []ui.MenuItem, label string) ui.MenuItem {
+	t.Helper()
+	for _, it := range items {
+		if it.Label == label {
+			return it
+		}
+	}
+	t.Fatalf("no %q in %+v", label, items)
+	return ui.MenuItem{}
+}
+
+func TestFooterKeymapMenu(t *testing.T) {
+	root := project(t)
+	h := newHarness(t, root, false)
+	h.app.openFile(filepath.Join(root, "main.go"))
+	h.frame()
+
+	if !menuItem(t, h.app.keymapMenu(), "Default").Checked {
+		t.Fatal("default keymap should be checked")
+	}
+	menuItem(t, h.app.keymapMenu(), "Vim").OnSelect()
+	h.frame()
+	if !h.app.vimOn() || h.app.vimState() == nil {
+		t.Fatal("Vim should be on")
+	}
+	user, _ := h.app.cfg.Paths()
+	if data, _ := os.ReadFile(user); !strings.Contains(string(data), "keymap: vim") {
+		t.Fatalf("user config: %s", data)
+	}
+	menuItem(t, h.app.keymapMenu(), "Default").OnSelect()
+	h.frame()
+	if h.app.vimOn() {
+		t.Fatal("Vim should be off")
+	}
+}
+
+func TestFooterKeymapWinsOverProject(t *testing.T) {
+	root := project(t)
+	h := newHarness(t, root, false)
+	h.app.writeSetting(true, []string{"editor", "keymap"}, "vim")
+	h.app.setKeymap("default")
+	if h.app.vimOn() {
+		t.Fatal("the project file's vim should be switched off too")
+	}
+}
+
+func TestFooterLanguageMenu(t *testing.T) {
+	root := project(t)
+	h := newHarness(t, root, false)
+	txt := filepath.Join(root, "notes.txt")
+	if err := os.WriteFile(txt, []byte("hi\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if it := h.app.languageMenu(txt); len(it) != 1 || !it[0].Disabled {
+		t.Fatalf("plain text menu: %+v", it)
+	}
+	main := filepath.Join(root, "main.go")
+	items := h.app.languageMenu(main)
+	if h.app.lang.MissingServer(main) == nil {
+		menuItem(t, items, "Restart gopls")
+		menuItem(t, items, "Show Output").OnSelect()
+		if !h.app.panelOpen || h.app.panel != panelOutput {
+			t.Fatal("Show Output should open the output panel")
+		}
+	}
+}

@@ -259,3 +259,28 @@ languages:
 		return hasNotification(h, "Zig language server not installed")
 	})
 }
+
+func TestOrganizeImportsOnSave(t *testing.T) {
+	if _, err := exec.LookPath("gopls"); err != nil {
+		t.Skip("gopls not installed")
+	}
+	root := goProject(t)
+	main := filepath.Join(root, "main.go")
+	writeFile(t, main, "package main\n\nimport \"fmt\"\n\nfunc main() { println(strings.ToUpper(\"hi\")) }\n")
+	h := newHarness(t, root, false)
+	h.app.openFile(main)
+	h.frame()
+	h.until("gopls ready", 60*time.Second, func() bool {
+		return h.app.lang.Manager().Supports(main, "codeActionProvider")
+	})
+	ed := h.app.ws.ActiveEditor()
+	ed.ApplyText(string(ed.Bytes()) + "\n") // something to save
+	h.app.save()
+	h.until("organized imports on disk", 30*time.Second, func() bool {
+		got, _ := readFileErr(main)
+		return strings.Contains(got, "\"strings\"") && !strings.Contains(got, "\"fmt\"")
+	})
+	if ed.Modified() {
+		t.Fatal("saved buffer should not be modified")
+	}
+}
