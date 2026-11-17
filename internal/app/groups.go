@@ -277,7 +277,7 @@ func (a *App) groupView(c *ui.Ctx, gi int, g *editorGroup) ui.View {
 	tabs := make([]ui.TabModel, len(g.paths))
 	for i, p := range g.paths {
 		base := a.bufs.Get(p)
-		tabs[i] = ui.TabModel{Title: filepath.Base(p), Icon: icons.File, Modified: base != nil && base.Modified()}
+		tabs[i] = ui.TabModel{Title: filepath.Base(p), Icon: icons.File, Modified: base != nil && base.Modified(), Tooltip: a.ws.Rel(p)}
 	}
 	id := "group-" + itoa(gi)
 	view := ui.View(ui.Spacer())

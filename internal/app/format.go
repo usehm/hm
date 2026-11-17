@@ -14,6 +14,7 @@ import (
 	"github.com/mirzakhany/yoga/ui"
 
 	"github.com/usehm/hm/internal/lang"
+	"github.com/usehm/hm/internal/workspace"
 )
 
 // syncFormatTimeout bounds formatting that blocks the UI, before a tab
@@ -128,6 +129,9 @@ func (a *App) saveFile(path string) error { return a.saveFileWith(path, true) }
 // auto save while typing pauses, where organizing imports would drop the
 // ones not used yet.
 func (a *App) saveFileWith(path string, actions bool) error {
+	if workspace.IsUntitled(path) {
+		return a.flushUntitled(path) // auto save keeps it for the next run
+	}
 	ed := a.bufs.Get(path)
 	if ed == nil || a.saving[path] {
 		return nil // the save in flight writes the file when formatting ends
@@ -177,6 +181,9 @@ func (a *App) formatThenWrite(ed *ui.Editor) {
 
 // saveFileNow is saveFile that has written the file when it returns.
 func (a *App) saveFileNow(path string) error {
+	if workspace.IsUntitled(path) {
+		return errUntitled
+	}
 	ed := a.bufs.Get(path)
 	if ed == nil {
 		return nil

@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -294,6 +295,21 @@ func languageIDs(name string, l config.Language) []string {
 			out = append(out, id)
 		}
 	}
+	return out
+}
+
+// Languages returns the configured languages that have an extension, by
+// name.
+func (s *Service) Languages() []Language {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []Language
+	for name, l := range s.langs {
+		if len(l.Extensions) > 0 {
+			out = append(out, Language{Name: name, Language: l})
+		}
+	}
+	slices.SortFunc(out, func(a, b Language) int { return strings.Compare(a.Name, b.Name) })
 	return out
 }
 

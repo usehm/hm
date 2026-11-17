@@ -32,24 +32,27 @@ type App struct {
 	tree *ui.FileTree
 	idx  *fileIndex
 
-	notifs      Notifications
-	nav         navHistory
-	rec         *keyRecorder // a shortcut being recorded in Settings
-	kbQuery     string       // the shortcuts page's filter
-	keyCommands []keyCommand
-	vims        map[*ui.Editor]*vim.State // each file editor's Vim keymap
-	groups      []*editorGroup            // split view's groups after the first
-	focusGroup  int                       // 0 is the first group, i is groups[i-1]
-	notifsOpen  bool
-	sideOpen    bool
-	panel       panelKind
-	panelOpen   bool
-	agentOpen   bool
-	treeQuery   string
-	fileClip    fileClip          // files copied or cut in the tree
-	mdDocs      map[string]*mdDoc // preview state per Markdown file
-	noSession   bool
-	noUpdates   bool
+	notifs       Notifications
+	nav          navHistory
+	rec          *keyRecorder // a shortcut being recorded in Settings
+	kbQuery      string       // the shortcuts page's filter
+	keyCommands  []keyCommand
+	vims         map[*ui.Editor]*vim.State // each file editor's Vim keymap
+	groups       []*editorGroup            // split view's groups after the first
+	focusGroup   int                       // 0 is the first group, i is groups[i-1]
+	notifsOpen   bool
+	sideOpen     bool
+	panel        panelKind
+	panelOpen    bool
+	agentOpen    bool
+	treeQuery    string
+	fileClip     fileClip             // files copied or cut in the tree
+	mdDocs       map[string]*mdDoc    // preview state per Markdown file
+	images       map[string]imageInfo // image tabs' headers, until the file changes
+	untitledRevs map[string]uint64    // untitled buffers' revision last written
+	peek         *changePeek          // a change bar's popup
+	noSession    bool
+	noUpdates    bool
 
 	cfg             *config.Manager
 	applied         appliedConfig
@@ -114,7 +117,7 @@ func Build(opts Options) *App {
 	ui.LiteralCtrl = true
 	a := &App{
 		sideOpen: true, noSession: opts.NoSession, lastEdit: map[string]editSeen{},
-		uiq: make(chan func(), 256), formatting: map[string]int{}, saving: map[string]bool{}, installing: map[string]bool{},
+		uiq: make(chan func(), 256), formatting: map[string]int{}, saving: map[string]bool{}, images: map[string]imageInfo{}, untitledRevs: map[string]uint64{}, installing: map[string]bool{},
 		upd: &updater{}, noUpdates: opts.NoUpdates,
 	}
 	a.agent.keys = opts.Keys
@@ -205,6 +208,7 @@ func (a *App) Body(c *ui.Ctx) ui.View {
 	a.registerCommands(c)
 	a.trackNav()
 	a.syncCarets()
+	c.SetWindowTitle(a.windowTitle())
 	if ed := a.curEditor(); ed != nil && !a.modalOpen(c) {
 		c.Focus().EnsureFocus(ed)
 	}
@@ -244,6 +248,7 @@ func (a *App) OnKey(c *ui.Ctx, k input.KeyEvent) bool {
 func (a *App) attachEditor(ed *ui.Editor) {
 	a.attachVim(ed)
 	a.applyEditorSettings(ed, ed.Path)
+	ed.OnLineMark = func(line int) { a.showChange(ed, line) }
 	ed.OnModClick = func(off int) bool {
 		if !a.lang.HasServer(ed.Path) {
 			return false
@@ -322,6 +327,7 @@ func (a *App) saveSession() {
 	if a.ws == nil || a.noSession {
 		return
 	}
+	a.flushAllUntitled()
 	s := a.ws.Snapshot()
 	side := a.sideOpen
 	s.Side = &side

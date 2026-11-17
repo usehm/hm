@@ -6,6 +6,7 @@ package app
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -75,6 +76,31 @@ func TestFooterLanguageMenu(t *testing.T) {
 		menuItem(t, items, "Show Output").OnSelect()
 		if !h.app.panelOpen || h.app.panel != panelOutput {
 			t.Fatal("Show Output should open the output panel")
+		}
+	}
+}
+
+func TestWindowTitleNamesTheFolder(t *testing.T) {
+	root := project(t)
+	h := newHarness(t, root, false)
+	if got := h.app.windowTitle(); got != "hm — "+filepath.Base(root) {
+		t.Fatalf("title %q", got)
+	}
+}
+
+func TestNextInstances(t *testing.T) {
+	pids := []int{10, 20, 30, 40}
+	for _, tc := range []struct {
+		self, dir int
+		want      []int
+	}{
+		{20, 1, []int{30, 40, 10}},
+		{20, -1, []int{10, 40, 30}},
+		{40, 1, []int{10, 20, 30}},
+		{25, 1, []int{30, 40, 10, 20}}, // not recorded itself
+	} {
+		if got := nextInstances(pids, tc.self, tc.dir); !slices.Equal(got, tc.want) {
+			t.Errorf("self %d dir %d: %v, want %v", tc.self, tc.dir, got, tc.want)
 		}
 	}
 }

@@ -9,6 +9,8 @@ import (
 	"github.com/mirzakhany/yoga/icons"
 	"github.com/mirzakhany/yoga/theme"
 	"github.com/mirzakhany/yoga/ui"
+
+	"github.com/usehm/hm/internal/workspace"
 )
 
 // Scopes keep long lists out of the main palette.
@@ -37,6 +39,18 @@ func (a *App) registerCommands(c *ui.Ctx) {
 		ui.Cmd("file.quickOpen").Title("Go to File…").Shortcut(a.key("file.quickOpen")).Icon(icons.Search).Run(a.showQuickOpen),
 		ui.Cmd("file.openFolder").Title("Open Folder…").Shortcut(a.key("file.openFolder")).Icon(icons.FolderOpen).Run(a.askOpenFolder),
 		ui.Cmd("file.newFile").Title("New File…").Shortcut(a.key("file.newFile")).Icon(icons.FilePlus).Run(func() { a.newEntry(a.newFileDir(), false) }),
+		ui.Cmd("file.newUntitled").Title("New Untitled File").Shortcut(a.key("file.newUntitled")).Icon(icons.FilePen).
+			Run(a.newUntitled),
+		ui.Cmd("editor.changeLanguage").Title("Change Language Mode…").Shortcut(a.key("editor.changeLanguage")).
+			Icon(icons.FileCode).Enabled(workspace.IsUntitled(a.curPath())).Run(func() { a.changeLanguage(a.curPath()) }),
+		ui.Cmd("editor.nextChange").Title("Go to Next Change").Shortcut(a.key("editor.nextChange")).
+			Icon(icons.ArrowDown).Enabled(hasEd).Run(func() { a.stepChange(ed, 1) }),
+		ui.Cmd("editor.prevChange").Title("Go to Previous Change").Shortcut(a.key("editor.prevChange")).
+			Icon(icons.ArrowUp).Enabled(hasEd).Run(func() { a.stepChange(ed, -1) }),
+		ui.Cmd("window.next").Title("Switch to Next hm Window").Shortcut(a.key("window.next")).
+			Icon(icons.AppWindow).Enabled(instanceSwitching()).Run(func() { a.switchInstance(1) }),
+		ui.Cmd("window.prev").Title("Switch to Previous hm Window").Shortcut(a.key("window.prev")).
+			Icon(icons.AppWindow).Enabled(instanceSwitching()).Run(func() { a.switchInstance(-1) }),
 		ui.Cmd("file.save").Title("Save").Shortcut(a.key("file.save")).Icon(icons.Save).Enabled(hasEd).Run(a.save),
 		ui.Cmd("file.saveAll").Title("Save All").Shortcut(a.key("file.saveAll")).Icon(icons.Save).Run(func() { a.saveAll(false) }),
 		ui.Cmd("file.close").Title("Close Tab").Shortcut(a.key("file.close")).Icon(icons.X).

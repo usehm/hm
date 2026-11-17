@@ -102,10 +102,13 @@ func ReadLayer(path string) (Layer, error) {
 // keysOffMac moves the agent's model keys off Ctrl+L and Ctrl+P outside
 // macOS. There Ctrl is the primary modifier, so those chords are already
 // the agent toggle (cmd+l) and quick open (cmd+p); Alt+L and Alt+P belong
-// to the find bar.
+// to the find bar. Switching hm windows with cmd+` is macOS's convention,
+// and Ctrl+` is the terminal elsewhere.
 const keysOffMac = `keys:
   agent.pickModel: alt+m
   agent.cycleModel: alt+n
+  window.next: ""
+  window.prev: ""
 `
 
 // platformDefaults are the built-in settings that differ on goos, applied

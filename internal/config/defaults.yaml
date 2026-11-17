@@ -28,6 +28,7 @@ keys:                         # command id -> chord; overrides built-ins
   file.quickOpen: cmd+p
   file.openFolder: cmd+o
   file.newFile: cmd+n
+  file.newUntitled: cmd+alt+n # an empty buffer to paste into, saved later
   file.save: cmd+s
   file.saveAll: cmd+alt+s
   file.close: cmd+w
@@ -51,6 +52,8 @@ keys:                         # command id -> chord; overrides built-ins
   editor.definition: f12
   editor.references: shift+f12
   editor.rename: f2
+  editor.nextChange: alt+f5     # next change against git HEAD
+  editor.prevChange: shift+alt+f5
   editor.format: shift+alt+f
   editor.symbols: cmd+shift+o
   editor.addNextOccurrence: cmd+d
@@ -72,6 +75,8 @@ keys:                         # command id -> chord; overrides built-ins
   view.zoomIn: cmd+=
   view.zoomOut: cmd+-
   view.zoomReset: cmd+0
+  window.next: cmd+alt+`        # macOS: the next hm window. Each runs as its own app, and the
+  window.prev: cmd+alt+shift+`  # system keeps cmd+` to cycle one app's windows
   nav.back: ctrl+-
   view.splitRight: cmd+\
   view.focusNextGroup: cmd+alt+right

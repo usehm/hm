@@ -171,13 +171,13 @@ func TestReopenClosedTabs(t *testing.T) {
 		t.Fatalf("closed: %+v", w.Closed)
 	}
 
-	if ed, err := w.Reopen(""); err != nil || ed.Path != b {
-		t.Fatalf("reopen last: %v %v", ed, err)
+	if p, err := w.Reopen(""); err != nil || p != b {
+		t.Fatalf("reopen last: %v %v", p, err)
 	}
-	ed, err := w.Reopen(a)
-	if err != nil {
+	if _, err := w.Reopen(a); err != nil {
 		t.Fatal(err)
 	}
+	ed = w.ActiveEditor()
 	if l, c := ed.LineCol(ed.Caret()); l != 0 || c != 8 {
 		t.Fatalf("caret %d:%d", l, c)
 	}
@@ -213,5 +213,39 @@ func TestClosedTabsInSession(t *testing.T) {
 	w2.Restore(w.Snapshot())
 	if len(w2.Closed) != 1 {
 		t.Fatalf("closed: %+v", w2.Closed)
+	}
+}
+
+func TestImageTabs(t *testing.T) {
+	w, root := setup(t)
+	img := filepath.Join(root, "logo.png")
+	write(t, img, "not really a png")
+	w.OpenImage(img)
+	w.OpenImage(img)
+	if len(w.Tabs) != 1 || w.Tabs[0].Kind != KindImage || w.ActiveEditor() != nil {
+		t.Fatalf("tabs: %+v", w.Tabs)
+	}
+	if w.Buffers.Get(img) != nil {
+		t.Fatal("an image should not open a text buffer")
+	}
+	to := filepath.Join(root, "art", "logo.png")
+	w.Renamed(img, to)
+	if w.Tabs[0].Path != to {
+		t.Fatalf("renamed: %+v", w.Tabs)
+	}
+	write(t, to, "x")
+
+	w2 := New(root, editor.New(nil))
+	w2.Restore(w.Snapshot())
+	if len(w2.Tabs) != 1 || w2.Tabs[0].Kind != KindImage {
+		t.Fatalf("restored: %+v", w2.Tabs)
+	}
+	w.Close(0)
+	if p, err := w.Reopen(""); err != nil || p != to || w.Tabs[0].Kind != KindImage {
+		t.Fatalf("reopen: %q %v %+v", p, err, w.Tabs)
+	}
+	w.Removed(filepath.Join(root, "art"))
+	if len(w.Tabs) != 0 {
+		t.Fatalf("removed: %+v", w.Tabs)
 	}
 }

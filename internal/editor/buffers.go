@@ -93,7 +93,7 @@ func (b *Buffers) Rename(from, to string) {
 	defer b.mu.Unlock()
 	if ed := b.eds[from]; ed != nil {
 		delete(b.eds, from)
-		ed.Path = to
+		ed.Repath(to) // colors and the language server follow the new name
 		b.eds[to] = ed
 	}
 }

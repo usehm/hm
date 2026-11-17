@@ -17,7 +17,7 @@ import (
 // the first group.
 func (a *App) reopenClosed(path string) {
 	a.focusGroup = 0
-	ed, err := a.ws.Reopen(path)
+	p, err := a.ws.Reopen(path)
 	if errors.Is(err, workspace.ErrNoClosed) {
 		return
 	}
@@ -25,7 +25,7 @@ func (a *App) reopenClosed(path string) {
 		a.fail("Reopen failed", err)
 		return
 	}
-	a.tree.Reveal(ed.Path)
+	a.tree.Reveal(p)
 }
 
 // closedMenu lists recently closed tabs for the tab menu, the latest first.

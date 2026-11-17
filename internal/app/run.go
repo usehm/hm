@@ -21,6 +21,7 @@ func Run(opts Options) error {
 	cfg, _ := config.Load(user)
 	theme.Use(cfg.Editor.Theme)
 	win := yoga.Config{Title: "hm", Width: 1280, Height: 820, CustomTitleBar: true}
+	defer registerInstance()()
 	if err := yoga.Run(win, func() *App { return Build(opts) }); err != nil {
 		return err
 	}

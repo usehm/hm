@@ -34,7 +34,8 @@ Fast where it can be, and quiet when you need to think.
 - Multiple cursors and column selection, find and replace with regex, code folding, soft wrap, indent guides, auto-closing brackets and quotes.
 - Auto indent (`none`, `keep` or `advanced`), tabs or spaces, and trimming trailing whitespace on save.
 - Per-language settings: tab width, indentation, auto indent, soft wrap, format on save and trimming, set in YAML or from a language picker in Settings.
-- Markdown preview.
+- Markdown preview, and an image viewer for PNG, JPEG, GIF, WebP, BMP and TIFF.
+- Untitled buffers to paste into without making a file first; pick their language from the command palette and save them later.
 - Optional Vim keymap.
 - Whole-window zoom with `cmd+=`, `cmd+-` and `cmd+0`.
 - Auto save on focus change or after a delay.
@@ -52,6 +53,7 @@ Fast where it can be, and quiet when you need to think.
 
 ### Git
 - Git panel from the footer: stage, commit, discard, branches, fetch, pull and push.
+- Change bars in the gutter: rest the pointer on one to see the lines before and after, and revert them.
 - Merge branches; files with conflicts are marked until every one is resolved.
 - Remotes over HTTPS with tokens kept in the OS keychain.
 
@@ -179,6 +181,9 @@ macOS keys; on Windows and Linux `cmd` is `ctrl`, except where a column says oth
 | Go to file | `cmd+p` | `ctrl+p` |
 | Go to symbol in file | `cmd+shift+o` | `ctrl+shift+o` |
 | Reopen closed tab | `cmd+shift+t` | `ctrl+shift+t` |
+| New untitled file | `cmd+alt+n` | `ctrl+alt+n` |
+| Next / previous change against git HEAD | `alt+f5` / `shift+alt+f5` | `alt+f5` / `shift+alt+f5` |
+| Next / previous hm window | `` cmd+alt+` `` / `` cmd+alt+shift+` `` | — |
 | Toggle sidebar | `cmd+b` | `ctrl+b` |
 | Toggle agent | `cmd+l` | `ctrl+l` |
 | Ask the agent about the selection | `cmd+alt+l` | `ctrl+alt+l` |

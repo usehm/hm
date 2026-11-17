@@ -811,28 +811,33 @@ func (a *App) approvalCard(c *ui.Ctx, r *agentRun, p *pendingApproval) ui.View {
 }
 
 // hunkView shows one hunk as removed and added lines.
-func hunkView(c *ui.Ctx, f *reviewFile, h diff.Hunk) ui.View {
+func hunkView(c *ui.Ctx, f *reviewFile, h diff.Hunk) ui.View { return diffLines(c, f.a, f.b, h) }
+
+// maxHunkLines is how many of a hunk's lines diffLines shows.
+const maxHunkLines = 30
+
+// diffLines shows hunk h of a -> b as removed and added lines.
+func diffLines(c *ui.Ctx, a, b []string, h diff.Hunk) ui.View {
 	th := c.Theme()
 	var lines []ui.View
 	add := func(prefix, text string, tok ui.Token) {
 		lines = append(lines, ui.Text(prefix+text).Ellipsis(ui.EllipsisEnd).Style(ui.Spec{}.TextColor(tok)))
 	}
-	const maxLines = 30
 	n := 0
-	for _, l := range f.a[h.A0:h.A1] {
-		if n++; n > maxLines {
+	for _, l := range a[h.A0:h.A1] {
+		if n++; n > maxHunkLines {
 			break
 		}
 		add("- ", l, ui.TokenError)
 	}
-	for _, l := range f.b[h.B0:h.B1] {
-		if n++; n > maxLines {
+	for _, l := range b[h.B0:h.B1] {
+		if n++; n > maxHunkLines {
 			break
 		}
 		add("+ ", l, ui.TokenSuccess)
 	}
-	if n > maxLines {
-		lines = append(lines, ui.Caption(fmt.Sprintf("… %d more lines", (h.A1-h.A0)+(h.B1-h.B0)-maxLines)))
+	if n > maxHunkLines {
+		lines = append(lines, ui.Caption(fmt.Sprintf("… %d more lines", (h.A1-h.A0)+(h.B1-h.B0)-maxHunkLines)))
 	}
 	return ui.Column(lines...).Padding(th.Spacing.XS).Radius(th.Radius.Small).Background(ui.TokenSurface)
 }

@@ -16,6 +16,10 @@ import (
 	"github.com/usehm/hm/internal/workspace"
 )
 
+// windowTitle names the OS window after the open folder, so the Dock,
+// Mission Control and window switchers tell hm windows apart.
+func (a *App) windowTitle() string { return "hm — " + filepath.Base(a.ws.Root) }
+
 func (a *App) titleBar(c *ui.Ctx) ui.View {
 	sideIcon := icons.PanelLeft
 	if a.sideOpen {
@@ -164,15 +168,21 @@ func (a *App) tabModel(t workspace.Tab, i int) ui.TabModel {
 		return ui.TabModel{Title: "Settings", Icon: icons.Settings}
 	case workspace.KindGit:
 		return ui.TabModel{Title: "Git", Icon: icons.GitBranch}
+	case workspace.KindImage:
+		return ui.TabModel{Title: a.tabTitle(t.Path), Icon: icons.FileImage, Tooltip: a.ws.Rel(t.Path)}
 	}
-	return ui.TabModel{Title: a.tabTitle(t.Path), Modified: a.ws.Modified(i), Icon: icons.File}
+	if workspace.IsUntitled(t.Path) {
+		return ui.TabModel{Title: workspace.UntitledName(t.Path), Modified: a.ws.Modified(i), Icon: icons.FilePen,
+			Tooltip: "Not saved to a file yet"}
+	}
+	return ui.TabModel{Title: a.tabTitle(t.Path), Modified: a.ws.Modified(i), Icon: icons.File, Tooltip: a.ws.Rel(t.Path)}
 }
 
 // tabTitle is the file name, with its folder when another tab has the same name.
 func (a *App) tabTitle(path string) string {
 	name := filepath.Base(path)
 	for _, t := range a.ws.Tabs {
-		if t.Path != path && t.Kind == workspace.KindFile && filepath.Base(t.Path) == name {
+		if t.Path != path && t.Kind.HasPath() && filepath.Base(t.Path) == name {
 			return name + " — " + filepath.Base(filepath.Dir(path))
 		}
 	}
@@ -197,7 +207,7 @@ func (a *App) tabMenu(i int) []ui.MenuItem {
 			ui.MenuItem{Label: "Move to Other Group", OnSelect: func() { a.focusGroup = 0; a.ws.Active = i; a.moveToOtherGroup() }},
 		)
 	}
-	if t.Kind == workspace.KindFile {
+	if t.Kind.HasPath() {
 		items = append(items,
 			ui.MenuItem{Separator: true},
 			ui.MenuItem{Label: "Copy Path", OnSelect: func() { a.copyText(t.Path) }},
@@ -218,6 +228,8 @@ func (a *App) activeView(c *ui.Ctx) ui.View {
 		return a.settingsPage(c)
 	case workspace.KindGit:
 		return a.gitPage(c)
+	case workspace.KindImage:
+		return a.imageTab(c, t.Path)
 	}
 	ed := a.ws.ActiveEditor()
 	if ed == nil {
@@ -239,6 +251,9 @@ func (a *App) activeView(c *ui.Ctx) ui.View {
 			view,
 		).Grow(1)
 	}
+	if pv := a.changePeekView(c, ed); pv != nil {
+		view = ui.Column(view, pv).Grow(1)
+	}
 	var body ui.View = view
 	var trailing []ui.View
 	if isMarkdown(ed.Path) {
@@ -254,6 +269,9 @@ func (a *App) breadcrumb(c *ui.Ctx, path string, trailing ...ui.View) ui.View {
 	rel, err := filepath.Rel(a.ws.Root, path)
 	if err != nil || strings.HasPrefix(rel, "..") {
 		rel = path
+	}
+	if workspace.IsUntitled(path) {
+		rel = workspace.UntitledName(path)
 	}
 	parts := strings.Split(filepath.ToSlash(rel), "/")
 	segs := make([]ui.BreadcrumbSegment, len(parts))

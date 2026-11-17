@@ -111,9 +111,8 @@ func (w *Workspace) Restore(s Session) []string {
 	active := -1
 	w.Closed = slices.Clone(s.Closed)
 	for i, st := range s.Tabs {
-		if st.Kind != KindFile {
-			w.OpenPage(st.Kind)
-		} else {
+		switch st.Kind {
+		case KindFile:
 			ed, err := w.Open(st.Path)
 			if err != nil {
 				missing = append(missing, st.Path)
@@ -122,6 +121,14 @@ func (w *Workspace) Restore(s Session) []string {
 			off := ed.Offset(st.Line, st.Col)
 			ed.SetSelection(off, off)
 			ed.ScrollPx = st.Scroll
+		case KindImage:
+			if _, err := os.Stat(st.Path); err != nil {
+				missing = append(missing, st.Path)
+				continue
+			}
+			w.OpenImage(st.Path)
+		default:
+			w.OpenPage(st.Kind)
 		}
 		if i == s.Active {
 			active = len(w.Tabs) - 1

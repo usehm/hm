@@ -232,6 +232,7 @@ func (a *App) diskChanged(ch workspace.Changes) {
 		a.idx.refresh()
 	}
 	for p := range ch.Files {
+		delete(a.images, p)
 		if b := a.gitst.bases[p]; b != nil && !b.tracked {
 			delete(a.gitst.bases, p)
 		}

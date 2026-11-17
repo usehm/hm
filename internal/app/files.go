@@ -75,6 +75,13 @@ func (a *App) askOpenFolder() {
 // openFile opens path in a tab of the focused group and shows it in the
 // tree.
 func (a *App) openFile(path string) {
+	if isImage(path) {
+		// Images open in the first group; split groups hold text buffers.
+		a.focusGroup = 0
+		a.ws.OpenImage(path)
+		a.tree.Reveal(path)
+		return
+	}
 	if g := a.focusedGroup(); g != nil {
 		if abs, err := filepath.Abs(path); err == nil {
 			path = abs
@@ -92,6 +99,10 @@ func (a *App) openFile(path string) {
 
 // closeTab closes tab i, asking to save it when it has unsaved changes.
 func (a *App) closeTab(i int) {
+	if p := a.ws.Tabs[i].Path; workspace.IsUntitled(p) {
+		a.closeUntitled(p)
+		return
+	}
 	if !a.ws.Modified(i) {
 		a.ws.Close(i)
 		return
@@ -123,7 +134,7 @@ func (a *App) closeTab(i int) {
 // closePath closes the tab showing path; indexes shift while dialogs are open.
 func (a *App) closePath(path string) {
 	for i, t := range a.ws.Tabs {
-		if t.Kind == workspace.KindFile && t.Path == path {
+		if t.Kind.HasPath() && t.Path == path {
 			a.ws.Close(i)
 			return
 		}
@@ -166,6 +177,10 @@ func (a *App) save() {
 	}
 	t := a.ws.ActiveTab()
 	if t == nil || t.Kind != workspace.KindFile {
+		return
+	}
+	if workspace.IsUntitled(t.Path) {
+		a.saveUntitledAs(t.Path, nil)
 		return
 	}
 	a.fail("Save failed", a.saveFile(t.Path))
