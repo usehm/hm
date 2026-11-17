@@ -126,7 +126,7 @@ func (a *App) moveToOtherGroup() {
 	if len(a.groups) == 0 || from == len(a.groups) {
 		if from == 0 {
 			a.splitRight()
-			a.ws.Close(a.ws.Active)
+			a.ws.Drop(a.ws.Active)
 			return
 		}
 		a.focusGroup = 0

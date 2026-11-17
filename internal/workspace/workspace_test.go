@@ -4,6 +4,7 @@
 package workspace
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -155,5 +156,62 @@ func TestTrashMovesFile(t *testing.T) {
 	}
 	if _, err := os.Stat(p); !os.IsNotExist(err) {
 		t.Fatal("file still there")
+	}
+}
+
+func TestReopenClosedTabs(t *testing.T) {
+	w, root := setup(t)
+	a, b := filepath.Join(root, "a.go"), filepath.Join(root, "sub", "b.go")
+	ed, _ := w.Open(a)
+	ed.SetSelection(8, 8)
+	_, _ = w.Open(b)
+	w.Close(0)
+	w.Close(0)
+	if len(w.Closed) != 2 || w.Closed[1].Path != b {
+		t.Fatalf("closed: %+v", w.Closed)
+	}
+
+	if ed, err := w.Reopen(""); err != nil || ed.Path != b {
+		t.Fatalf("reopen last: %v %v", ed, err)
+	}
+	ed, err := w.Reopen(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if l, c := ed.LineCol(ed.Caret()); l != 0 || c != 8 {
+		t.Fatalf("caret %d:%d", l, c)
+	}
+	if _, err := w.Reopen(""); !errors.Is(err, ErrNoClosed) {
+		t.Fatalf("nothing left: %v", err)
+	}
+
+	// Opening a file normally forgets it; deleted files are not remembered
+	// and are skipped when gone.
+	w.Close(w.Active)
+	_, _ = w.Open(a)
+	if len(w.Closed) != 0 {
+		t.Fatalf("open should forget: %+v", w.Closed)
+	}
+	w.Removed(a)
+	w.Close(0)
+	if len(w.Closed) != 1 || w.Closed[0].Path != b {
+		t.Fatalf("removed should not be remembered: %+v", w.Closed)
+	}
+	if err := os.Remove(b); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Reopen(""); !errors.Is(err, ErrNoClosed) {
+		t.Fatalf("gone file: %v", err)
+	}
+}
+
+func TestClosedTabsInSession(t *testing.T) {
+	w, root := setup(t)
+	_, _ = w.Open(filepath.Join(root, "a.go"))
+	w.Close(0)
+	w2 := New(root, editor.New(nil))
+	w2.Restore(w.Snapshot())
+	if len(w2.Closed) != 1 {
+		t.Fatalf("closed: %+v", w2.Closed)
 	}
 }

@@ -186,7 +186,9 @@ func (a *App) tabMenu(i int) []ui.MenuItem {
 		{Label: "Close to the Right", Disabled: i == len(a.ws.Tabs)-1, OnSelect: func() { a.closeRight(i) }},
 		{Label: "Close Saved", OnSelect: a.closeSaved},
 		{Label: "Close All", OnSelect: a.closeAllTabs},
+		ui.MenuSeparator,
 	}
+	items = append(items, a.closedMenu()...)
 	if t.Kind == workspace.KindFile {
 		items = append(items,
 			ui.MenuItem{Separator: true},

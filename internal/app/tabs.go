@@ -4,6 +4,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -11,6 +12,34 @@ import (
 
 	"github.com/usehm/hm/internal/workspace"
 )
+
+// reopenClosed reopens the closed tab for path, or the last one for "", in
+// the first group.
+func (a *App) reopenClosed(path string) {
+	a.focusGroup = 0
+	ed, err := a.ws.Reopen(path)
+	if errors.Is(err, workspace.ErrNoClosed) {
+		return
+	}
+	if err != nil {
+		a.fail("Reopen failed", err)
+		return
+	}
+	a.tree.Reveal(ed.Path)
+}
+
+// closedMenu lists recently closed tabs for the tab menu, the latest first.
+func (a *App) closedMenu() []ui.MenuItem {
+	const shown = 10
+	items := []ui.MenuItem{{Label: "Reopen Closed Tab", Shortcut: a.key("tabs.reopenClosed"),
+		Disabled: len(a.ws.Closed) == 0, OnSelect: func() { a.reopenClosed("") }}}
+	for i := len(a.ws.Closed) - 1; i >= 0 && len(items) <= shown; i-- {
+		path := a.ws.Closed[i].Path
+		items = append(items, ui.MenuItem{Label: a.ws.Rel(path),
+			OnSelect: func() { a.reopenClosed(path) }})
+	}
+	return items
+}
 
 // closeOthers closes every tab but i.
 func (a *App) closeOthers(i int) {

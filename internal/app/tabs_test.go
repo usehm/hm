@@ -6,6 +6,8 @@ package app
 import (
 	"path/filepath"
 	"testing"
+
+	"github.com/mirzakhany/yoga/input"
 )
 
 func TestCloseTabVariants(t *testing.T) {
@@ -65,4 +67,24 @@ func TestCloseTabVariants(t *testing.T) {
 		t.Fatal("closing a dirty tab must ask")
 	}
 	check("close all asks first", "main.go")
+}
+
+func TestReopenClosedTabShortcut(t *testing.T) {
+	root := project(t)
+	h := newHarness(t, root, false)
+	main := filepath.Join(root, "main.go")
+	h.app.openFile(main)
+	h.frame()
+	h.app.closeTab(h.app.ws.Active)
+	h.frame()
+	if len(h.app.ws.Tabs) != 0 {
+		t.Fatalf("tabs: %+v", h.app.ws.Tabs)
+	}
+	if it := h.app.closedMenu(); len(it) != 2 || it[1].Label != "main.go" {
+		t.Fatalf("menu: %+v", it)
+	}
+	h.press(input.KeyT, input.ModSuper|input.ModShift)
+	if h.app.curPath() != main {
+		t.Fatalf("reopened %q", h.app.curPath())
+	}
 }

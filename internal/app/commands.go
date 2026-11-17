@@ -48,6 +48,8 @@ func (a *App) registerCommands(c *ui.Ctx) {
 			}
 			a.closeTab(a.ws.Active)
 		}),
+		ui.Cmd("tabs.reopenClosed").Title("Reopen Closed Tab").Shortcut(a.key("tabs.reopenClosed")).Icon(icons.Undo2).
+			Enabled(len(a.ws.Closed) > 0).Run(func() { a.reopenClosed("") }),
 		ui.Cmd("tabs.closeOthers").Title("Close Other Tabs").Shortcut(a.key("tabs.closeOthers")).Icon(icons.X).
 			Enabled(len(a.ws.Tabs) > 1).Run(func() { a.closeOthers(a.ws.Active) }),
 		ui.Cmd("tabs.closeRight").Title("Close Tabs to the Right").Shortcut(a.key("tabs.closeRight")).Icon(icons.X).

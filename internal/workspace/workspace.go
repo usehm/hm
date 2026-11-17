@@ -7,7 +7,9 @@ package workspace
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/mirzakhany/yoga/ui"
 
@@ -35,7 +37,12 @@ type Workspace struct {
 	Tabs    []Tab
 	Active  int
 	Buffers *editor.Buffers
+	// Closed are recently closed file tabs, the most recent last.
+	Closed []SessionTab
 }
+
+// maxClosed is how many closed tabs Reopen remembers.
+const maxClosed = 20
 
 // New returns a workspace rooted at root that opens files through bufs.
 func New(root string, bufs *editor.Buffers) *Workspace {
@@ -58,6 +65,7 @@ func (w *Workspace) Open(path string) (*ui.Editor, error) {
 	if err != nil {
 		return nil, err
 	}
+	w.forget(path)
 	w.Tabs = append(w.Tabs, Tab{Kind: KindFile, Path: path})
 	w.Active = len(w.Tabs) - 1
 	return ed, nil
@@ -141,7 +149,29 @@ func (w *Workspace) SaveAll() error {
 }
 
 // Close removes tab i without asking; callers confirm unsaved changes first.
+// A file tab is remembered for Reopen.
 func (w *Workspace) Close(i int) {
+	if i < 0 || i >= len(w.Tabs) {
+		return
+	}
+	if t := w.Tabs[i]; t.Kind == KindFile {
+		st := SessionTab{Path: t.Path}
+		if ed := w.Buffers.Get(t.Path); ed != nil {
+			st.Line, st.Col = ed.LineCol(ed.Caret())
+			st.Scroll = ed.ScrollPx
+		}
+		w.forget(t.Path)
+		w.Closed = append(w.Closed, st)
+		if n := len(w.Closed) - maxClosed; n > 0 {
+			w.Closed = w.Closed[n:]
+		}
+	}
+	w.Drop(i)
+}
+
+// Drop removes tab i without asking or remembering it, such as for a file
+// that was deleted or moved to another group.
+func (w *Workspace) Drop(i int) {
 	if i < 0 || i >= len(w.Tabs) {
 		return
 	}
@@ -156,6 +186,41 @@ func (w *Workspace) Close(i int) {
 		w.Active--
 	}
 }
+
+// forget drops path from the closed tabs.
+func (w *Workspace) forget(path string) {
+	w.Closed = slices.DeleteFunc(w.Closed, func(st SessionTab) bool { return st.Path == path })
+}
+
+// Reopen opens the closed tab for path, or the most recently closed one for
+// "", with the caret it had. Closed files that are gone are skipped.
+func (w *Workspace) Reopen(path string) (*ui.Editor, error) {
+	for i := len(w.Closed) - 1; i >= 0; i-- {
+		st := w.Closed[i]
+		if path != "" && st.Path != path {
+			continue
+		}
+		w.Closed = slices.Delete(w.Closed, i, i+1)
+		if _, err := os.Stat(st.Path); err != nil {
+			if path != "" {
+				return nil, err
+			}
+			continue
+		}
+		ed, err := w.Open(st.Path)
+		if err != nil {
+			return nil, err
+		}
+		off := ed.Offset(st.Line, st.Col)
+		ed.SetSelection(off, off)
+		ed.ScrollPx = st.Scroll
+		return ed, nil
+	}
+	return nil, ErrNoClosed
+}
+
+// ErrNoClosed is Reopen's error when there is nothing to reopen.
+var ErrNoClosed = errors.New("no closed tab to reopen")
 
 // CloseAll removes every tab.
 func (w *Workspace) CloseAll() {
@@ -201,7 +266,7 @@ func (w *Workspace) Removed(path string) {
 			continue
 		}
 		if _, ok := under(t.Path, path); ok || t.Path == path {
-			w.Close(i)
+			w.Drop(i)
 		}
 	}
 }

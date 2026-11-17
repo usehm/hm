@@ -178,6 +178,7 @@ macOS keys; on Windows and Linux `cmd` is `ctrl`, except where a column says oth
 | Command palette | `cmd+shift+p` | `ctrl+shift+p` |
 | Go to file | `cmd+p` | `ctrl+p` |
 | Go to symbol in file | `cmd+shift+o` | `ctrl+shift+o` |
+| Reopen closed tab | `cmd+shift+t` | `ctrl+shift+t` |
 | Toggle sidebar | `cmd+b` | `ctrl+b` |
 | Toggle agent | `cmd+l` | `ctrl+l` |
 | Ask the agent about the selection | `cmd+alt+l` | `ctrl+alt+l` |

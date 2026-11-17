@@ -31,6 +31,7 @@ keys:                         # command id -> chord; overrides built-ins
   file.save: cmd+s
   file.saveAll: cmd+alt+s
   file.close: cmd+w
+  tabs.reopenClosed: cmd+shift+t
   view.sidebar: cmd+b
   view.theme: cmd+k
   view.tabs: cmd+shift+e

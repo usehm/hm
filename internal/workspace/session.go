@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/usehm/hm/internal/config"
 	"github.com/usehm/hm/internal/trash"
@@ -32,6 +33,8 @@ type Session struct {
 	Panel string `json:"panel,omitempty"`
 	// Groups are split view's groups after the first: each one's files.
 	Groups [][]string `json:"groups,omitempty"`
+	// Closed are recently closed file tabs, the most recent last.
+	Closed []SessionTab `json:"closed,omitempty"`
 }
 
 // AgentTab is one tab of the agent: a session, a project or a page.
@@ -89,7 +92,7 @@ func SaveSession(s Session) error {
 
 // Snapshot captures the workspace's tabs and carets.
 func (w *Workspace) Snapshot() Session {
-	s := Session{Root: w.Root, Active: w.Active}
+	s := Session{Root: w.Root, Active: w.Active, Closed: slices.Clone(w.Closed)}
 	for _, t := range w.Tabs {
 		st := SessionTab{Kind: t.Kind, Path: t.Path}
 		if ed := w.Buffers.Get(t.Path); t.Kind == KindFile && ed != nil {
@@ -106,6 +109,7 @@ func (w *Workspace) Snapshot() Session {
 func (w *Workspace) Restore(s Session) []string {
 	var missing []string
 	active := -1
+	w.Closed = slices.Clone(s.Closed)
 	for i, st := range s.Tabs {
 		if st.Kind != KindFile {
 			w.OpenPage(st.Kind)
