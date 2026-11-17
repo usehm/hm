@@ -196,19 +196,23 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	var js *jsonWriter
 	var shown chan struct{}
 	switch {
+	// Events is asked for here, not in the goroutines: until it is called
+	// the Runner drops events, such as the prompt's own message.
 	case o.output == outputJSON:
 		js = newJSONWriter(stdout)
 		js.sessionStart(r.Session(), text)
 		shown = make(chan struct{})
+		events := r.Events()
 		go func() {
 			defer close(shown)
-			for e := range r.Events() {
+			for e := range events {
 				js.event(e)
 			}
 		}()
 	case o.verbose:
 		shown = make(chan struct{})
-		go func() { defer close(shown); show(r.Events(), stderr) }()
+		events := r.Events()
+		go func() { defer close(shown); show(events, stderr) }()
 	}
 	err = r.Prompt(ctx, text)
 	_ = r.Close()
