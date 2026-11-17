@@ -94,6 +94,69 @@ func TestEditInPreviewMarksFileDirty(t *testing.T) {
 	}
 }
 
+// TestEditInPreviewKeepsFile edits away the previewed file's only match: the
+// file must stay in the results and in the preview rather than the search
+// moving on to another file mid-edit.
+func TestEditInPreviewKeepsFile(t *testing.T) {
+	h, root := searchProject(t)
+	h.app.openSearch()
+	s := &h.app.search
+	s.q.Pattern = "call"
+	h.app.runSearch()
+	waitSearch(t, h, 3)
+	a, b := filepath.Join(root, "a.go"), filepath.Join(root, "b.go")
+	h.app.selectMatch(1, 0)
+	ed := h.app.bufs.Get(b)
+	if s.preview != b || ed == nil {
+		t.Fatalf("preview %q", s.preview)
+	}
+	ed.ApplyText("package main\n\nvar z = invoke(5, 6)\n")
+	lo, hi := ed.Selection()
+	waitSearch(t, h, 2)
+	if s.preview != b || len(s.results) != 2 || s.results[1].Path != b || len(s.results[1].Matches) != 0 {
+		t.Fatalf("preview %q, results %+v", s.preview, s.results)
+	}
+	if s.selFile != 1 || s.selMatch != 0 {
+		t.Fatalf("selection %d/%d", s.selFile, s.selMatch)
+	}
+	if l, r := ed.Selection(); l != lo || r != hi {
+		t.Fatal("the rescan should leave the caret alone")
+	}
+	// Typing matches back in counts them again.
+	ed.ApplyText("package main\n\nvar z = call(5, 6) + call(7, 8)\n")
+	waitSearch(t, h, 4)
+	if s.preview != b || len(s.results[1].Matches) != 2 || s.selFile != 1 {
+		t.Fatalf("preview %q, results %+v, selFile %d", s.preview, s.results, s.selFile)
+	}
+
+	// Stepping past an empty file skips it.
+	ed.ApplyText("package main\n")
+	waitSearch(t, h, 2)
+	h.app.step(1)
+	if s.preview != a || s.selFile != 0 || s.selMatch != 0 {
+		t.Fatalf("step went to %q %d/%d", s.preview, s.selFile, s.selMatch)
+	}
+}
+
+// TestStepWithNoMatchesLeft must return rather than spin when every file in
+// the results has had its matches edited away.
+func TestStepWithNoMatchesLeft(t *testing.T) {
+	h, root := searchProject(t)
+	h.app.openSearch()
+	s := &h.app.search
+	s.q.Pattern = "call(5"
+	h.app.runSearch()
+	waitSearch(t, h, 1)
+	ed := h.app.bufs.Get(filepath.Join(root, "b.go"))
+	ed.ApplyText("package main\n")
+	waitSearch(t, h, 0)
+	h.app.step(1)
+	h.app.step(-1)
+	if len(s.results) != 1 {
+		t.Fatalf("results %+v", s.results)
+	}
+}
+
 func TestReplaceAllIsOneUndoPerFile(t *testing.T) {
 	h, root := searchProject(t)
 	h.app.openSearch()

@@ -48,6 +48,7 @@ type projectSearch struct {
 	selFile, selMatch int
 	preview           string // path in the right pane
 	previewRev        uint64
+	rescan            time.Time // rescan the preview once this passes; zero when nothing is queued
 	// borrowed holds buffers opened only for the preview (no tab).
 	borrowed map[string]bool
 }
@@ -130,7 +131,7 @@ func (a *App) queueSearch() { a.search.pending = time.Now().Add(searchDebounce) 
 // snapshotted here, on the UI goroutine, since editors are not thread-safe.
 func (a *App) runSearch() {
 	s := &a.search
-	s.pending = time.Time{}
+	s.pending, s.rescan = time.Time{}, time.Time{}
 	if s.cancel != nil {
 		s.cancel()
 	}
@@ -253,10 +254,17 @@ drained:
 	if selectFirst && s.selFile < 0 && len(s.results) > 0 {
 		a.selectMatch(0, 0)
 	}
-	// Edits in the preview move matches: search again once they pause.
+	// Edits in the preview move matches: rescan that file once they pause.
 	if ed := a.bufs.Get(s.preview); ed != nil && ed.Revision() != s.previewRev {
 		s.previewRev = ed.Revision()
-		a.queueSearch()
+		s.rescan = time.Now().Add(searchDebounce)
+	}
+	if !s.rescan.IsZero() {
+		if wait := time.Until(s.rescan); wait > 0 {
+			c.Animate(wait)
+		} else {
+			a.rescanPreview()
+		}
 	}
 	if !s.pending.IsZero() {
 		if wait := time.Until(s.pending); wait > 0 {
@@ -293,17 +301,42 @@ func (a *App) selectMatch(f, m int) {
 	ed.CenterCaret()
 }
 
+// rescanPreview refreshes the previewed file's matches from its buffer, in
+// place. A full search would drop the file once an edit removes its last
+// match and move the preview to another file while it is being edited, so
+// the row stays, even empty, and the selection and caret stay put.
+func (a *App) rescanPreview() {
+	s := &a.search
+	s.rescan = time.Time{}
+	re := a.searchRegexp()
+	ed := a.bufs.Get(s.preview)
+	if re == nil || ed == nil {
+		return
+	}
+	for f := range s.results {
+		if s.results[f].Path != s.preview {
+			continue
+		}
+		ms := search.FindAll(re, ed.Bytes())
+		s.total += len(ms) - len(s.results[f].Matches)
+		s.results[f].Matches = ms
+		if f == s.selFile {
+			s.selMatch = max(0, min(s.selMatch, len(ms)-1))
+		}
+		return
+	}
+}
+
 // step moves the selection to the next (dir 1) or previous (-1) match.
 func (a *App) step(dir int) {
 	s := &a.search
-	if len(s.results) == 0 {
-		return
-	}
-	if s.selFile < 0 {
-		a.selectMatch(0, 0)
-		return
+	if s.total == 0 {
+		return // also keeps the loop below from spinning over empty files
 	}
 	f, m := s.selFile, s.selMatch+dir
+	if f < 0 {
+		f, m = 0, 0
+	}
 	for m < 0 || m >= len(s.results[f].Matches) {
 		f = (f + dir + len(s.results)) % len(s.results)
 		if dir > 0 {
