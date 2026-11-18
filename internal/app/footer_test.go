@@ -104,3 +104,76 @@ func TestNextInstances(t *testing.T) {
 		}
 	}
 }
+
+func TestDetectTextFormat(t *testing.T) {
+	for _, c := range []struct {
+		text     string
+		eol, enc string
+	}{
+		{"a\nb\n", eolLF, encUTF8},
+		{"a\r\nb\r\n", eolCRLF, encUTF8},
+		{"one line", eolLF, encUTF8},
+		{"\xEF\xBB\xBFa\r\n", eolCRLF, encUTF8BOM},
+		{"\xFF\xFEa\x00", eolLF, encUTF16LE},
+		{"\xFE\xFF\x00a", eolLF, encUTF16BE},
+		{"caf\xE9\n", eolLF, encBinary},
+	} {
+		if eol, enc := detectEOL([]byte(c.text)), detectEncoding([]byte(c.text)); eol != c.eol || enc != c.enc {
+			t.Errorf("%q: %s %s, want %s %s", c.text, eol, enc, c.eol, c.enc)
+		}
+	}
+}
+
+// The footer's line endings and BOM items rewrite the buffer, undoably.
+func TestFooterLineEndingsAndBOM(t *testing.T) {
+	root := project(t)
+	path := filepath.Join(root, "dos.txt")
+	if err := os.WriteFile(path, []byte("a\r\nb\r\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	h := newHarness(t, root, false)
+	h.app.openFile(path)
+	h.frame()
+	ed := h.app.curEditor()
+	if !menuItem(t, h.app.eolMenu(ed), "CRLF (\\r\\n)").Checked {
+		t.Fatal("CRLF should be checked")
+	}
+	menuItem(t, h.app.eolMenu(ed), "LF (\\n)").OnSelect()
+	if got := string(ed.Bytes()); got != "a\nb\n" {
+		t.Fatalf("to LF: %q", got)
+	}
+	if !menuItem(t, h.app.eolMenu(ed), "LF (\\n)").Checked {
+		t.Fatal("LF should be checked after converting")
+	}
+	menuItem(t, h.app.encodingMenu(ed), encUTF8BOM).OnSelect()
+	if got := string(ed.Bytes()); got != "\xEF\xBB\xBFa\nb\n" {
+		t.Fatalf("with BOM: %q", got)
+	}
+	menuItem(t, h.app.encodingMenu(ed), encUTF8).OnSelect()
+	if got := string(ed.Bytes()); got != "a\nb\n" {
+		t.Fatalf("without BOM: %q", got)
+	}
+}
+
+// Indentation picked in the footer holds for that file over a config reload.
+func TestFooterIndentation(t *testing.T) {
+	root := project(t)
+	h := newHarness(t, root, false)
+	path := filepath.Join(root, "main.go")
+	h.app.openFile(path)
+	h.frame()
+	ed := h.app.curEditor()
+	menuItem(t, h.app.indentMenu(ed, path), "Indent Using Spaces").OnSelect()
+	menuItem(t, h.app.indentMenu(ed, path), "Width 2").OnSelect()
+	if !ed.IndentSpaces() || ed.TabWidth() != 2 {
+		t.Fatalf("spaces %v width %d", ed.IndentSpaces(), ed.TabWidth())
+	}
+	h.app.applyAllEditorSettings()
+	if !ed.IndentSpaces() || ed.TabWidth() != 2 {
+		t.Fatal("a reload should keep the footer's pick")
+	}
+	menuItem(t, h.app.indentMenu(ed, path), "Use Settings").OnSelect()
+	if es := h.app.editorSettings(path); ed.IndentSpaces() != es.InsertSpaces || ed.TabWidth() != es.TabWidth {
+		t.Fatal("Use Settings should bring the config back")
+	}
+}

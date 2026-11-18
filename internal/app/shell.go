@@ -337,9 +337,12 @@ func (a *App) footer(c *ui.Ctx) ui.View {
 		}
 		line, col := ed.LineCol(ed.Caret())
 		items = append(items,
-			a.keymapButton(),
-			a.languageButton(c, a.curPath()),
 			ui.Caption(fmt.Sprintf("Ln %d, Col %d", line+1, col+1)).MarginXY(th.Spacing.S, 0),
+			a.indentButton(ed, a.curPath()),
+			a.encodingButton(ed),
+			a.eolButton(ed),
+			a.languageButton(c, a.curPath()),
+			a.keymapButton(),
 		)
 	}
 	unread := ""

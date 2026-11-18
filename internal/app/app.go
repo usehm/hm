@@ -46,11 +46,13 @@ type App struct {
 	panelOpen    bool
 	agentOpen    bool
 	treeQuery    string
-	fileClip     fileClip             // files copied or cut in the tree
-	mdDocs       map[string]*mdDoc    // preview state per Markdown file
-	images       map[string]imageInfo // image tabs' headers, until the file changes
-	untitledRevs map[string]uint64    // untitled buffers' revision last written
-	peek         *changePeek          // a change bar's popup
+	fileClip     fileClip                  // files copied or cut in the tree
+	mdDocs       map[string]*mdDoc         // preview state per Markdown file
+	images       map[string]imageInfo      // image tabs' headers, until the file changes
+	untitledRevs map[string]uint64         // untitled buffers' revision last written
+	peek         *changePeek               // a change bar's popup
+	footerFmt    textFormat                // the footer's editor's line endings and encoding
+	indents      map[string]indentOverride // indentation picked in the footer, by path
 	noSession    bool
 	noUpdates    bool
 

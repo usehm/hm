@@ -34,6 +34,7 @@ Fast where it can be, and quiet when you need to think.
 - Multiple cursors and column selection, find and replace with regex, code folding, soft wrap, indent guides, auto-closing brackets and quotes.
 - Auto indent (`none`, `keep` or `advanced`), tabs or spaces, and trimming trailing whitespace on save.
 - Per-language settings: tab width, indentation, auto indent, soft wrap, format on save and trimming, set in YAML or from a language picker in Settings.
+- The footer shows the caret position, indentation, encoding and line endings: switch a file to spaces or tabs and a width for the session, convert LF and CRLF, or add or remove a UTF-8 BOM.
 - Markdown preview, and an image viewer for PNG, JPEG, GIF, WebP, BMP and TIFF.
 - Untitled buffers to paste into without making a file first; pick their language from the command palette and save them later.
 - Optional Vim keymap.

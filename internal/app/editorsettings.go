@@ -34,6 +34,10 @@ func (a *App) applyEditorSettings(ed *ui.Editor, path string) {
 	ed.SetTabWidth(es.TabWidth)
 	ed.SetIndentSpaces(es.InsertSpaces)
 	ed.SetAutoIndent(autoIndentModes[es.AutoIndent])
+	if o, ok := a.indents[path]; ok {
+		ed.SetTabWidth(o.width)
+		ed.SetIndentSpaces(o.spaces)
+	}
 	if l, ok := a.lang.For(path); ok && l.Editor != nil && l.Editor.SoftWrap != nil {
 		ed.SetSoftWrap(*l.Editor.SoftWrap)
 	}
