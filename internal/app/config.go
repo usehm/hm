@@ -50,6 +50,7 @@ func (a *App) applyConfig(cfg config.Config) {
 	applyZoom(ed.Zoom)
 	ui.EditorDefaults.SoftWrap = ed.SoftWrap
 	ui.EditorDefaults.LineNumbers = ed.LineNumbers
+	ui.EditorDefaults.Minimap = ed.Minimap
 	ui.EditorDefaults.ScrollPastEnd = ed.ScrollPastEnd
 	ui.EditorDefaults.IndentSpaces = ed.InsertSpaces
 	ui.EditorDefaults.AutoIndent = autoIndentModes[ed.AutoIndent]

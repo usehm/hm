@@ -46,7 +46,9 @@ func replaceEditor(old *ui.Editor, data []byte, hl highlight.Highlighter) *ui.Ed
 	if old != nil {
 		old.Close()
 	}
-	return ui.NewEditor(data, hl, ui.WithReadOnly(), ui.WithSharedContent())
+	ed := ui.NewEditor(data, hl, ui.WithReadOnly(), ui.WithSharedContent())
+	ed.SetMinimap(false) // a diff side is read beside the other, not navigated
+	return ed
 }
 
 // secretStoreName is what the platform calls its secret store.

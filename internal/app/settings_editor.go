@@ -63,6 +63,8 @@ func (a *App) editorForm(ed config.Editor) ui.View {
 			ed.SoftWrap, func(v bool) { a.setSetting(key("editor", "soft_wrap"), v) }),
 		ui.FormSwitch("set-lines", "Line numbers", "Show the line-number gutter",
 			ed.LineNumbers, func(v bool) { a.setSetting(key("editor", "line_numbers"), v) }),
+		ui.FormSwitch("set-minimap", "Minimap", "The file in miniature at the right edge; click or drag it to scroll",
+			ed.Minimap, func(v bool) { a.setSetting(key("editor", "minimap"), v) }),
 		ui.FormSwitch("set-past-end", "Scroll past end", "Leave room below the last line",
 			ed.ScrollPastEnd, func(v bool) { a.setSetting(key("editor", "scroll_past_end"), v) }),
 		ui.FormHeading("Input", ""),

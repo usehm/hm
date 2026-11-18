@@ -64,6 +64,8 @@ type Editor struct {
 	InsertSpaces bool   `yaml:"insert_spaces"`
 	SoftWrap     bool   `yaml:"soft_wrap"`
 	LineNumbers  bool   `yaml:"line_numbers"`
+	// Minimap shows the file in miniature at the editor's right edge.
+	Minimap bool `yaml:"minimap"`
 	// AutoIndent is what Enter carries to the new line: none, keep (the
 	// line's indent) or advanced (one more level after an opening bracket).
 	AutoIndent string `yaml:"auto_indent"`

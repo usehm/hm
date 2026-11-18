@@ -37,6 +37,8 @@ Fast where it can be, and quiet when you need to think.
 - The footer shows the caret position, indentation, encoding and line endings: switch a file to spaces or tabs and a width for the session, convert LF and CRLF, or add or remove a UTF-8 BOM.
 - Markdown preview, and an image viewer for PNG, JPEG, GIF, WebP, BMP and TIFF.
 - Untitled buffers to paste into without making a file first; pick their language from the command palette and save them later.
+- Minimap at the editor's right edge (`editor.minimap`); click or drag it to scroll.
+- Files with Windows line endings (CRLF) stay CRLF: Enter, paste and the line commands write the file's own line ending.
 - Optional Vim keymap.
 - Whole-window zoom with `cmd+=`, `cmd+-` and `cmd+0`.
 - Auto save on focus change or after a delay.

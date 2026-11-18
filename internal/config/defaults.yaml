@@ -13,6 +13,7 @@ editor:
   insert_spaces: false
   soft_wrap: false
   line_numbers: true
+  minimap: true               # the file in miniature at the right edge; click or drag it to scroll
   auto_indent: advanced       # none | keep | advanced
   trim_trailing_whitespace: false
   scroll_past_end: true       # let the last line scroll up to the top
