@@ -48,6 +48,7 @@ type App struct {
 	treeQuery    string
 	fileClip     fileClip                  // files copied or cut in the tree
 	mdDocs       map[string]*mdDoc         // preview state per Markdown file
+	csvDocs      map[string]*csvDoc        // table state per CSV file
 	images       map[string]imageInfo      // image tabs' headers, until the file changes
 	untitledRevs map[string]uint64         // untitled buffers' revision last written
 	peek         *changePeek               // a change bar's popup

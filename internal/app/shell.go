@@ -260,6 +260,10 @@ func (a *App) activeView(c *ui.Ctx) ui.View {
 		body = a.markdownView(c, ed, view)
 		trailing = append(trailing, a.markdownMode(ed.Path))
 	}
+	if isCSV(ed.Path) {
+		body = a.csvView(c, ed, view)
+		trailing = append(trailing, a.csvModeSwitch(ed.Path))
+	}
 	return ui.Column(a.breadcrumb(c, ed.Path, trailing...), body).Grow(1)
 }
 

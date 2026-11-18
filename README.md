@@ -36,6 +36,7 @@ Fast where it can be, and quiet when you need to think.
 - Per-language settings: tab width, indentation, auto indent, soft wrap, format on save and trimming, set in YAML or from a language picker in Settings.
 - The footer shows the caret position, indentation, encoding and line endings: switch a file to spaces or tabs and a width for the session, convert LF and CRLF, or add or remove a UTF-8 BOM.
 - Markdown preview, and an image viewer for PNG, JPEG, GIF, WebP, BMP and TIFF.
+- CSV and TSV files open as a table (or source, or both split): filter rows, sort and resize columns, edit cells, add and delete rows. Each edit rewrites only its record, so the rest of the file keeps its quoting and line endings.
 - Untitled buffers to paste into without making a file first; pick their language from the command palette and save them later.
 - Minimap at the editor's right edge (`editor.minimap`); click or drag it to scroll.
 - Files with Windows line endings (CRLF) stay CRLF: Enter, paste and the line commands write the file's own line ending.
