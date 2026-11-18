@@ -309,6 +309,8 @@ type Provider struct {
 	// APIVersion is an azure provider's api-version, such as 2024-10-21;
 	// the model is then a deployment name. Empty uses Azure's v1 API.
 	APIVersion string `yaml:"api_version"`
+	// Disabled keeps a provider configured but out of the pickers.
+	Disabled bool `yaml:"disabled"`
 }
 
 // Completion configures AI inline completions in the editor.

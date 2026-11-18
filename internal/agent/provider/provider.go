@@ -272,7 +272,7 @@ func New(cfg Config) (Provider, error) {
 }
 
 // ErrNoKey is returned when a provider that needs a key has none.
-var ErrNoKey = errors.New("no API key; add one in Settings → Agent")
+var ErrNoKey = errors.New("no API key; add one in Settings → Providers")
 
 // toolID makes a tool call id that another provider wrote one that APIs
 // taking only letters, digits, _ and - accept, the same way for the call

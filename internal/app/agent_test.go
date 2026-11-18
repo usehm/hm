@@ -365,15 +365,10 @@ agent:
 	if !h.app.providerReady("box") {
 		t.Fatal("a local preset needs no key")
 	}
-	item := h.app.addProviderSetting()
-	var values []string
-	for _, o := range item.Options {
-		values = append(values, o.Value)
+	if types := providerTypes(); !slices.Contains(types, "groq") || !slices.Contains(types, "baseten") {
+		t.Fatalf("add types %v", types)
 	}
-	if !slices.Contains(values, "groq") || !slices.Contains(values, "lmstudio") || slices.Contains(values, "anthropic") {
-		t.Fatalf("add options %v", values)
-	}
-	item.OnChange("lmstudio")
+	h.app.addProviderFrom(&newProvider{typ: "lmstudio", name: "lmstudio"})
 	h.until("config reload", 10*time.Second, func() bool { return h.app.providerReady("lmstudio") })
 	if got := providerLabel("lmstudio"); got != "LM Studio" {
 		t.Fatalf("label %q", got)

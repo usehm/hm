@@ -971,10 +971,13 @@ func (a *App) resumeAgentSession(id string) {
 	a.openRunTab(a.newRun(s))
 }
 
+// providerNames are the providers not disabled, sorted.
 func (a *App) providerNames() []string {
 	var out []string
-	for n := range a.cfg.Current().Agent.Providers {
-		out = append(out, n)
+	for n, pc := range a.cfg.Current().Agent.Providers {
+		if !pc.Disabled {
+			out = append(out, n)
+		}
 	}
 	sortStrings(out)
 	return out

@@ -13,7 +13,6 @@ import (
 	"github.com/mirzakhany/yoga/ui"
 
 	"github.com/usehm/hm/internal/agent"
-	"github.com/usehm/hm/internal/agent/provider"
 	"github.com/usehm/hm/internal/config"
 	"github.com/usehm/hm/internal/workspace"
 )
@@ -52,6 +51,7 @@ var settingsCategories = []struct {
 	{"search", "Search", icons.Search, 0},
 	{"terminal", "Terminal", icons.SquareTerminal, 0},
 	{"agent", "Agent", icons.Bot, 1},
+	{"providers", "Providers", icons.Plug, 1},
 	{"completion", "Completion", icons.Sparkles, 1},
 	{"security", "Agent Security", icons.ShieldCheck, 1},
 	{"artifacts", "Artifacts", icons.Package, 1},
@@ -176,7 +176,7 @@ func (a *App) settingsNav(c *ui.Ctx, cat, target string) ui.View {
 		}
 		group = sc.group
 		id := sc.id
-		b := item("settings-cat-"+id, sc.label, sc.icon).OnClick(func() { a.settingsCat = id })
+		b := item("settings-cat-"+id, sc.label, sc.icon).OnClick(func() { a.settingsCat, a.settingsProvider = id, "" })
 		if id == cat {
 			b = b.Background(ui.TokenListActive)
 		}
@@ -204,7 +204,9 @@ func (a *App) settingsSection(c *ui.Ctx, cat string) ui.View {
 	case "security":
 		return a.securitySection(c)
 	case "agent":
-		return a.agentSettings(c)
+		return a.agentSettings()
+	case "providers":
+		return a.providersSection(c)
 	case "artifacts":
 		art := cfg.Artifacts
 		fields := []ui.FormItem{
@@ -320,11 +322,8 @@ func enumIndex(path, v string) int {
 	return 0
 }
 
-// agentSettings picks the default provider and mode, and per provider the
-// endpoint, the API key (kept in the OS keychain) and, once a key is set,
-// the model.
-func (a *App) agentSettings(c *ui.Ctx) ui.View {
-	th := c.Theme()
+// agentSettings picks the default provider, mode and layout.
+func (a *App) agentSettings() ui.View {
 	cfg := a.cfg.Current().Agent
 	provs := a.providerNames()
 	popts := make([]ui.SelectOption, len(provs))
@@ -344,8 +343,8 @@ func (a *App) agentSettings(c *ui.Ctx) ui.View {
 			msel = i
 		}
 	}
-	rows := []ui.View{ui.Form("agent-form",
-		ui.FormHeading("Agent", "Providers and modes live under agent: and modes: in the YAML"),
+	return ui.Form("agent-form",
+		ui.FormHeading("Agent", "Set up providers and their models under Providers; modes live under modes: in the YAML"),
 		ui.FormSelect("set-agent-provider", "Default provider", "Used by new sessions", popts, psel,
 			func(v string) { a.setSetting([]string{"agent", "default_provider"}, v) }),
 		ui.FormSelect("set-agent-mode", "Default mode", "lazy, rubber-duck, auto, fullstack, or your own", mopts, msel,
@@ -353,56 +352,7 @@ func (a *App) agentSettings(c *ui.Ctx) ui.View {
 		ui.FormSelect("set-agent-layout", "Layout", "Full screen, toggled with the editor, or a panel beside it",
 			enumOptions("agent.layout"), enumIndex("agent.layout", cfg.Layout),
 			func(v string) { a.setSetting([]string{"agent", "layout"}, v) }),
-		a.addProviderSetting(),
-	).Grouped()}
-	for _, name := range provs {
-		name := name
-		pc := cfg.Providers[name]
-		status, keyLabel := "No key: add one to choose a model", "Add key"
-		if a.hasProviderKey(name) {
-			status, keyLabel = "Key set", "Replace key"
-		} else if localProvider(pc) {
-			status = "Local endpoint, no key needed"
-		} else if vertexProvider(pc) {
-			status = "Vertex AI: signs in with gcloud auth application-default login"
-		}
-		items := []ui.FormItem{ui.FormHeading(providerLabel(name), status)}
-		if provider.OpenAICompatible(pc.Type) || pc.Type == "azure" {
-			base := []string{"agent", "providers", name, "base_url"}
-			hint := "OpenAI, OpenRouter, Ollama, LM Studio, Groq, DeepSeek, …"
-			if p, ok := provider.Presets[pc.Type]; ok {
-				hint = "Empty uses " + p.BaseURL
-			} else if pc.Type == "azure" {
-				hint = "Your resource: https://<resource>.openai.azure.com"
-			}
-			items = append(items, ui.FormText("set-agent-base-"+name, "Base URL", hint,
-				a.textValue(base, pc.BaseURL), func(v string) { a.setTextSetting(base, v) }))
-		}
-		if pc.Type == "azure" {
-			ver := []string{"agent", "providers", name, "api_version"}
-			items = append(items, ui.FormText("set-agent-apiver-"+name, "API version",
-				"Such as 2024-10-21, with the deployment as the model; empty uses the v1 API",
-				a.textValue(ver, pc.APIVersion), func(v string) { a.setTextSetting(ver, v) }))
-		}
-		if pc.Type == "google" {
-			proj := []string{"agent", "providers", name, "project"}
-			loc := []string{"agent", "providers", name, "location"}
-			items = append(items,
-				ui.FormText("set-agent-project-"+name, "Vertex AI project", "Empty uses the Gemini API with a key",
-					a.textValue(proj, pc.Project), func(v string) { a.setTextSetting(proj, v) }),
-				ui.FormText("set-agent-location-"+name, "Vertex AI location", "A region such as us-central1; empty is global",
-					a.textValue(loc, pc.Location), func(v string) { a.setTextSetting(loc, v) }))
-		}
-		if a.providerReady(name) {
-			items = append(items, a.modelSetting(name))
-		}
-		rows = append(rows, ui.Column(
-			ui.Form("agent-provider-form-"+name, items...).Grouped(),
-			ui.Row(ui.Spacer(), ui.Button("agent-key-"+name, ui.Text(keyLabel)).IconStart(icons.KeyRound).
-				OnClick(func() { a.askProviderKey(name) })),
-		).Gap(th.Spacing.XS))
-	}
-	return ui.Column(rows...).Gap(th.Spacing.M)
+	).Grouped()
 }
 
 // completionSettings turns AI inline completions on and picks the provider
@@ -421,7 +371,7 @@ func (a *App) completionSettings() ui.View {
 	}
 	status := "Ghost text at the caret: Tab accepts, Esc dismisses"
 	if !a.providerReady(name) {
-		status = "Add a key for " + providerLabel(name) + " under Agent to choose a model"
+		status = "Set up " + providerLabel(name) + " under Providers to choose a model"
 	} else if cc.Model == "" {
 		status = "Choose a small, fast model to turn completions on"
 	}

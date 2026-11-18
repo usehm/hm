@@ -390,9 +390,9 @@ agent:
   default_provider: anthropic
   default_mode: auto
   layout: fullscreen          # fullscreen (toggles with the editor) | panel (beside it)
-  # Keys live in the OS keychain: "keychain:<name>" (Settings → Agent → Add key)
+  # Keys live in the OS keychain: "keychain:<name>" (Settings → Providers)
   # or an environment variable: "${OPENAI_API_KEY}". Pick the model in
-  # Settings → Agent once a key is set. type is anthropic, google (Gemini;
+  # Settings → Providers once a key is set. type is anthropic, google (Gemini;
   # project: and location: put it on Vertex AI, signed in with
   # `gcloud auth application-default login` instead of a key), azure
   # (base_url: your resource; model: the deployment; api_version: e.g.
@@ -401,7 +401,8 @@ agent:
   # openrouter, baseten, groq, cerebras, mistral, xai, deepseek, together,
   # fireworks, huggingface, ollama, lmstudio. hm knows the context window
   # of common models; add others to models.json beside this file, or set
-  # context_window: <tokens> on a provider.
+  # context_window: <tokens> on a provider. disabled: true keeps a provider
+  # set up but out of the pickers.
   providers:
     anthropic: { type: anthropic, api_key: "keychain:anthropic", model: claude-opus-5-5, effort: high }
     # Any OpenAI-compatible endpoint: OpenAI, OpenRouter

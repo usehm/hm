@@ -113,7 +113,7 @@ func BuildProvider(name string, pc config.Provider) (provider.Provider, error) {
 			key, err = "", nil
 		}
 		if err != nil {
-			return nil, fmt.Errorf("%s API key: %w; add it in Settings → Agent", name, err)
+			return nil, fmt.Errorf("%s API key: %w; add it in Settings → Providers", name, err)
 		}
 	}
 	project, err := config.Resolve(pc.Project) // "${GOOGLE_CLOUD_PROJECT}"
