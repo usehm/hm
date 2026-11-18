@@ -45,6 +45,11 @@ func (a *App) editorSection(c *ui.Ctx) ui.View {
 func (a *App) editorForm(ed config.Editor) ui.View {
 	key := func(k ...string) []string { return k }
 	return ui.Form("settings-editor",
+		ui.FormHeading("Font", ""),
+		ui.FormNumber("set-font-size", "Font size", "Code font size in points",
+			float64(ed.FontSize), 6, 72, 1, func(v float64) { a.setSetting(key("editor", "font_size"), int(v)) }),
+		ui.FormText("set-font-family", "Font family", "Monospace font for code; empty uses the built-in one",
+			a.textValue(key("editor", "font_family"), ed.FontFamily), func(v string) { a.setTextSetting(key("editor", "font_family"), v) }),
 		ui.FormHeading("Indentation", ""),
 		ui.FormNumber("set-tab-width", "Tab width", "Columns per tab stop",
 			float64(ed.TabWidth), 1, 16, 1, func(v float64) { a.setSetting(key("editor", "tab_width"), int(v)) }),

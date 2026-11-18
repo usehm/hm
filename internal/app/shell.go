@@ -225,7 +225,7 @@ func (a *App) activeView(c *ui.Ctx) ui.View {
 	t := a.ws.ActiveTab()
 	switch t.Kind {
 	case workspace.KindSettings:
-		return a.settingsPage(c)
+		return a.settingsPage(c, "settings-page")
 	case workspace.KindGit:
 		return a.gitPage(c)
 	case workspace.KindImage:
@@ -349,8 +349,6 @@ func (a *App) footer(c *ui.Ctx) ui.View {
 	items = append(items,
 		ui.Button("ft-terminal", ui.Caption("Terminal")).Ghost().HoverFill().
 			IconStart(icons.SquareTerminal).OnClick(func() { a.togglePanel(panelTerminal) }),
-		ui.Button("ft-git", ui.Caption("Git")).Ghost().HoverFill().
-			IconStart(icons.GitCompare).OnClick(a.toggleGit),
 		ui.Popover("ft-notifs-pop",
 			ui.Button("ft-notifs", ui.Caption(unread)).Ghost().HoverFill().IconStart(icons.Bell).Tooltip("Notifications"),
 			a.notifs.Layout(c),
@@ -426,7 +424,7 @@ func footerMenu(id, label string, items []ui.MenuItem) *ui.Node {
 }
 
 // branchButton shows the branch, how far it is from its upstream and how
-// many files changed; it opens the Git panel.
+// many files changed; it opens the Git tab, or closes it when active.
 func (a *App) branchButton(c *ui.Ctx) ui.View {
 	st := a.gitst.status
 	if st == nil {
@@ -453,7 +451,7 @@ func (a *App) branchButton(c *ui.Ctx) ui.View {
 		tip = "Tracking " + st.Upstream
 	}
 	return ui.Button("ft-branch", ui.Caption(label)).Ghost().HoverFill().
-		IconStart(icons.GitBranch).Tooltip(tip).OnClick(a.openGit)
+		IconStart(icons.GitBranch).Tooltip(tip).OnClick(a.toggleGit)
 }
 
 var languageNames = map[string]string{

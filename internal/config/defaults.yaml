@@ -5,7 +5,9 @@
 editor:
   theme: tokyo-night          # any theme name, or "system"
   zoom: 1                     # whole-window zoom, 0.5 to 3; cmd+= / cmd+- / cmd+0
-  font_size: 14
+  ui_font_size: 14            # text outside the code: menus, tabs, panels
+  ui_font_family: ""          # empty = built-in sans-serif
+  font_size: 14               # code
   font_family: ""             # empty = built-in monospace
   tab_width: 4
   insert_spaces: false
@@ -396,7 +398,7 @@ agent:
   # (base_url: your resource; model: the deployment; api_version: e.g.
   # 2024-10-21, or empty for Azure's v1 API), openai (any
   # OpenAI-compatible base_url) or a service hm knows the address of:
-  # openrouter, groq, cerebras, mistral, xai, deepseek, together,
+  # openrouter, baseten, groq, cerebras, mistral, xai, deepseek, together,
   # fireworks, huggingface, ollama, lmstudio. hm knows the context window
   # of common models; add others to models.json beside this file, or set
   # context_window: <tokens> on a provider.

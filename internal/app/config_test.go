@@ -125,8 +125,8 @@ func TestExternalEditHotReloads(t *testing.T) {
 	if theme.Selected() != "solarized-dark" {
 		t.Fatal("project config change was not picked up")
 	}
-	if !hasNotification(h, "Settings applied") {
-		t.Fatal("expected Settings applied")
+	if hasNotification(h, "Settings applied") {
+		t.Fatal("a good reload should apply quietly")
 	}
 }
 

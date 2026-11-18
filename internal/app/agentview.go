@@ -288,8 +288,7 @@ func (a *App) sessionMenu() []ui.MenuItem {
 		items = append(items, ui.MenuItem{Label: "No saved sessions yet", Disabled: true})
 	}
 	return append(items, ui.MenuSeparator,
-		ui.MenuItem{Label: "Projects", Icon: icons.FolderKanban, OnSelect: func() { a.openAgentPage(agentTabProjects, "") }},
-		ui.MenuItem{Label: "Agent Settings", Icon: icons.Settings, OnSelect: func() { a.openAgentPage(agentTabSettings, "") }})
+		ui.MenuItem{Label: "Projects", Icon: icons.FolderKanban, OnSelect: func() { a.openAgentPage(agentTabProjects, "") }})
 }
 
 func sessionTitle(t string) string {

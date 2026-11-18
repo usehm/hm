@@ -54,13 +54,16 @@ type Keybinding struct {
 type Editor struct {
 	Theme string `yaml:"theme"`
 	// Zoom scales the whole window, 1 being 100%.
-	Zoom         float64 `yaml:"zoom"`
-	FontSize     int     `yaml:"font_size"`
-	FontFamily   string  `yaml:"font_family"`
-	TabWidth     int     `yaml:"tab_width"`
-	InsertSpaces bool    `yaml:"insert_spaces"`
-	SoftWrap     bool    `yaml:"soft_wrap"`
-	LineNumbers  bool    `yaml:"line_numbers"`
+	Zoom float64 `yaml:"zoom"`
+	// UIFontSize and UIFontFamily set the window's text outside the code.
+	UIFontSize   int    `yaml:"ui_font_size"`
+	UIFontFamily string `yaml:"ui_font_family"`
+	FontSize     int    `yaml:"font_size"`
+	FontFamily   string `yaml:"font_family"`
+	TabWidth     int    `yaml:"tab_width"`
+	InsertSpaces bool   `yaml:"insert_spaces"`
+	SoftWrap     bool   `yaml:"soft_wrap"`
+	LineNumbers  bool   `yaml:"line_numbers"`
 	// AutoIndent is what Enter carries to the new line: none, keep (the
 	// line's indent) or advanced (one more level after an opening bracket).
 	AutoIndent string `yaml:"auto_indent"`

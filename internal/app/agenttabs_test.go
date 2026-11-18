@@ -11,6 +11,7 @@ import (
 
 	"github.com/usehm/hm/internal/agent"
 	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/usehm/hm/internal/workspace"
 )
 
 // A message sent while the agent works waits in the queue and reaches the
@@ -201,5 +202,26 @@ func TestProjectContextReachesAgent(t *testing.T) {
 	// The next new session starts in the same project.
 	if h.app.newRun(nil).session.ProjectID != p.ID {
 		t.Fatal("a new session should keep the last project")
+	}
+}
+
+// TestSettingsOpenInTheViewOnScreen: with the agent full screen, Settings
+// opens as an agent tab rather than behind it in the editor.
+func TestSettingsOpenInTheViewOnScreen(t *testing.T) {
+	h := newHarness(t, project(t), false)
+	h.app.setAgentOpen(true)
+	h.app.openSettings()
+	h.frame()
+	if tab := h.app.activeAgentTab(); tab == nil || tab.kind != agentTabSettings {
+		t.Fatal("settings should open in the agent")
+	}
+	if tab := h.app.ws.ActiveTab(); tab != nil && tab.Kind == workspace.KindSettings {
+		t.Fatal("settings should not open in the editor too")
+	}
+	h.app.setAgentOpen(false)
+	h.app.openSettingsAt("terminal")
+	h.frame()
+	if tab := h.app.ws.ActiveTab(); tab == nil || tab.Kind != workspace.KindSettings || h.app.settingsCat != "terminal" {
+		t.Fatal("settings should open in the editor on Terminal")
 	}
 }

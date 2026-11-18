@@ -5,7 +5,6 @@ package app
 
 import (
 	"runtime"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -19,7 +18,21 @@ import (
 	"github.com/usehm/hm/internal/workspace"
 )
 
-func (a *App) openSettings() { a.ws.OpenPage(workspace.KindSettings) }
+// openSettings opens Settings in the view on screen: an agent tab while the
+// agent is full screen, else an editor tab.
+func (a *App) openSettings() {
+	if a.agentShowsAlone() {
+		a.openAgentPage(agentTabSettings, "")
+		return
+	}
+	a.ws.OpenPage(workspace.KindSettings)
+}
+
+// openSettingsAt opens Settings on category cat.
+func (a *App) openSettingsAt(cat string) {
+	a.settingsCat = cat
+	a.openSettings()
+}
 
 var settingsScopes = []ui.SegmentItem{
 	{Label: "User", Value: "user"},
@@ -48,20 +61,11 @@ var settingsCategories = []struct {
 
 // settingsPage is the Settings tab: the categories listed on the left, the
 // selected category's form scrolling on the right. Changes are written to
-// the user or project YAML file, keeping its comments.
-func (a *App) settingsPage(c *ui.Ctx) ui.View {
-	return a.settingsPageOf(c, nil, &a.settingsCat)
-}
-
-// settingsPageOf is the settings page limited to the categories in only
-// (every one when nil), the selected one kept in *sel.
-func (a *App) settingsPageOf(c *ui.Ctx, only []string, sel *string) ui.View {
-	id := "settings-page"
-	if only != nil {
-		id = "settings-page-agent"
-	}
+// the user or project YAML file, keeping its comments. The editor and the
+// agent each show it in a tab of their own, id telling the two apart.
+func (a *App) settingsPage(c *ui.Ctx, id string) ui.View {
 	return ui.Responsive(id, func(w float32) ui.View {
-		return a.settingsLayout(c, only, sel, w > 0 && w < settingsCompactW)
+		return a.settingsLayout(c, w > 0 && w < settingsCompactW)
 	}).Grow(1)
 }
 
@@ -69,19 +73,16 @@ func (a *App) settingsPageOf(c *ui.Ctx, only []string, sel *string) ui.View {
 // into a menu on the title, leaving the form the whole width.
 const settingsCompactW = 680
 
-func (a *App) settingsLayout(c *ui.Ctx, only []string, sel *string, compact bool) ui.View {
+func (a *App) settingsLayout(c *ui.Ctx, compact bool) ui.View {
 	th := c.Theme()
 	user, project := a.cfg.Paths()
 	target := user
 	if a.settingsProject {
 		target = project
 	}
-	cat := *sel
-	if cat == "" || only != nil && !slices.Contains(only, cat) {
+	cat := a.settingsCat
+	if cat == "" {
 		cat = settingsCategories[0].id
-		if only != nil {
-			cat = only[0]
-		}
 	}
 	scope := 0
 	if a.settingsProject {
@@ -96,7 +97,7 @@ func (a *App) settingsLayout(c *ui.Ctx, only []string, sel *string, compact bool
 	}
 	var heading ui.View = ui.Title(title)
 	if compact {
-		heading = a.settingsCatMenu(c, cat, only, sel)
+		heading = a.settingsCatMenu(cat)
 	}
 	body := []ui.View{ui.Row(
 		ui.Column(
@@ -125,19 +126,16 @@ func (a *App) settingsLayout(c *ui.Ctx, only []string, sel *string, compact bool
 	if compact {
 		return ui.Column(content).Grow(1)
 	}
-	return ui.Row(a.settingsNav(c, cat, target, only, sel), content).Align(ui.AlignStretch).Grow(1)
+	return ui.Row(a.settingsNav(c, cat, target), content).Align(ui.AlignStretch).Grow(1)
 }
 
 // settingsCatMenu is the page title as a menu of the categories and the
 // YAML links, standing in for the side list on a narrow page.
-func (a *App) settingsCatMenu(c *ui.Ctx, cat string, only []string, sel *string) ui.View {
+func (a *App) settingsCatMenu(cat string) ui.View {
 	var items []ui.MenuItem
 	label := ""
 	group := -1
 	for _, sc := range settingsCategories {
-		if only != nil && !slices.Contains(only, sc.id) {
-			continue
-		}
 		if group >= 0 && sc.group != group {
 			items = append(items, ui.MenuSeparator)
 		}
@@ -146,7 +144,7 @@ func (a *App) settingsCatMenu(c *ui.Ctx, cat string, only []string, sel *string)
 		if id == cat {
 			label = sc.label
 		}
-		items = append(items, ui.MenuItem{Label: sc.label, Icon: sc.icon, Checked: id == cat, OnSelect: func() { *sel = id }})
+		items = append(items, ui.MenuItem{Label: sc.label, Icon: sc.icon, Checked: id == cat, OnSelect: func() { a.settingsCat = id }})
 	}
 	items = append(items, ui.MenuSeparator,
 		ui.MenuItem{Label: "Edit as YAML", Icon: icons.FileCode, OnSelect: func() { a.openConfigYAML(a.settingsProject) }},
@@ -157,7 +155,7 @@ func (a *App) settingsCatMenu(c *ui.Ctx, cat string, only []string, sel *string)
 
 // settingsNav lists the categories in groups, then links to the YAML files
 // behind them.
-func (a *App) settingsNav(c *ui.Ctx, cat, target string, only []string, sel *string) ui.View {
+func (a *App) settingsNav(c *ui.Ctx, cat, target string) ui.View {
 	th := c.Theme()
 	divider := func() ui.View {
 		return ui.Row().BorderTop(ui.TokenBorder, th.Stroke.Thin).MarginXY(th.Spacing.S, th.Spacing.S)
@@ -173,15 +171,12 @@ func (a *App) settingsNav(c *ui.Ctx, cat, target string, only []string, sel *str
 	var rows []ui.View
 	group := -1
 	for _, sc := range settingsCategories {
-		if only != nil && !slices.Contains(only, sc.id) {
-			continue
-		}
 		if group >= 0 && sc.group != group {
 			rows = append(rows, divider())
 		}
 		group = sc.group
 		id := sc.id
-		b := item("settings-cat-"+id, sc.label, sc.icon).OnClick(func() { *sel = id })
+		b := item("settings-cat-"+id, sc.label, sc.icon).OnClick(func() { a.settingsCat = id })
 		if id == cat {
 			b = b.Background(ui.TokenListActive)
 		}
@@ -282,10 +277,10 @@ func (a *App) settingsSection(c *ui.Ctx, cat string) ui.View {
 					a.setZoom(z)
 				}
 			}),
-		ui.FormNumber("set-font-size", "Font size", "Code font size in points",
-			float64(ed.FontSize), 6, 72, 1, func(v float64) { a.setSetting(key("editor", "font_size"), int(v)) }),
-		ui.FormText("set-font-family", "Font family", "Monospace font for code; empty uses the built-in one",
-			a.textValue(key("editor", "font_family"), ed.FontFamily), func(v string) { a.setTextSetting(key("editor", "font_family"), v) }),
+		ui.FormNumber("set-ui-font-size", "Font size", "Size in points of menus, tabs, panels and other text outside the code",
+			float64(ed.UIFontSize), 6, 72, 1, func(v float64) { a.setSetting(key("editor", "ui_font_size"), int(v)) }),
+		ui.FormText("set-ui-font-family", "Font family", "Font for text outside the code; empty uses the built-in one",
+			a.textValue(key("editor", "ui_font_family"), ed.UIFontFamily), func(v string) { a.setTextSetting(key("editor", "ui_font_family"), v) }),
 	).Grouped()
 }
 

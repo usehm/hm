@@ -228,7 +228,7 @@ func (a *App) agentTabModel(c *ui.Ctx, t *agentTab) ui.TabModel {
 	case agentTabArtifacts:
 		return ui.TabModel{Title: "Artifacts", Icon: icons.Package}
 	case agentTabSettings:
-		return ui.TabModel{Title: "Agent Settings", Icon: icons.Settings}
+		return ui.TabModel{Title: "Settings", Icon: icons.Settings}
 	}
 	r := t.run
 	m := ui.TabModel{Title: sessionTitle(r.session.Title), Busy: r.running}
@@ -278,15 +278,11 @@ func (a *App) agentPage(c *ui.Ctx, t *agentTab) ui.View {
 	case agentTabProject:
 		return a.projectPage(c, t)
 	case agentTabSettings:
-		return a.settingsPageOf(c, agentSettingsCategories, &a.agent.settingsCat)
+		return a.settingsPage(c, "settings-page-agent")
 	}
 	return ui.ViewOf(ui.EmptyState("Artifacts", "Files the agent produces will be kept here, in the storage picked in "+
-		"Agent Settings → Artifacts: a GCS or S3 bucket, or a git repository.").EmptyIcon(icons.Package)).Grow(1)
+		"Settings → Artifacts: a GCS or S3 bucket, or a git repository.").EmptyIcon(icons.Package)).Grow(1)
 }
-
-// agentSettingsCategories are the Settings categories the agent's settings
-// tab shows.
-var agentSettingsCategories = []string{"agent", "security", "artifacts", "completion"}
 
 // sessionList is the saved sessions with at least one message, newest
 // first, read again when stale.
@@ -307,8 +303,7 @@ func (a *App) sessionList() []agent.Summary {
 }
 
 // agentSidebar is the explorer's place while the agent is full screen: a
-// new session, projects, artifacts, the session history with a filter, and
-// settings.
+// new session, projects, artifacts and the session history with a filter.
 func (a *App) agentSidebar(c *ui.Ctx) ui.View {
 	th := c.Theme()
 	st := &a.agent
@@ -363,8 +358,6 @@ func (a *App) agentSidebar(c *ui.Ctx) ui.View {
 	col = append(col,
 		ui.Scroll("agent-side-sessions", ui.Column(rows...).Gap(th.Spacing.XXS).PaddingXY(th.Spacing.S, th.Spacing.XS)).
 			Background(ui.TokenChrome).Grow(1),
-		ui.Column(nav("agent-side-settings", "Agent Settings", icons.Settings, agentTabSettings)).
-			PaddingXY(th.Spacing.S, th.Spacing.S).BorderTop(ui.TokenBorder, th.Stroke.Thin),
 	)
 	return ui.Column(col...).Grow(1).Background(ui.TokenChrome)
 }

@@ -204,7 +204,7 @@ func (a *App) registerCommands(c *ui.Ctx) {
 		ui.Cmd("agent.cycleModel").Title("Agent: Next Favourite Model").Shortcut(a.key("agent.cycleModel")).Icon(icons.Star).
 			Enabled(a.agentOpen && a.run() != nil).Run(func() { a.cycleModel(a.run()) }),
 		ui.Cmd("agent.projects").Title("Agent: Projects").Icon(icons.FolderKanban).Run(func() { a.openAgentPage(agentTabProjects, "") }),
-		ui.Cmd("agent.settings").Title("Agent: Settings").Icon(icons.Settings).Run(func() { a.openAgentPage(agentTabSettings, "") }),
+		ui.Cmd("agent.settings").Title("Agent: Settings").Icon(icons.Settings).Run(func() { a.openSettingsAt("agent") }),
 		ui.Cmd("agent.undo").Title("Agent: Undo Last Turn").Icon(icons.Undo2).Enabled(a.run() != nil && !a.run().running && a.run().hasPrompt()).Run(func() {
 			if r := a.run(); r != nil {
 				a.undoAgentTurn(r)

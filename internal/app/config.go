@@ -20,9 +20,6 @@ import (
 	"github.com/usehm/hm/internal/config"
 )
 
-// uiFontSize is the chrome's text size; editor.font_size sizes code.
-const uiFontSize = 14
-
 // appliedConfig remembers what was last pushed into yoga, so a reload only
 // redoes what changed (SetFont rebuilds the glyph atlas).
 type appliedConfig struct {
@@ -39,7 +36,7 @@ func (a *App) applyConfig(cfg config.Config) {
 		a.applied.theme = ed.Theme
 	}
 	font := shape.FontConfig{
-		UI:       shape.FaceConfig{Size: uiFontSize},
+		UI:       shape.FaceConfig{Size: float32(ed.UIFontSize), Family: ed.UIFontFamily},
 		Mono:     shape.FaceConfig{Size: float32(ed.FontSize), Family: ed.FontFamily},
 		TabWidth: ed.TabWidth,
 	}
@@ -113,7 +110,6 @@ func (a *App) reloadConfig() {
 			r.provider = cfg.Agent.DefaultProvider
 		}
 	}
-	a.toast("Settings applied", ui.ToastSuccess)
 }
 
 // showConfigDiagnostics marks config problems in open config file tabs.

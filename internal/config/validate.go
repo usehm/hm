@@ -186,7 +186,7 @@ type rule struct {
 // google, azure, and the OpenAI-compatible services hm knows the address of (kept in step
 // with provider.Presets by a test in internal/agent/host).
 var ProviderTypes = []string{"anthropic", "openai", "google", "azure",
-	"cerebras", "deepseek", "fireworks", "groq", "huggingface", "lmstudio",
+	"baseten", "cerebras", "deepseek", "fireworks", "groq", "huggingface", "lmstudio",
 	"mistral", "ollama", "openrouter", "together", "xai"}
 
 // Enums lists the allowed words per key path; the JSON schema uses it too.
@@ -227,6 +227,7 @@ var rules = func() []rule {
 			return msg
 		}},
 		{"editor.font_size", intRange(6, 72)},
+		{"editor.ui_font_size", intRange(6, 72)},
 		{"editor.zoom", floatRange(0.5, 3)},
 		{"editor.tab_width", intRange(1, 16)},
 		{"languages.*.editor.tab_width", intRange(1, 16)},

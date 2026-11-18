@@ -18,6 +18,7 @@ type Preset struct {
 // address. agent.providers.<name>.base_url still wins when set.
 var Presets = map[string]Preset{
 	"openrouter":  {Label: "OpenRouter", BaseURL: "https://openrouter.ai/api/v1"},
+	"baseten":     {Label: "Baseten", BaseURL: "https://inference.baseten.co/v1"},
 	"groq":        {Label: "Groq", BaseURL: "https://api.groq.com/openai/v1"},
 	"cerebras":    {Label: "Cerebras", BaseURL: "https://api.cerebras.ai/v1"},
 	"mistral":     {Label: "Mistral", BaseURL: "https://api.mistral.ai/v1"},
