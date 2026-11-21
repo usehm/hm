@@ -438,7 +438,7 @@ func (a *App) searchLeft(c *ui.Ctx) ui.View {
 	toggle := func(id string, icon icons.Icon, tip string, on bool, set func(bool)) ui.View {
 		b := ui.IconButton(id, icon).Tooltip(tip).OnClick(func() { set(!on); a.runSearch() })
 		if on {
-			b = b.Background(ui.TokenListActive).Radius(th.Radius.Small)
+			b = b.Background(ui.TokenSelected).Radius(th.Radius.Small)
 		}
 		return b
 	}
@@ -581,7 +581,7 @@ func (a *App) searchMatchRow(c *ui.Ctx, fi, mi int) ui.View {
 		ui.Text(after).Ellipsis(ui.EllipsisEnd).Grow(1),
 	).Grow(1)).Ghost().HoverFill().Grow(1).OnClick(func() { a.selectMatch(fi, mi) })
 	if fi == s.selFile && mi == s.selMatch {
-		row = row.Background(ui.TokenListActive)
+		row = row.Background(ui.TokenSelected)
 	}
 	if s.showReplace {
 		return ui.Row(row.Grow(1), ui.IconButton(fmt.Sprintf("sr-replace-%d-%d", fi, mi), icons.Replace).

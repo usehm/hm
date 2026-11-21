@@ -359,7 +359,7 @@ func (a *App) agentIntro(c *ui.Ctx) ui.View {
 		return ui.Row(ui.Icon(icon, th.Metrics.IconSizeSM, th.ForegroundMuted), ui.Muted(text).Ellipsis(ui.EllipsisEnd).Shrink(1)).Gap(th.Spacing.S)
 	}
 	intro := ui.Column(
-		ui.Title("Hm"),
+		ui.Display("Hm"),
 		ui.Row(ui.Muted("Ask about this project, or tell the agent what to build or fix.").Ellipsis(ui.EllipsisEnd).Shrink(1)),
 		ui.Column(
 			tip(icons.AtSign, "@file, @folder, @selection, @diagnostics or @git-diff add context"),

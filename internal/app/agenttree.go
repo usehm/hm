@@ -238,7 +238,7 @@ func (a *App) treeRowView(c *ui.Ctx, r *agentRun, i int, row treeRow) ui.View {
 			}
 		})
 		if row.onPath {
-			btn = btn.Background(ui.TokenListActive)
+			btn = btn.Background(ui.TokenSelected)
 		}
 		return ui.Row(btn,
 			ui.IconButton(id+"-fork", icons.GitFork).Tooltip("Fork a new session from here").Reveal(hovered).

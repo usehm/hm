@@ -285,7 +285,7 @@ func (a *App) groupView(c *ui.Ctx, gi int, g *editorGroup) ui.View {
 		view = ui.Column(a.breadcrumb(c, g.paths[g.active]), ui.ViewOf(m.ed).Grow(1)).Grow(1)
 	}
 	return ui.Column(
-		ui.Tabs(id+"-tabs", tabs).
+		ui.Tabs(id+"-tabs", tabs).Attached().
 			Selected(g.active).
 			OnSelectItem(func(i int, _ string) { g.active = i; a.focusGroup = gi + 1 }).
 			OnTabClose(func(i int) { a.groupClose(g, g.paths[i]) }).

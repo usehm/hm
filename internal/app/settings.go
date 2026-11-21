@@ -95,7 +95,7 @@ func (a *App) settingsLayout(c *ui.Ctx, compact bool) ui.View {
 			title = sc.label
 		}
 	}
-	var heading ui.View = ui.Title(title)
+	var heading ui.View = ui.Headline(title)
 	if compact {
 		heading = a.settingsCatMenu(cat)
 	}
@@ -178,7 +178,7 @@ func (a *App) settingsNav(c *ui.Ctx, cat, target string) ui.View {
 		id := sc.id
 		b := item("settings-cat-"+id, sc.label, sc.icon).OnClick(func() { a.settingsCat, a.settingsProvider = id, "" })
 		if id == cat {
-			b = b.Background(ui.TokenListActive)
+			b = b.Background(ui.TokenSelected)
 		}
 		rows = append(rows, b)
 	}

@@ -311,7 +311,7 @@ func (a *App) agentSidebar(c *ui.Ctx) ui.View {
 		b := ui.Button(id, ui.Text(label)).Ghost().HoverFill().IconStart(icon).Justify(ui.JustifyStart).
 			OnClick(func() { a.openAgentPage(kind, "") })
 		if t := a.activeAgentTab(); t != nil && t.kind == kind {
-			b = b.Background(ui.TokenListActive)
+			b = b.Background(ui.TokenSelected)
 		}
 		return b
 	}
@@ -332,7 +332,7 @@ func (a *App) agentSidebar(c *ui.Ctx) ui.View {
 		}
 	})
 	if st.sideFilter {
-		filter = filter.Background(ui.TokenListActive)
+		filter = filter.Background(ui.TokenSelected)
 	}
 	col := []ui.View{
 		ui.Column(
@@ -459,7 +459,7 @@ func (a *App) sessionRow(c *ui.Ctx, s agent.Summary, depth int) ui.View {
 			OnClick(func() { a.resumeAgentSession(id) })
 		switch {
 		case active:
-			btn = btn.Background(ui.TokenListActive)
+			btn = btn.Background(ui.TokenSelected)
 		case hovered:
 			// Lit while the pointer is on the menu button too.
 			btn = btn.Background(ui.TokenListHover)
@@ -536,7 +536,7 @@ func (a *App) projectsPage(c *ui.Ctx) ui.View {
 	}
 	head := ui.Row(
 		ui.Column(
-			ui.Title("Projects"),
+			ui.Headline("Projects"),
 			ui.Row(ui.Caption("A project's context is given to the agent before every task in its sessions.").Ellipsis(ui.EllipsisEnd).Shrink(1)),
 		).Gap(th.Spacing.XXS).Grow(1).Shrink(1),
 		ui.Button("projects-new", ui.Text("New project")).Primary().IconStart(icons.Plus).
@@ -619,7 +619,7 @@ func (a *App) projectPage(c *ui.Ctx, t *agentTab) ui.View {
 		title = "New project"
 	}
 	return ui.Scroll(id+"-scroll", ui.Column(
-		ui.Title(title),
+		ui.Headline(title),
 		ui.Form(id+"-form",
 			ui.FormText(id+"-title", "Title", "Shown on the card and in the composer", d.Title,
 				func(v string) { d.Title = v }),

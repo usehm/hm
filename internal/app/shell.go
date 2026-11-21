@@ -118,7 +118,7 @@ func (a *App) explorer(c *ui.Ctx) ui.View {
 	th := c.Theme()
 	return ui.Column(
 		ui.Row(
-			ui.Caption(strings.ToUpper(filepath.Base(a.ws.Root))).Ellipsis(ui.EllipsisEnd).Grow(1),
+			ui.Overline(filepath.Base(a.ws.Root)).Ellipsis(ui.EllipsisEnd).Grow(1),
 			ui.IconButton("tree-new-file", icons.FilePlus).Tooltip("New file").OnClick(func() { a.newEntry(a.ws.Root, false) }),
 			ui.IconButton("tree-new-folder", icons.FolderPlus).Tooltip("New folder").OnClick(func() { a.newEntry(a.ws.Root, true) }),
 			ui.IconButton("tree-refresh", icons.RefreshCw).Tooltip("Refresh").OnClick(func() {
@@ -153,7 +153,7 @@ func (a *App) firstGroup(c *ui.Ctx) ui.View {
 		tabs[i] = a.tabModel(t, i)
 	}
 	return ui.Column(
-		ui.Tabs("editor-tabs", tabs).
+		ui.Tabs("editor-tabs", tabs).Attached().
 			Selected(a.ws.Active).
 			OnSelectItem(func(i int, _ string) { a.ws.Active = i }).
 			OnTabClose(a.closeTab).
@@ -300,7 +300,7 @@ func (a *App) welcome(c *ui.Ctx) ui.View {
 	// Centered by spacers rather than ui.Center, so beside the agent panel
 	// the buttons wrap instead of running past the editor's edges.
 	inner := ui.Column(
-		center(ui.Title("hm")),
+		center(ui.Display("hm")),
 		center(ui.Muted("Editor and coding agent")),
 		ui.Row(
 			ui.Button("welcome-open", ui.Text("Open Folder")).Primary().IconStart(icons.FolderOpen).OnClick(a.askOpenFolder),
