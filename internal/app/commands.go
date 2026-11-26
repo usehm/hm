@@ -6,9 +6,10 @@ package app
 import (
 	"path/filepath"
 
-	"github.com/mirzakhany/yoga/icons"
-	"github.com/mirzakhany/yoga/theme"
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
+	"github.com/yogaui/yoga/icons"
+	"github.com/yogaui/yoga/theme"
+	"github.com/yogaui/yoga/ui"
 
 	"github.com/usehm/hm/internal/workspace"
 )
@@ -31,7 +32,7 @@ func (a *App) registerCommands(c *ui.Ctx) {
 	hasEd := ed != nil
 	agentTyping := a.run() != nil && agentInput(c, a.run()).Focused()
 	// Language features run on the file's buffer, also for a split's mirror.
-	lspEd := func() *ui.Editor { return a.lspTarget() }
+	lspEd := func() *codeeditor.Editor { return a.lspTarget() }
 	// Keys that mean something else in a text field, the editor's find bar included.
 	edFocused := hasEd && ed.Focused() && !ed.FindFocused()
 	cmds := []*ui.Command{
@@ -101,21 +102,21 @@ func (a *App) registerCommands(c *ui.Ctx) {
 		ui.Cmd("editor.addCursorBelow").Title("Add Cursor Below").Shortcut(a.key("editor.addCursorBelow")).
 			Icon(icons.TextCursorInput).Enabled(edFocused).Run(func() { ed.AddCursorLine(1) }),
 		ui.Cmd("editor.toggleComment").Title("Toggle Line Comment").Shortcut(a.key("editor.toggleComment")).
-			Icon(icons.MessageSquareCode).Enabled(edFocused).Run(func() { ed.Run(ui.ActionToggleComment) }),
+			Icon(icons.MessageSquareCode).Enabled(edFocused).Run(func() { ed.Run(codeeditor.ActionToggleComment) }),
 		ui.Cmd("editor.duplicateLinesDown").Title("Duplicate Lines Down").Shortcut(a.key("editor.duplicateLinesDown")).
-			Icon(icons.Copy).Enabled(edFocused).Run(func() { ed.Run(ui.ActionDuplicateLinesDown) }),
+			Icon(icons.Copy).Enabled(edFocused).Run(func() { ed.Run(codeeditor.ActionDuplicateLinesDown) }),
 		ui.Cmd("editor.duplicateLinesUp").Title("Duplicate Lines Up").Shortcut(a.key("editor.duplicateLinesUp")).
-			Icon(icons.Copy).Enabled(edFocused).Run(func() { ed.Run(ui.ActionDuplicateLinesUp) }),
+			Icon(icons.Copy).Enabled(edFocused).Run(func() { ed.Run(codeeditor.ActionDuplicateLinesUp) }),
 		ui.Cmd("editor.moveLinesDown").Title("Move Lines Down").Shortcut(a.key("editor.moveLinesDown")).
-			Icon(icons.ArrowDown).Enabled(edFocused).Run(func() { ed.Run(ui.ActionMoveLinesDown) }),
+			Icon(icons.ArrowDown).Enabled(edFocused).Run(func() { ed.Run(codeeditor.ActionMoveLinesDown) }),
 		ui.Cmd("editor.moveLinesUp").Title("Move Lines Up").Shortcut(a.key("editor.moveLinesUp")).
-			Icon(icons.ArrowUp).Enabled(edFocused).Run(func() { ed.Run(ui.ActionMoveLinesUp) }),
+			Icon(icons.ArrowUp).Enabled(edFocused).Run(func() { ed.Run(codeeditor.ActionMoveLinesUp) }),
 		ui.Cmd("editor.deleteLines").Title("Delete Lines").Shortcut(a.key("editor.deleteLines")).
-			Icon(icons.Trash2).Enabled(edFocused).Run(func() { ed.Run(ui.ActionDeleteLines) }),
+			Icon(icons.Trash2).Enabled(edFocused).Run(func() { ed.Run(codeeditor.ActionDeleteLines) }),
 		ui.Cmd("editor.fold").Title("Fold").Shortcut(a.key("editor.fold")).
-			Icon(icons.ChevronRight).Enabled(edFocused).Run(func() { ed.Run(ui.ActionFold) }),
+			Icon(icons.ChevronRight).Enabled(edFocused).Run(func() { ed.Run(codeeditor.ActionFold) }),
 		ui.Cmd("editor.unfold").Title("Unfold").Shortcut(a.key("editor.unfold")).
-			Icon(icons.ChevronDown).Enabled(edFocused).Run(func() { ed.Run(ui.ActionUnfold) }),
+			Icon(icons.ChevronDown).Enabled(edFocused).Run(func() { ed.Run(codeeditor.ActionUnfold) }),
 		ui.Cmd("editor.foldAll").Title("Fold All").Shortcut(a.key("editor.foldAll")).
 			Icon(icons.ChevronsDownUp).Enabled(hasEd).Run(func() { ed.FoldAll() }),
 		ui.Cmd("editor.unfoldAll").Title("Unfold All").Shortcut(a.key("editor.unfoldAll")).

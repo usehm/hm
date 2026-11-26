@@ -18,9 +18,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mirzakhany/yoga/highlight"
-	"github.com/mirzakhany/yoga/lsp"
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
+	"github.com/yogaui/editor/highlight"
+	"github.com/yogaui/editor/lsp"
 
 	"github.com/usehm/hm/internal/config"
 )
@@ -70,7 +70,7 @@ type Missing struct {
 // New returns a service using the editor's shared language-server manager.
 func New(wake func()) *Service {
 	s := &Service{
-		mgr:      ui.LanguageServers(),
+		mgr:      codeeditor.LanguageServers(),
 		langs:    map[string]config.Language{},
 		byExt:    map[string]string{},
 		lspExts:  map[string]bool{},

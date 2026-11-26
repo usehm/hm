@@ -7,8 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mirzakhany/yoga/input"
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
+	"github.com/yogaui/yoga/input"
+	"github.com/yogaui/yoga/ui"
 
 	"github.com/usehm/hm/internal/config"
 	"github.com/usehm/hm/internal/vim"
@@ -18,10 +19,10 @@ import (
 func (a *App) vimOn() bool { return a.cfg.Current().Editor.Keymap == "vim" }
 
 // attachVim gives ed a Vim keymap, active while editor.keymap is vim.
-func (a *App) attachVim(ed *ui.Editor) {
+func (a *App) attachVim(ed *codeeditor.Editor) {
 	st := vim.New(ed, vimHost{a, ed})
 	if a.vims == nil {
-		a.vims = map[*ui.Editor]*vim.State{}
+		a.vims = map[*codeeditor.Editor]*vim.State{}
 	}
 	a.vims[ed] = st
 	ed.KeyFilter = func(ev input.KeyEvent) bool { return a.vimOn() && st.Key(ev) }
@@ -75,9 +76,9 @@ func (a *App) syncCarets() {
 			delete(a.vims, ed)
 			continue
 		}
-		style := ui.CaretBar
+		style := codeeditor.CaretBar
 		if on && st.Mode() != vim.Insert {
-			style = ui.CaretBlock
+			style = codeeditor.CaretBlock
 		}
 		ed.CaretStyle = style
 	}
@@ -86,7 +87,7 @@ func (a *App) syncCarets() {
 // vimHost runs ex commands for one editor.
 type vimHost struct {
 	a  *App
-	ed *ui.Editor
+	ed *codeeditor.Editor
 }
 
 func (h vimHost) Ex(cmd string) bool {

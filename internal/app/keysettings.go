@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mirzakhany/yoga/icons"
-	"github.com/mirzakhany/yoga/input"
-	"github.com/mirzakhany/yoga/ui"
+	"github.com/yogaui/yoga/icons"
+	"github.com/yogaui/yoga/input"
+	"github.com/yogaui/yoga/ui"
 )
 
 // keyRecorder is the shortcut being recorded for a command in Settings →

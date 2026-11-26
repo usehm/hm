@@ -10,8 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mirzakhany/yoga/lsp"
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
+	"github.com/yogaui/editor/lsp"
+	"github.com/yogaui/yoga/ui"
 
 	"github.com/usehm/hm/internal/lang"
 	"github.com/usehm/hm/internal/workspace"
@@ -23,7 +24,7 @@ const syncFormatTimeout = 5 * time.Second
 
 // formatRequest builds the formatter run for a buffer, or reports false
 // when its language formats nothing on trigger.
-func (a *App) formatRequest(ed *ui.Editor, trigger string) (lang.FormatRequest, bool) {
+func (a *App) formatRequest(ed *codeeditor.Editor, trigger string) (lang.FormatRequest, bool) {
 	l, ok := a.lang.For(ed.Path)
 	if !ok {
 		return lang.FormatRequest{}, false
@@ -49,7 +50,7 @@ func (a *App) formatRequest(ed *ui.Editor, trigger string) (lang.FormatRequest, 
 
 // format runs the chain for trigger on ed in the background. done, when set,
 // runs on the UI goroutine afterwards, whether or not formatting worked.
-func (a *App) format(ed *ui.Editor, trigger string, done func()) {
+func (a *App) format(ed *codeeditor.Editor, trigger string, done func()) {
 	req, ok := a.formatRequest(ed, trigger)
 	if !ok {
 		if trigger == "manual" {
@@ -80,7 +81,7 @@ func (a *App) format(ed *ui.Editor, trigger string, done func()) {
 
 // formatNow is format on the UI goroutine, for flows that close the buffer
 // right after.
-func (a *App) formatNow(ed *ui.Editor, trigger string) {
+func (a *App) formatNow(ed *codeeditor.Editor, trigger string) {
 	req, ok := a.formatRequest(ed, trigger)
 	if !ok {
 		return
@@ -93,7 +94,7 @@ func (a *App) formatNow(ed *ui.Editor, trigger string) {
 
 // finishFormat applies a formatter's output, unless the buffer changed
 // while it ran or the formatter failed.
-func (a *App) finishFormat(ed *ui.Editor, rev uint64, out []byte, err error) {
+func (a *App) finishFormat(ed *codeeditor.Editor, rev uint64, out []byte, err error) {
 	var missing *lang.MissingError
 	switch {
 	case errors.Is(err, lang.ErrNothingToRun):
@@ -168,7 +169,7 @@ func (a *App) saveFileWith(path string, actions bool) error {
 }
 
 // formatThenWrite formats ed for a save in the background, then writes it.
-func (a *App) formatThenWrite(ed *ui.Editor) {
+func (a *App) formatThenWrite(ed *codeeditor.Editor) {
 	path := ed.Path
 	a.saving[path] = true
 	a.format(ed, "save", func() {
@@ -207,7 +208,7 @@ const saveActionsTimeout = 3 * time.Second
 // saveActions returns a request for the language's code_actions_on_save on
 // ed's text, or false when there are none or its server is not ready. The
 // request returns the edited text, or nil when nothing changes.
-func (a *App) saveActions(ed *ui.Editor) (func(ctx context.Context) ([]byte, error), bool) {
+func (a *App) saveActions(ed *codeeditor.Editor) (func(ctx context.Context) ([]byte, error), bool) {
 	path := ed.Path
 	l, ok := a.lang.For(path)
 	if !ok || l.LSP == nil || len(l.LSP.CodeActionsOnSave) == 0 {
@@ -252,7 +253,7 @@ func (a *App) saveActions(ed *ui.Editor) (func(ctx context.Context) ([]byte, err
 
 // finishSaveActions applies the save's code actions, unless the buffer
 // changed meanwhile; a failure is logged and the save goes on.
-func (a *App) finishSaveActions(ed *ui.Editor, rev uint64, out []byte, err error) {
+func (a *App) finishSaveActions(ed *codeeditor.Editor, rev uint64, out []byte, err error) {
 	switch {
 	case err != nil:
 		a.appendOutput("Code actions on save for " + a.ws.Rel(ed.Path) + " failed: " + err.Error())

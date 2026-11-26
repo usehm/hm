@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mirzakhany/yoga/input"
+	"github.com/yogaui/yoga/input"
 )
 
 // completionProject opens main.go against a fake OpenAI-compatible endpoint

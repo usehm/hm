@@ -9,7 +9,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/mirzakhany/yoga/ui"
+	"github.com/yogaui/yoga/ui"
 )
 
 // maxIndexed caps the quick-open list so huge trees stay responsive.

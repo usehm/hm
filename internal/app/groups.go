@@ -6,9 +6,10 @@ package app
 import (
 	"path/filepath"
 
-	"github.com/mirzakhany/yoga/highlight"
-	"github.com/mirzakhany/yoga/icons"
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
+	"github.com/yogaui/editor/highlight"
+	"github.com/yogaui/yoga/icons"
+	"github.com/yogaui/yoga/ui"
 )
 
 // Editor groups: the workspace's tabs are the first group; split view adds
@@ -27,7 +28,7 @@ type editorGroup struct {
 // mirror is a group's editor for a file, and the revisions of it and of
 // the file's buffer when they were last made equal.
 type mirror struct {
-	ed                *ui.Editor
+	ed                *codeeditor.Editor
 	seenOwn, seenBase uint64
 }
 
@@ -43,7 +44,7 @@ func (a *App) focusedGroup() *editorGroup {
 }
 
 // curEditor is the focused group's active editor: the one commands act on.
-func (a *App) curEditor() *ui.Editor {
+func (a *App) curEditor() *codeeditor.Editor {
 	if g := a.focusedGroup(); g != nil {
 		if m := g.activeMirror(); m != nil {
 			return m.ed
@@ -64,7 +65,7 @@ func (a *App) curPath() string {
 }
 
 // editorFor is the editor showing path in the focused group.
-func (a *App) editorFor(path string) *ui.Editor {
+func (a *App) editorFor(path string) *codeeditor.Editor {
 	if g := a.focusedGroup(); g != nil {
 		if m := g.mirrors[path]; m != nil {
 			return m.ed
@@ -75,7 +76,7 @@ func (a *App) editorFor(path string) *ui.Editor {
 
 // lspTarget is the buffer language features run on for curEditor: a
 // mirror's file buffer, with the mirror's selection.
-func (a *App) lspTarget() *ui.Editor {
+func (a *App) lspTarget() *codeeditor.Editor {
 	g := a.focusedGroup()
 	if g == nil {
 		return a.ws.ActiveEditor()
@@ -156,7 +157,7 @@ func (a *App) groupOpen(g *editorGroup, path string) {
 			return
 		}
 	}
-	ed := ui.NewEditor(base.Bytes(), highlight.ForPath(path), editorOptions()...)
+	ed := codeeditor.NewEditor(base.Bytes(), highlight.ForPath(path), editorOptions()...)
 	off := base.Caret()
 	ed.SetSelection(off, off)
 	ed.ScrollPx = base.ScrollPx

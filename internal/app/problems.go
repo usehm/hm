@@ -9,10 +9,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mirzakhany/yoga/highlight"
-	"github.com/mirzakhany/yoga/icons"
-	"github.com/mirzakhany/yoga/lsp"
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
+	"github.com/yogaui/editor/highlight"
+	"github.com/yogaui/editor/lsp"
+	"github.com/yogaui/yoga/icons"
+	"github.com/yogaui/yoga/ui"
 )
 
 // problem is one diagnostic in an open file.
@@ -119,8 +120,8 @@ func (a *App) outputView(c *ui.Ctx) ui.View {
 			scroll = a.outputEd.ScrollPx
 			a.outputEd.Close()
 		}
-		a.outputEd = ui.NewEditor([]byte(strings.TrimRight(a.output.String(), "\n")), highlight.Noop{},
-			ui.WithReadOnly(), ui.WithoutGutter(), ui.WithSoftWrap(true))
+		a.outputEd = codeeditor.NewEditor([]byte(strings.TrimRight(a.output.String(), "\n")), highlight.Noop{},
+			codeeditor.WithReadOnly(), codeeditor.WithoutGutter(), codeeditor.WithSoftWrap(true))
 		a.outputEd.ScrollPx = scroll
 		a.outputDirty = false
 	}

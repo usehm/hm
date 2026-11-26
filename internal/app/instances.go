@@ -10,7 +10,7 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/mirzakhany/yoga"
+	"github.com/yogaui/yoga"
 
 	"github.com/usehm/hm/internal/config"
 )

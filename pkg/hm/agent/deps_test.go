@@ -21,7 +21,7 @@ func TestNoUIToolkit(t *testing.T) {
 			t.Fatalf("go list %s: %v\n%s", pkg, err, out)
 		}
 		for _, dep := range strings.Fields(string(out)) {
-			if strings.HasPrefix(dep, "github.com/mirzakhany/yoga") {
+			if strings.HasPrefix(dep, "github.com/yogaui/yoga") {
 				t.Errorf("%s imports %s", pkg, dep)
 			}
 		}

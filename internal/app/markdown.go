@@ -9,7 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
+	"github.com/yogaui/yoga/ui"
 )
 
 // mdMode is how a Markdown tab shows its file.
@@ -81,7 +82,7 @@ func (a *App) markdownMode(path string) ui.View {
 }
 
 // markdownView wraps a Markdown file's editor with the rendered preview.
-func (a *App) markdownView(c *ui.Ctx, ed *ui.Editor, editor ui.View) ui.View {
+func (a *App) markdownView(c *ui.Ctx, ed *codeeditor.Editor, editor ui.View) ui.View {
 	th := c.Theme()
 	path := ed.Path
 	d := a.mdDoc(path)

@@ -3,13 +3,13 @@ TAG_NAME ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0)
 # Packaging runs through the yoga CLI (see yoga.toml); make install_deps
 # installs the version go.mod builds the app with. Artifacts land in dist/<os>/.
 YOGA ?= yoga
-YOGA_VERSION = $(shell go list -m -f '{{.Version}}' github.com/mirzakhany/yoga)
+YOGA_VERSION = $(shell go list -m -f '{{.Version}}' github.com/yogaui/yoga)
 ARCH ?= $(shell go env GOARCH)
 APP = dist/darwin/Hm.app
 
 .PHONY: install_deps
 install_deps:
-	go install github.com/mirzakhany/yoga/cmd/yoga@$(YOGA_VERSION)
+	go install github.com/yogaui/yoga/cmd/yoga@$(YOGA_VERSION)
 
 .PHONY: run
 run:

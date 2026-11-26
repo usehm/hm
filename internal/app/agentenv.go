@@ -13,8 +13,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/mirzakhany/yoga/lsp"
-	"github.com/mirzakhany/yoga/ui"
+	"github.com/yogaui/editor/lsp"
+	"github.com/yogaui/yoga/ui"
 
 	"github.com/usehm/hm/internal/agent/tools"
 	"github.com/usehm/hm/internal/search"

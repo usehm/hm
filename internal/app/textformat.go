@@ -8,8 +8,9 @@ import (
 	"fmt"
 	"unicode/utf8"
 
-	"github.com/mirzakhany/yoga/icons"
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
+	"github.com/yogaui/yoga/icons"
+	"github.com/yogaui/yoga/ui"
 )
 
 // Buffers keep a file's bytes as they are on disk, so the footer reads the
@@ -34,14 +35,14 @@ var bomUTF8 = []byte{0xEF, 0xBB, 0xBF}
 
 // textFormat is what the footer shows about an editor's bytes.
 type textFormat struct {
-	ed       *ui.Editor
+	ed       *codeeditor.Editor
 	rev      uint64
 	eol, enc string
 }
 
 // formatOf reads ed's line endings and encoding. The footer asks each
 // frame for the one editor it shows, so only that one is remembered.
-func (a *App) formatOf(ed *ui.Editor) textFormat {
+func (a *App) formatOf(ed *codeeditor.Editor) textFormat {
 	if f := a.footerFmt; f.ed == ed && f.rev == ed.Revision() {
 		return f
 	}
@@ -82,12 +83,12 @@ func withEOL(text []byte, eol string) []byte {
 }
 
 // setEOL rewrites ed's line endings as one undoable edit.
-func (a *App) setEOL(ed *ui.Editor, eol string) {
+func (a *App) setEOL(ed *codeeditor.Editor, eol string) {
 	ed.ApplyText(string(withEOL(ed.Bytes(), eol)))
 }
 
 // setBOM adds or removes the UTF-8 byte order mark at the start of ed.
-func (a *App) setBOM(ed *ui.Editor, on bool) {
+func (a *App) setBOM(ed *codeeditor.Editor, on bool) {
 	text := ed.Bytes()
 	has := bytes.HasPrefix(text, bomUTF8)
 	switch {
@@ -98,12 +99,12 @@ func (a *App) setBOM(ed *ui.Editor, on bool) {
 	}
 }
 
-func (a *App) eolButton(ed *ui.Editor) ui.View {
+func (a *App) eolButton(ed *codeeditor.Editor) ui.View {
 	return footerMenu("ft-eol", a.formatOf(ed).eol, a.eolMenu(ed)).Tooltip("Line endings")
 }
 
 // eolMenu converts ed's line endings.
-func (a *App) eolMenu(ed *ui.Editor) []ui.MenuItem {
+func (a *App) eolMenu(ed *codeeditor.Editor) []ui.MenuItem {
 	cur := a.formatOf(ed).eol
 	item := func(eol, label string) ui.MenuItem {
 		return ui.MenuItem{Label: label, Checked: cur == eol, OnSelect: func() { a.setEOL(ed, eol) }}
@@ -115,13 +116,13 @@ func (a *App) eolMenu(ed *ui.Editor) []ui.MenuItem {
 	}
 }
 
-func (a *App) encodingButton(ed *ui.Editor) ui.View {
+func (a *App) encodingButton(ed *codeeditor.Editor) ui.View {
 	return footerMenu("ft-encoding", a.formatOf(ed).enc, a.encodingMenu(ed)).Tooltip("Encoding")
 }
 
 // encodingMenu adds or removes a UTF-8 file's byte order mark; hm reads
 // other encodings as they are, without converting them.
-func (a *App) encodingMenu(ed *ui.Editor) []ui.MenuItem {
+func (a *App) encodingMenu(ed *codeeditor.Editor) []ui.MenuItem {
 	cur := a.formatOf(ed).enc
 	if cur != encUTF8 && cur != encUTF8BOM {
 		return []ui.MenuItem{{Label: cur + ": hm edits UTF-8 text only", Disabled: true}}
@@ -140,7 +141,7 @@ type indentOverride struct {
 	width  int
 }
 
-func (a *App) indentButton(ed *ui.Editor, path string) ui.View {
+func (a *App) indentButton(ed *codeeditor.Editor, path string) ui.View {
 	label := fmt.Sprintf("Tab Size: %d", ed.TabWidth())
 	if ed.IndentSpaces() {
 		label = fmt.Sprintf("Spaces: %d", ed.TabWidth())
@@ -149,7 +150,7 @@ func (a *App) indentButton(ed *ui.Editor, path string) ui.View {
 }
 
 // indentMenu sets path's indentation for the session.
-func (a *App) indentMenu(ed *ui.Editor, path string) []ui.MenuItem {
+func (a *App) indentMenu(ed *codeeditor.Editor, path string) []ui.MenuItem {
 	spaces, width := ed.IndentSpaces(), ed.TabWidth()
 	set := func(spaces bool, width int) {
 		if a.indents == nil {

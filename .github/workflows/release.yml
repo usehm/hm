@@ -105,7 +105,7 @@ jobs:
           go-version-file: go.mod
       - name: Install yoga CLI
         # The yoga version go.mod builds the app with.
-        run: go install github.com/mirzakhany/yoga/cmd/yoga@$(go list -m -f '{{.Version}}' github.com/mirzakhany/yoga)
+        run: go install github.com/yogaui/yoga/cmd/yoga@$(go list -m -f '{{.Version}}' github.com/yogaui/yoga)
 
       - name: Import Developer ID certificate
         env:
@@ -171,7 +171,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Install yoga CLI
-        run: go install github.com/mirzakhany/yoga/cmd/yoga@$(go list -m -f '{{.Version}}' github.com/mirzakhany/yoga)
+        run: go install github.com/yogaui/yoga/cmd/yoga@$(go list -m -f '{{.Version}}' github.com/yogaui/yoga)
       - name: Build
         run: yoga package -os linux -arch ${{ matrix.arch }} -version "$TAG"
       - name: Sign update asset
@@ -197,7 +197,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Install yoga CLI
-        run: go install github.com/mirzakhany/yoga/cmd/yoga@$(go list -m -f '{{.Version}}' github.com/mirzakhany/yoga)
+        run: go install github.com/yogaui/yoga/cmd/yoga@$(go list -m -f '{{.Version}}' github.com/yogaui/yoga)
       # amd64 only: the prebuilt wgpu-native has no windows/386 library, and
       # its windows/arm64 one needs the MSVC C++ runtime, which cgo's MinGW
       # toolchain cannot link. Windows on ARM runs the amd64 build emulated.

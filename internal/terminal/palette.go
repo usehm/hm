@@ -7,8 +7,8 @@ import (
 	"image/color"
 
 	"github.com/charmbracelet/x/ansi"
-	"github.com/mirzakhany/yoga/render"
-	"github.com/mirzakhany/yoga/theme"
+	"github.com/yogaui/yoga/render"
+	"github.com/yogaui/yoga/theme"
 )
 
 // Palette is what cells are drawn with: the theme's text and surface for

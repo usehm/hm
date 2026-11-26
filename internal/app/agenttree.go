@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mirzakhany/yoga/icons"
-	"github.com/mirzakhany/yoga/ui"
 	"github.com/usehm/hm/internal/agent"
 	"github.com/usehm/hm/internal/agent/provider"
+	"github.com/yogaui/yoga/icons"
+	"github.com/yogaui/yoga/ui"
 )
 
 // A session is a tree: going back to an earlier message and going on from

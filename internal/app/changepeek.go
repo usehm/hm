@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mirzakhany/yoga/icons"
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
+	"github.com/yogaui/yoga/icons"
+	"github.com/yogaui/yoga/ui"
 
 	"github.com/usehm/hm/internal/diff"
 )
@@ -26,7 +27,7 @@ type changePeek struct {
 
 // changeHunks diffs ed against its HEAD version; false when there is no
 // tracked base yet.
-func (a *App) changeHunks(ed *ui.Editor) (base, cur []string, hunks []diff.Hunk, ok bool) {
+func (a *App) changeHunks(ed *codeeditor.Editor) (base, cur []string, hunks []diff.Hunk, ok bool) {
 	b := a.gitst.bases[ed.Path]
 	if b == nil || !b.loaded || !b.tracked {
 		return nil, nil, nil, false
@@ -52,7 +53,7 @@ func hunkAt(hunks []diff.Hunk, line int) int {
 }
 
 // showChange opens the change peek for the hunk with a bar on line.
-func (a *App) showChange(ed *ui.Editor, line int) {
+func (a *App) showChange(ed *codeeditor.Editor, line int) {
 	base, cur, hunks, ok := a.changeHunks(ed)
 	if !ok {
 		return
@@ -76,7 +77,7 @@ func peekAnchor(h diff.Hunk) int {
 
 // stepChange moves the peek, or the caret when no peek is open, to the next
 // (dir 1) or previous (dir -1) change, wrapping around.
-func (a *App) stepChange(ed *ui.Editor, dir int) {
+func (a *App) stepChange(ed *codeeditor.Editor, dir int) {
 	if ed == nil {
 		return
 	}
@@ -114,7 +115,7 @@ func (a *App) stepChange(ed *ui.Editor, dir int) {
 
 // revertChange puts the peek's hunk back to its HEAD lines, as one undo
 // step.
-func (a *App) revertChange(ed *ui.Editor) {
+func (a *App) revertChange(ed *codeeditor.Editor) {
 	p := a.peek
 	if p == nil || ed == nil || ed.Path != p.path || ed.Revision() != p.rev {
 		return
@@ -145,7 +146,7 @@ func lineStart(text []byte, line int) int {
 }
 
 // changePeekView is the open peek over ed, or nil.
-func (a *App) changePeekView(c *ui.Ctx, ed *ui.Editor) ui.View {
+func (a *App) changePeekView(c *ui.Ctx, ed *codeeditor.Editor) ui.View {
 	p := a.peek
 	if p == nil || ed == nil || p.path != ed.Path {
 		return nil

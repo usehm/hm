@@ -10,9 +10,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/mirzakhany/yoga/render"
-	"github.com/mirzakhany/yoga/theme"
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
+	"github.com/yogaui/yoga/render"
+	"github.com/yogaui/yoga/theme"
+	"github.com/yogaui/yoga/ui"
 
 	"github.com/usehm/hm/internal/diff"
 	"github.com/usehm/hm/internal/gitui"
@@ -44,7 +45,7 @@ type gitBase struct {
 	loaded  bool
 	rev     uint64 // buffer revision the marks were computed for
 	busy    bool
-	marks   map[int]ui.LineMarkKind
+	marks   map[int]codeeditor.LineMarkKind
 }
 
 // startGit wires the git panel, the file watcher and the status poll to the
@@ -273,7 +274,7 @@ func (a *App) reloadIfClean(path string) {
 
 // updateChangeBars recomputes the gutter change bars against HEAD when the
 // buffer changed, off the UI goroutine.
-func (a *App) updateChangeBars(ed *ui.Editor) {
+func (a *App) updateChangeBars(ed *codeeditor.Editor) {
 	g := &a.gitst
 	if g.repo == nil || g.status == nil || g.status.Head == "" {
 		ed.SetLineMarks(nil)
@@ -305,11 +306,11 @@ func (a *App) updateChangeBars(ed *ui.Editor) {
 		b.rev, b.busy = rev, true
 		base, text, tracked := b.data, append([]byte(nil), ed.Bytes()...), b.tracked
 		go func() {
-			var marks map[int]ui.LineMarkKind
+			var marks map[int]codeeditor.LineMarkKind
 			if tracked {
-				marks = map[int]ui.LineMarkKind{}
+				marks = map[int]codeeditor.LineMarkKind{}
 				for l, m := range diff.Marks(diff.Lines(string(base)), diff.Lines(string(text))) {
-					marks[l] = ui.LineMarkKind(m)
+					marks[l] = codeeditor.LineMarkKind(m)
 				}
 			}
 			// A new file gets no bars: the explorer colors its name instead.

@@ -14,8 +14,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mirzakhany/yoga/icons"
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
+	"github.com/yogaui/yoga/icons"
+	"github.com/yogaui/yoga/ui"
 )
 
 // A CSV or TSV tab shows its file as a table, the first row naming the
@@ -52,10 +53,10 @@ type csvDoc struct {
 	err     string
 
 	table  *ui.Table
-	ed     *ui.Editor // the editor shown last frame, which table edits go to
-	labels []string   // the columns the table was built with
-	filled uint64     // the revision the table's rows come from
-	full   bool       // the table has rows from filled
+	ed     *codeeditor.Editor // the editor shown last frame, which table edits go to
+	labels []string           // the columns the table was built with
+	filled uint64             // the revision the table's rows come from
+	full   bool               // the table has rows from filled
 	filter string
 }
 
@@ -121,7 +122,7 @@ func parseCSV(text []byte, comma rune) (recs [][]string, spans [][2]int, err err
 }
 
 // csvRead parses ed's text into d when it changed.
-func (d *csvDoc) csvRead(ed *ui.Editor) {
+func (d *csvDoc) csvRead(ed *codeeditor.Editor) {
 	if rev := ed.Revision(); d.read && rev == d.rev {
 		return
 	}
@@ -157,7 +158,7 @@ func encodeRecord(rec []string, comma rune, eol string) string {
 }
 
 // setCSVCell writes value to column col of data row row.
-func (a *App) setCSVCell(ed *ui.Editor, d *csvDoc, row, col int, value string) {
+func (a *App) setCSVCell(ed *codeeditor.Editor, d *csvDoc, row, col int, value string) {
 	d.csvRead(ed)
 	if row < 0 || row >= len(d.records) || col < 0 {
 		return
@@ -176,7 +177,7 @@ func (a *App) setCSVCell(ed *ui.Editor, d *csvDoc, row, col int, value string) {
 }
 
 // deleteCSVRow removes data row row with its line break.
-func (a *App) deleteCSVRow(ed *ui.Editor, d *csvDoc, row int) {
+func (a *App) deleteCSVRow(ed *codeeditor.Editor, d *csvDoc, row int) {
 	d.csvRead(ed)
 	if row < 0 || row >= len(d.records) {
 		return
@@ -193,7 +194,7 @@ func (a *App) deleteCSVRow(ed *ui.Editor, d *csvDoc, row int) {
 }
 
 // addCSVRow appends an empty row.
-func (a *App) addCSVRow(ed *ui.Editor, d *csvDoc) {
+func (a *App) addCSVRow(ed *codeeditor.Editor, d *csvDoc) {
 	d.csvRead(ed)
 	text, eol := string(ed.Bytes()), ed.EOL()
 	if text != "" && !strings.HasSuffix(text, "\n") {
@@ -277,7 +278,7 @@ func (a *App) csvModeSwitch(path string) ui.View {
 }
 
 // csvView wraps a CSV file's editor with its table.
-func (a *App) csvView(c *ui.Ctx, ed *ui.Editor, editor ui.View) ui.View {
+func (a *App) csvView(c *ui.Ctx, ed *codeeditor.Editor, editor ui.View) ui.View {
 	d := a.csvDoc(ed.Path)
 	if d.mode == csvSource {
 		return editor

@@ -11,11 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mirzakhany/yoga"
-	"github.com/mirzakhany/yoga/lsp"
-	"github.com/mirzakhany/yoga/shape"
-	"github.com/mirzakhany/yoga/theme"
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
+	"github.com/yogaui/editor/lsp"
+	"github.com/yogaui/yoga"
+	"github.com/yogaui/yoga/shape"
+	"github.com/yogaui/yoga/theme"
+	"github.com/yogaui/yoga/ui"
 
 	"github.com/usehm/hm/internal/config"
 )
@@ -48,12 +49,12 @@ func (a *App) applyConfig(cfg config.Config) {
 	}
 	a.applied.ok = true
 	applyZoom(ed.Zoom)
-	ui.EditorDefaults.SoftWrap = ed.SoftWrap
-	ui.EditorDefaults.LineNumbers = ed.LineNumbers
-	ui.EditorDefaults.Minimap = ed.Minimap
-	ui.EditorDefaults.ScrollPastEnd = ed.ScrollPastEnd
-	ui.EditorDefaults.IndentSpaces = ed.InsertSpaces
-	ui.EditorDefaults.AutoIndent = autoIndentModes[ed.AutoIndent]
+	codeeditor.EditorDefaults.SoftWrap = ed.SoftWrap
+	codeeditor.EditorDefaults.LineNumbers = ed.LineNumbers
+	codeeditor.EditorDefaults.Minimap = ed.Minimap
+	codeeditor.EditorDefaults.ScrollPastEnd = ed.ScrollPastEnd
+	codeeditor.EditorDefaults.IndentSpaces = ed.InsertSpaces
+	codeeditor.EditorDefaults.AutoIndent = autoIndentModes[ed.AutoIndent]
 	for _, err := range a.lang.Apply(a.resolveQueryPaths(cfg.Languages)) {
 		a.notifs.Add(err.Error(), ui.ToastWarning)
 	}

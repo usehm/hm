@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/mirzakhany/yoga/icons"
-	"github.com/mirzakhany/yoga/ui"
+	"github.com/yogaui/yoga/icons"
+	"github.com/yogaui/yoga/ui"
 )
 
 // Notifications keeps recent messages for the footer's notification center,

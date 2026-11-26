@@ -12,9 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mirzakhany/yoga/icons"
-	"github.com/mirzakhany/yoga/lsp"
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
+	"github.com/yogaui/editor/lsp"
+	"github.com/yogaui/yoga/icons"
+	"github.com/yogaui/yoga/ui"
 
 	"github.com/usehm/hm/internal/config"
 	"github.com/usehm/hm/internal/lang"
@@ -103,7 +104,7 @@ func (a *App) appendOutput(s string) {
 }
 
 // position is the LSP position of the active editor's caret.
-func (a *App) position(ed *ui.Editor, off int) lsp.Position {
+func (a *App) position(ed *codeeditor.Editor, off int) lsp.Position {
 	return lsp.PositionAt(ed.Bytes(), off, a.lang.Manager().Encoding(ed.Path))
 }
 
@@ -124,19 +125,19 @@ func (a *App) goTo(loc lsp.Location, enc string) {
 }
 
 // definition jumps to the definition of the symbol at off.
-func (a *App) definition(ed *ui.Editor, off int) {
+func (a *App) definition(ed *codeeditor.Editor, off int) {
 	a.navigate(ed, off, "definition", func(ctx context.Context, m *lsp.Manager, path string, pos lsp.Position) ([]lsp.Location, error) {
 		return m.Definition(ctx, path, pos)
 	})
 }
 
-func (a *App) references(ed *ui.Editor, off int) {
+func (a *App) references(ed *codeeditor.Editor, off int) {
 	a.navigate(ed, off, "references", func(ctx context.Context, m *lsp.Manager, path string, pos lsp.Position) ([]lsp.Location, error) {
 		return m.References(ctx, path, pos, true)
 	})
 }
 
-func (a *App) implementation(ed *ui.Editor, off int) {
+func (a *App) implementation(ed *codeeditor.Editor, off int) {
 	a.navigate(ed, off, "implementations", func(ctx context.Context, m *lsp.Manager, path string, pos lsp.Position) ([]lsp.Location, error) {
 		return m.Implementation(ctx, path, pos)
 	})
@@ -145,7 +146,7 @@ func (a *App) implementation(ed *ui.Editor, off int) {
 type locator func(ctx context.Context, m *lsp.Manager, path string, pos lsp.Position) ([]lsp.Location, error)
 
 // navigate asks the server for locations; one is opened, several are listed.
-func (a *App) navigate(ed *ui.Editor, off int, what string, find locator) {
+func (a *App) navigate(ed *codeeditor.Editor, off int, what string, find locator) {
 	if ed == nil {
 		return
 	}
@@ -202,7 +203,7 @@ func (a *App) showLocations(what string, locs []lsp.Location, enc string) {
 }
 
 // lineText reads one line of a buffer, or of the file when it is not open.
-func lineText(ed *ui.Editor, path string, line int) string {
+func lineText(ed *codeeditor.Editor, path string, line int) string {
 	var text []byte
 	if ed != nil {
 		text = ed.Bytes()
@@ -217,7 +218,7 @@ func lineText(ed *ui.Editor, path string, line int) string {
 }
 
 // rename asks for a new name and renames the symbol at the caret everywhere.
-func (a *App) rename(ed *ui.Editor) {
+func (a *App) rename(ed *codeeditor.Editor) {
 	if ed == nil {
 		return
 	}
@@ -286,7 +287,7 @@ func (a *App) serverApplyEdit(we lsp.WorkspaceEdit, enc string) bool {
 }
 
 // documentSymbols lists the active file's symbols in the palette.
-func (a *App) documentSymbols(ed *ui.Editor) {
+func (a *App) documentSymbols(ed *codeeditor.Editor) {
 	if ed == nil {
 		return
 	}

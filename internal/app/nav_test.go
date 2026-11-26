@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mirzakhany/yoga/input"
+	"github.com/yogaui/yoga/input"
 )
 
 func TestNavigationBackAndForward(t *testing.T) {

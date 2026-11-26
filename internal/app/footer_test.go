@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mirzakhany/yoga/ui"
+	"github.com/yogaui/yoga/ui"
 )
 
 func menuItem(t *testing.T, items []ui.MenuItem, label string) ui.MenuItem {

@@ -12,8 +12,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/mirzakhany/yoga/icons"
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
+	"github.com/yogaui/yoga/icons"
+	"github.com/yogaui/yoga/ui"
 
 	"github.com/usehm/hm/internal/search"
 	"github.com/usehm/hm/internal/workspace"
@@ -354,7 +355,7 @@ func (a *App) searchRegexp() *regexp.Regexp {
 }
 
 // bufferFor returns the buffer for path, borrowing one for files not open.
-func (a *App) bufferFor(path string) (*ui.Editor, error) {
+func (a *App) bufferFor(path string) (*codeeditor.Editor, error) {
 	if ed := a.bufs.Get(path); ed != nil {
 		return ed, nil
 	}

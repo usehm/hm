@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
 
 	"github.com/usehm/hm/internal/editor"
 )
@@ -57,7 +57,7 @@ func New(root string, bufs *editor.Buffers) *Workspace {
 }
 
 // Open opens path in a tab, or activates the tab that already shows it.
-func (w *Workspace) Open(path string) (*ui.Editor, error) {
+func (w *Workspace) Open(path string) (*codeeditor.Editor, error) {
 	if abs, err := filepath.Abs(path); err == nil {
 		path = abs
 	}
@@ -118,7 +118,7 @@ func (w *Workspace) ActiveTab() *Tab {
 }
 
 // ActiveEditor returns the active file tab's editor, or nil.
-func (w *Workspace) ActiveEditor() *ui.Editor {
+func (w *Workspace) ActiveEditor() *codeeditor.Editor {
 	t := w.ActiveTab()
 	if t == nil || t.Kind != KindFile {
 		return nil

@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mirzakhany/yoga/input"
-	"github.com/mirzakhany/yoga/lsp"
+	"github.com/yogaui/editor/lsp"
+	"github.com/yogaui/yoga/input"
 )
 
 func writeFile(t *testing.T, p, s string) {
