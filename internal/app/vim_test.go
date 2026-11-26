@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	codeeditor "github.com/yogaui/editor"
-
 	"github.com/yogaui/yoga/input"
 )
 

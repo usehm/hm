@@ -9,7 +9,6 @@ import (
 	"unicode/utf8"
 
 	codeeditor "github.com/yogaui/editor"
-
 	"github.com/yogaui/yoga/icons"
 	"github.com/yogaui/yoga/ui"
 )

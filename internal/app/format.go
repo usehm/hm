@@ -11,7 +11,6 @@ import (
 	"time"
 
 	codeeditor "github.com/yogaui/editor"
-
 	"github.com/yogaui/editor/lsp"
 	"github.com/yogaui/yoga/ui"
 

@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	codeeditor "github.com/yogaui/editor"
-
 	"github.com/yogaui/yoga/icons"
 	"github.com/yogaui/yoga/theme"
 	"github.com/yogaui/yoga/ui"

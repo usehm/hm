@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	codeeditor "github.com/yogaui/editor"
-
 	"github.com/yogaui/editor/highlight"
 	"github.com/yogaui/editor/lsp"
 	"github.com/yogaui/yoga/icons"
