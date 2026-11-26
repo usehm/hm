@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mirzakhany/yoga/input"
+	"github.com/yogaui/yoga/input"
 )
 
 func searchProject(t *testing.T) (*harness, string) {

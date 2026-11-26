@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
 
 	"github.com/usehm/hm/internal/gitx"
 	"github.com/usehm/hm/internal/update"
@@ -61,7 +61,7 @@ func TestFooterBranchAndGutterMarks(t *testing.T) {
 	ed.ApplyText("package main\n\n// added\nfunc main() { println(1) }\n")
 	h.until("change bars", 10*time.Second, func() bool {
 		b := h.app.gitst.bases[main]
-		return b != nil && b.marks != nil && b.marks[2] == ui.LineModified && b.marks[3] == ui.LineAdded
+		return b != nil && b.marks != nil && b.marks[2] == codeeditor.LineModified && b.marks[3] == codeeditor.LineAdded
 	})
 	// Saving shows up in the footer's changed count.
 	h.app.writeFile(main)

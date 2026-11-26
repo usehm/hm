@@ -12,8 +12,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/mirzakhany/yoga/input"
-	"github.com/mirzakhany/yoga/ui"
+	"github.com/yogaui/yoga/input"
+	"github.com/yogaui/yoga/ui"
 
 	"github.com/usehm/hm/internal/config"
 	"github.com/usehm/hm/internal/workspace"

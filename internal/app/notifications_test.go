@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mirzakhany/yoga/ui"
+	"github.com/yogaui/yoga/ui"
 
 	"github.com/usehm/hm/internal/agent/guard"
 )

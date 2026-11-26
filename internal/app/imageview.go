@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mirzakhany/yoga/ui"
+	"github.com/yogaui/yoga/ui"
 	_ "golang.org/x/image/bmp"
 	_ "golang.org/x/image/tiff"
 	_ "golang.org/x/image/webp"

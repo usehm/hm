@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mirzakhany/yoga/input"
+	"github.com/yogaui/yoga/input"
 
 	"github.com/usehm/hm/internal/config"
 	"github.com/usehm/hm/internal/workspace"

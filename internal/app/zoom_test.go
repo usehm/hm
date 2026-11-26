@@ -6,8 +6,8 @@ package app
 import (
 	"testing"
 
-	"github.com/mirzakhany/yoga"
-	"github.com/mirzakhany/yoga/input"
+	"github.com/yogaui/yoga"
+	"github.com/yogaui/yoga/input"
 )
 
 func TestZoomShortcuts(t *testing.T) {

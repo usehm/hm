@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mirzakhany/yoga/input"
+	"github.com/yogaui/yoga/input"
 )
 
 // TestEditorLineShortcuts drives the line commands through hm's own key

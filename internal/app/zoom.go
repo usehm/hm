@@ -7,8 +7,8 @@ import (
 	"math"
 	"strconv"
 
-	"github.com/mirzakhany/yoga"
-	"github.com/mirzakhany/yoga/ui"
+	"github.com/yogaui/yoga"
+	"github.com/yogaui/yoga/ui"
 )
 
 // zoomSteps are the levels zoom in and out move between, as browsers do.

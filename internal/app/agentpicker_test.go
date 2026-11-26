@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mirzakhany/yoga/input"
+	"github.com/yogaui/yoga/input"
 )
 
 // twoProviders is a workspace with an Anthropic provider (claude) and an

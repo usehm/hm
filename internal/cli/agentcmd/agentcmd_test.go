@@ -181,7 +181,7 @@ func TestNoUIToolkit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("go list: %v\n%s", err, out)
 	}
-	if strings.Contains(string(out), "github.com/mirzakhany/yoga") {
+	if strings.Contains(string(out), "github.com/yogaui/yoga") {
 		t.Fatal("hm agent imports the UI toolkit")
 	}
 }

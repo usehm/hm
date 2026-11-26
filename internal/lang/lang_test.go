@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mirzakhany/yoga/highlight"
-	"github.com/mirzakhany/yoga/lsp"
+	"github.com/yogaui/editor/highlight"
+	"github.com/yogaui/editor/lsp"
 
 	"github.com/usehm/hm/internal/config"
 )

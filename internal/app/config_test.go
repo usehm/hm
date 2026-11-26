@@ -9,9 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mirzakhany/yoga/input"
-	"github.com/mirzakhany/yoga/theme"
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
+
+	"github.com/yogaui/yoga/input"
+	"github.com/yogaui/yoga/theme"
 
 	"github.com/usehm/hm/internal/config"
 )
@@ -143,11 +144,11 @@ func TestSettingsApplyLive(t *testing.T) {
 	root := project(t)
 	h := newHarness(t, root, false)
 	h.app.setSetting([]string{"editor", "scroll_past_end"}, false)
-	if ui.EditorDefaults.ScrollPastEnd {
+	if codeeditor.EditorDefaults.ScrollPastEnd {
 		t.Fatal("scroll_past_end not applied")
 	}
 	h.app.setSetting([]string{"editor", "scroll_past_end"}, true)
-	if !ui.EditorDefaults.ScrollPastEnd {
+	if !codeeditor.EditorDefaults.ScrollPastEnd {
 		t.Fatal("scroll_past_end not applied")
 	}
 

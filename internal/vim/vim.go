@@ -4,14 +4,14 @@
 // Package vim is a Vim keymap for an editor: normal, insert, visual and
 // visual-line modes, counts, operators with motions and text objects,
 // registers, repeat with ".", search with "/" and a few ex commands. It is a
-// state machine over Buffer, which *ui.Editor implements; the app feeds it
+// state machine over Buffer, which *codeeditor.Editor implements; the app feeds it
 // keys and typed text through the editor's KeyFilter and TextFilter.
 package vim
 
 import (
 	"strings"
 
-	"github.com/mirzakhany/yoga/input"
+	"github.com/yogaui/yoga/input"
 )
 
 // Buffer is the editor the keymap drives.

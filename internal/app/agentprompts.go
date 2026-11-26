@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mirzakhany/yoga/ui"
+	"github.com/yogaui/yoga/ui"
 
 	"github.com/usehm/hm/internal/agent"
 	"github.com/usehm/hm/internal/agent/guard"

@@ -7,8 +7,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/mirzakhany/yoga/theme"
-	"github.com/mirzakhany/yoga/ui"
+	"github.com/yogaui/yoga/theme"
+	"github.com/yogaui/yoga/ui"
 )
 
 // TestMain checks themes and shortcuts as the app does.

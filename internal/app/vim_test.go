@@ -7,8 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mirzakhany/yoga/input"
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
+
+	"github.com/yogaui/yoga/input"
 )
 
 func TestVimKeymapInTheEditor(t *testing.T) {
@@ -29,7 +30,7 @@ func TestVimKeymapInTheEditor(t *testing.T) {
 
 	h.app.setSetting([]string{"editor", "keymap"}, "vim")
 	h.frame()
-	if ed.CaretStyle != ui.CaretBlock {
+	if ed.CaretStyle != codeeditor.CaretBlock {
 		t.Fatal("normal mode should show a block caret")
 	}
 	ed.SetSelection(0, 0)
@@ -42,7 +43,7 @@ func TestVimKeymapInTheEditor(t *testing.T) {
 	}
 	h.kb.TypeRune('i')
 	h.frame()
-	if ed.CaretStyle != ui.CaretBar {
+	if ed.CaretStyle != codeeditor.CaretBar {
 		t.Fatal("insert mode should show a bar caret")
 	}
 	h.kb.TypeRune('Z')

@@ -13,9 +13,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/mirzakhany/yoga"
-	"github.com/mirzakhany/yoga/input"
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
+
+	"github.com/yogaui/yoga"
+	"github.com/yogaui/yoga/input"
+	"github.com/yogaui/yoga/ui"
 
 	"github.com/usehm/hm/internal/config"
 	"github.com/usehm/hm/internal/editor"
@@ -37,9 +39,9 @@ type App struct {
 	rec          *keyRecorder // a shortcut being recorded in Settings
 	kbQuery      string       // the shortcuts page's filter
 	keyCommands  []keyCommand
-	vims         map[*ui.Editor]*vim.State // each file editor's Vim keymap
-	groups       []*editorGroup            // split view's groups after the first
-	focusGroup   int                       // 0 is the first group, i is groups[i-1]
+	vims         map[*codeeditor.Editor]*vim.State // each file editor's Vim keymap
+	groups       []*editorGroup                    // split view's groups after the first
+	focusGroup   int                               // 0 is the first group, i is groups[i-1]
 	notifsOpen   bool
 	sideOpen     bool
 	panel        panelKind
@@ -76,7 +78,7 @@ type App struct {
 	locations   []*ui.Command // last references/symbols list
 	pasted      *pasteMark
 	output      strings.Builder
-	outputEd    *ui.Editor
+	outputEd    *codeeditor.Editor
 	outputDirty bool
 
 	search projectSearch
@@ -179,10 +181,10 @@ func Build(opts Options) *App {
 }
 
 // editorOptions are the options every file editor is built with.
-func editorOptions() []ui.EditorOption {
-	return []ui.EditorOption{
-		ui.WithWrapIndent(ui.WrapHanging),
-		ui.WithGutter(ui.GutterSpec{MinDigits: 3}),
+func editorOptions() []codeeditor.EditorOption {
+	return []codeeditor.EditorOption{
+		codeeditor.WithWrapIndent(codeeditor.WrapHanging),
+		codeeditor.WithGutter(codeeditor.GutterSpec{MinDigits: 3}),
 	}
 }
 
@@ -249,7 +251,7 @@ func (a *App) OnKey(c *ui.Ctx, k input.KeyEvent) bool {
 }
 
 // attachEditor wires a new file editor to the app.
-func (a *App) attachEditor(ed *ui.Editor) {
+func (a *App) attachEditor(ed *codeeditor.Editor) {
 	a.attachVim(ed)
 	a.applyEditorSettings(ed, ed.Path)
 	ed.OnLineMark = func(line int) { a.showChange(ed, line) }

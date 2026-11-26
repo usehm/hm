@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mirzakhany/yoga/icons"
-	"github.com/mirzakhany/yoga/theme"
+	"github.com/yogaui/yoga/icons"
+	"github.com/yogaui/yoga/theme"
 )
 
 func TestTreeIcon(t *testing.T) {

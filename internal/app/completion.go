@@ -9,7 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
+
+	"github.com/yogaui/yoga/ui"
 
 	"github.com/usehm/hm/internal/agent/complete"
 	"github.com/usehm/hm/internal/agent/host"
@@ -113,7 +115,7 @@ func (a *App) triggerCompletion() {
 // requestCompletion asks the model about the caret in ed and shows the
 // reply as ghost text if ed has not changed meanwhile. Unasked requests
 // only run where complete.Eligible allows.
-func (a *App) requestCompletion(ed *ui.Editor, asked bool) {
+func (a *App) requestCompletion(ed *codeeditor.Editor, asked bool) {
 	if ed.HasSelection() {
 		return
 	}

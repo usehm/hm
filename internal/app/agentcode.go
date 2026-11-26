@@ -10,8 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mirzakhany/yoga/lsp"
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
+
+	"github.com/yogaui/editor/lsp"
 
 	"github.com/usehm/hm/internal/agent/tools"
 	"github.com/usehm/hm/internal/lang"
@@ -27,7 +28,7 @@ func (c agentCode) attach(path string, line, col int) (lsp.Position, []byte, err
 	var text []byte
 	var err error
 	cerr := c.a.callUI(func() {
-		var ed *ui.Editor
+		var ed *codeeditor.Editor
 		if ed, err = c.a.agentBuffer(path); err != nil {
 			return
 		}
@@ -152,7 +153,7 @@ func (c agentCode) Format(ctx context.Context, path string) ([]byte, error) {
 	var ok bool
 	var err error
 	cerr := c.a.callUI(func() {
-		var ed *ui.Editor
+		var ed *codeeditor.Editor
 		if ed, err = c.a.agentBuffer(path); err != nil {
 			return
 		}
@@ -193,7 +194,7 @@ func lineAt(text []byte, line int) string {
 
 // agentBuffer returns path's buffer, opening one (without a tab) for the
 // language server; it is released when the turn ends unless edited.
-func (a *App) agentBuffer(path string) (*ui.Editor, error) {
+func (a *App) agentBuffer(path string) (*codeeditor.Editor, error) {
 	if ed := a.bufs.Get(path); ed != nil {
 		return ed, nil
 	}

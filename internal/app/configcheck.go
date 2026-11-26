@@ -4,8 +4,8 @@
 package app
 
 import (
-	"github.com/mirzakhany/yoga/theme"
-	"github.com/mirzakhany/yoga/ui"
+	"github.com/yogaui/yoga/theme"
+	"github.com/yogaui/yoga/ui"
 
 	"github.com/usehm/hm/internal/config"
 )

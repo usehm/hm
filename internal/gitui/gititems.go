@@ -9,8 +9,8 @@ import (
 	"bytes"
 	"path"
 
-	"github.com/mirzakhany/yoga/highlight"
-	"github.com/mirzakhany/yoga/icons"
+	"github.com/yogaui/editor/highlight"
+	"github.com/yogaui/yoga/icons"
 )
 
 // gitItem names a changed file for the list.

@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mirzakhany/yoga/ui"
+	"github.com/yogaui/yoga/ui"
 
 	"github.com/usehm/hm/internal/agent/provider"
 	"github.com/usehm/hm/internal/workspace"

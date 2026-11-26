@@ -7,10 +7,12 @@ import (
 	"os/exec"
 	"runtime"
 
-	"github.com/mirzakhany/yoga/highlight"
-	"github.com/mirzakhany/yoga/icons"
-	"github.com/mirzakhany/yoga/theme"
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
+
+	"github.com/yogaui/editor/highlight"
+	"github.com/yogaui/yoga/icons"
+	"github.com/yogaui/yoga/theme"
+	"github.com/yogaui/yoga/ui"
 )
 
 // Helpers chapar keeps in its container and pages packages.
@@ -42,11 +44,11 @@ func paneCard(th *theme.Theme, children ...ui.View) ui.View {
 }
 
 // replaceEditor swaps a read-only diff editor for one showing data.
-func replaceEditor(old *ui.Editor, data []byte, hl highlight.Highlighter) *ui.Editor {
+func replaceEditor(old *codeeditor.Editor, data []byte, hl highlight.Highlighter) *codeeditor.Editor {
 	if old != nil {
 		old.Close()
 	}
-	ed := ui.NewEditor(data, hl, ui.WithReadOnly(), ui.WithSharedContent())
+	ed := codeeditor.NewEditor(data, hl, codeeditor.WithReadOnly(), codeeditor.WithSharedContent())
 	ed.SetMinimap(false) // a diff side is read beside the other, not navigated
 	return ed
 }

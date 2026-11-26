@@ -8,7 +8,7 @@
   <p><a href="https://usehm.dev">usehm.dev</a></p>
 </div>
 
-Hm is a desktop code editor with an AI coding agent built in. It is written in Go and draws its UI with [Yoga](https://github.com/mirzakhany/yoga), a GPU-rendered (WebGPU) UI toolkit, so it starts quickly, stays light, and runs natively on macOS, Linux and Windows without a browser engine. It is a sibling of [Chapar](https://github.com/chapar-rest/chapar) and shares its look and feel.
+Hm is a desktop code editor with an AI coding agent built in. It is written in Go and draws its UI with [Yoga](https://github.com/yogaui/yoga), a GPU-rendered (WebGPU) UI toolkit, so it starts quickly, stays light, and runs natively on macOS, Linux and Windows without a browser engine. It is a sibling of [Chapar](https://github.com/chapar-rest/chapar) and shares its look and feel.
 
 Everything is configured in plain YAML, with a settings page on top. The agent is bring-your-own-key: Anthropic, Google Gemini, OpenAI, Azure OpenAI or any OpenAI-compatible endpoint (OpenRouter, Groq, Mistral, xAI, Ollama, LM Studio, ...), and nothing leaves your machine except the calls you configure.
 

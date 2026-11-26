@@ -13,7 +13,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/mirzakhany/yoga/ui"
+	"github.com/yogaui/yoga/ui"
 )
 
 // cliName is the shell command that opens a folder in hm: `hm .`.

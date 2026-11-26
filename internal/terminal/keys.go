@@ -8,7 +8,7 @@ import (
 	"runtime"
 
 	"github.com/charmbracelet/x/vt"
-	"github.com/mirzakhany/yoga/input"
+	"github.com/yogaui/yoga/input"
 )
 
 // claims reports whether the terminal takes ev ahead of app shortcuts.

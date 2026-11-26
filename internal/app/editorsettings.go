@@ -6,15 +6,15 @@ package app
 import (
 	"bytes"
 
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
 
 	"github.com/usehm/hm/internal/config"
 )
 
-var autoIndentModes = map[string]ui.AutoIndent{
-	config.AutoIndentNone:     ui.AutoIndentNone,
-	config.AutoIndentKeep:     ui.AutoIndentKeep,
-	config.AutoIndentAdvanced: ui.AutoIndentBrackets,
+var autoIndentModes = map[string]codeeditor.AutoIndent{
+	config.AutoIndentNone:     codeeditor.AutoIndentNone,
+	config.AutoIndentKeep:     codeeditor.AutoIndentKeep,
+	config.AutoIndentAdvanced: codeeditor.AutoIndentBrackets,
 }
 
 // editorSettings is the editor section with path's language overrides.
@@ -29,7 +29,7 @@ func (a *App) editorSettings(path string) config.Editor {
 // applyEditorSettings gives ed, an editor of path, its language's
 // indentation. Soft wrap is only set when the language overrides it, so a
 // wrap toggled by hand survives a config reload otherwise.
-func (a *App) applyEditorSettings(ed *ui.Editor, path string) {
+func (a *App) applyEditorSettings(ed *codeeditor.Editor, path string) {
 	es := a.editorSettings(path)
 	ed.SetTabWidth(es.TabWidth)
 	ed.SetIndentSpaces(es.InsertSpaces)
@@ -60,7 +60,7 @@ func (a *App) applyAllEditorSettings() {
 
 // trimTrailingWhitespace strips blanks at the end of every line of ed,
 // when its language asks for it.
-func (a *App) trimTrailingWhitespace(ed *ui.Editor) {
+func (a *App) trimTrailingWhitespace(ed *codeeditor.Editor) {
 	if !a.editorSettings(ed.Path).TrimTrailingWhitespace {
 		return
 	}

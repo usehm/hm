@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mirzakhany/yoga/input"
+	"github.com/yogaui/yoga/input"
 )
 
 // buf is a Buffer for tests: text with a caret and whole-text undo.

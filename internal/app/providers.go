@@ -10,8 +10,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/mirzakhany/yoga/icons"
-	"github.com/mirzakhany/yoga/ui"
+	"github.com/yogaui/yoga/icons"
+	"github.com/yogaui/yoga/ui"
 	"gopkg.in/yaml.v3"
 
 	"github.com/usehm/hm/internal/agent/provider"

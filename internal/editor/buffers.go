@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Mohsen Mirzakhani
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Package editor owns the one *ui.Editor each open file has. The tab, the
+// Package editor owns the one *codeeditor.Editor each open file has. The tab, the
 // search dialog's preview and the agent all edit the buffer they get here, so
 // an open file never exists twice.
 package editor
@@ -11,26 +11,26 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/mirzakhany/yoga/ui"
+	codeeditor "github.com/yogaui/editor"
 )
 
 // Buffers maps absolute file paths to their editors.
 type Buffers struct {
 	mu   sync.Mutex
-	eds  map[string]*ui.Editor
-	opts func() []ui.EditorOption
+	eds  map[string]*codeeditor.Editor
+	opts func() []codeeditor.EditorOption
 	// OnOpen runs for each new editor, to attach app hooks.
-	OnOpen func(*ui.Editor)
+	OnOpen func(*codeeditor.Editor)
 }
 
 // New returns an empty registry. opts, when set, supplies the options every
 // new editor is built with.
-func New(opts func() []ui.EditorOption) *Buffers {
-	return &Buffers{eds: map[string]*ui.Editor{}, opts: opts}
+func New(opts func() []codeeditor.EditorOption) *Buffers {
+	return &Buffers{eds: map[string]*codeeditor.Editor{}, opts: opts}
 }
 
 // Get returns the open buffer for path, or nil.
-func (b *Buffers) Get(path string) *ui.Editor {
+func (b *Buffers) Get(path string) *codeeditor.Editor {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.eds[clean(path)]
@@ -38,7 +38,7 @@ func (b *Buffers) Get(path string) *ui.Editor {
 
 // Open returns the buffer for path, reading the file the first time. It must
 // run on the UI goroutine, since building an editor measures text.
-func (b *Buffers) Open(path string) (*ui.Editor, error) {
+func (b *Buffers) Open(path string) (*codeeditor.Editor, error) {
 	path = clean(path)
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -49,11 +49,11 @@ func (b *Buffers) Open(path string) (*ui.Editor, error) {
 	if err != nil {
 		return nil, err
 	}
-	var opts []ui.EditorOption
+	var opts []codeeditor.EditorOption
 	if b.opts != nil {
 		opts = b.opts()
 	}
-	ed := ui.NewEditorFor(path, content, opts...)
+	ed := codeeditor.NewEditorFor(path, content, opts...)
 	b.eds[path] = ed
 	if b.OnOpen != nil {
 		b.OnOpen(ed)
@@ -99,10 +99,10 @@ func (b *Buffers) Rename(from, to string) {
 }
 
 // All returns every open buffer, in no particular order.
-func (b *Buffers) All() []*ui.Editor {
+func (b *Buffers) All() []*codeeditor.Editor {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	out := make([]*ui.Editor, 0, len(b.eds))
+	out := make([]*codeeditor.Editor, 0, len(b.eds))
 	for _, ed := range b.eds {
 		out = append(out, ed)
 	}
@@ -126,7 +126,7 @@ func (b *Buffers) Dirty() []string {
 func (b *Buffers) CloseAll() {
 	b.mu.Lock()
 	eds := b.eds
-	b.eds = map[string]*ui.Editor{}
+	b.eds = map[string]*codeeditor.Editor{}
 	b.mu.Unlock()
 	for _, ed := range eds {
 		ed.Close()

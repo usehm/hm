@@ -6,8 +6,8 @@ package app
 import (
 	"log"
 
-	"github.com/mirzakhany/yoga"
-	"github.com/mirzakhany/yoga/theme"
+	"github.com/yogaui/yoga"
+	"github.com/yogaui/yoga/theme"
 
 	"github.com/usehm/hm/internal/config"
 	"github.com/usehm/hm/internal/update"

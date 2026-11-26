@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mirzakhany/yoga/input"
+	"github.com/yogaui/yoga/input"
 )
 
 // fakeProc is a process whose output the test writes and whose input the
